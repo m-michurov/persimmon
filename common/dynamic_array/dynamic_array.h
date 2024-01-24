@@ -34,3 +34,5 @@ do {                                    \
     free((array)->Data);                \
     *(array) = (typeof(*(array))) {};   \
 } while (0)
+
+#define DynamicArray_Clear(array) do { (array)->Size = 0; } while (0)

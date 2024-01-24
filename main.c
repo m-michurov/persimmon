@@ -192,11 +192,11 @@ bool Lexer_SyntaxError(Lexer lexer[static 1], const char *expected, int got, Tok
 }
 
 bool Lexer_ParseStringLiteral(Lexer lexer[static 1], Token token[static 1]) {
-    lexer->buffer.Size = 0;
+    DynamicArray_Clear(&lexer->buffer);
 
     int c;
     while (EOF != (c = fgetc(lexer->file)) && '"' != c) {
-        DynamicArray_Append(&lexer->buffer, (char) c);
+        DynamicArray_Append(&lexer->buffer, c);
     }
 
     if (feof(lexer->file)) {
@@ -217,7 +217,7 @@ bool Lexer_ParseStringLiteral(Lexer lexer[static 1], Token token[static 1]) {
 bool Lexer_ParseIdentifier(Lexer lexer[static 1], Token token[static 1]) {
     int c;
     while (EOF != (c = fgetc(lexer->file)) && IsIdentifierChar(c)) {
-        DynamicArray_Append(&lexer->buffer, (char) c);
+        DynamicArray_Append(&lexer->buffer, c);
     }
     DynamicArray_Append(&lexer->buffer, '\0');
 
@@ -234,7 +234,7 @@ bool Lexer_ParseIdentifier(Lexer lexer[static 1], Token token[static 1]) {
 bool Lexer_ParseIntLiteral(Lexer lexer[static 1], Token token[static 1]) {
     int c;
     while (EOF != (c = fgetc(lexer->file)) && isdigit(c)) {
-        DynamicArray_Append(&lexer->buffer, (char) c);
+        DynamicArray_Append(&lexer->buffer, c);
     }
     DynamicArray_Append(&lexer->buffer, '\0');
 
@@ -260,13 +260,11 @@ line
 */
 
 bool Lexer_NextToken(Lexer lexer[static 1], Token token[static 1]) {
-    lexer->buffer.Size = 0;
+    DynamicArray_Clear(&lexer->buffer);
 
     int c;
     while (EOF != (c = fgetc(lexer->file))) {
-        DynamicArray_ExtendGeneric((&lexer->buffer)->Data, &(&lexer->buffer)->Size, &(&lexer->buffer)->Capacity,
-                                   sizeof(*(&lexer->buffer)->Data), 1, (typeof(*(&lexer->buffer)->Data)[]) {(char) c});
-//        DynamicArray_Append(&lexer->buffer, (char) c);
+        DynamicArray_Append(&lexer->buffer, c);
 
         if (TOKEN_DOT == lexer->lastTokenType) {
             if (IsIdentifierChar(c)) {
@@ -309,7 +307,7 @@ bool Lexer_NextToken(Lexer lexer[static 1], Token token[static 1]) {
 
         if (IsSpace(c)) {
             lexer->lastTokenType = TOKEN_NONE;
-            lexer->buffer.Size = 0;
+            DynamicArray_Clear(&lexer->buffer);
             continue;
         }
 
