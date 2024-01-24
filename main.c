@@ -322,7 +322,7 @@ bool Lexer_NextToken(Lexer lexer[static 1], Token token[static 1]) {
 int main() {
     auto token = (Token) {};
     auto path = "../demo/test.p";
-    auto in = fopen(path, "r");
+    auto in = fopen(path, "rb");
     if (NULL == in) {
         CALL_FAILED(fopen, "%s", path);
     }
