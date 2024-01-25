@@ -2,12 +2,6 @@
 
 #include <stdlib.h>
 
-void *DynamicArray_ReserveGeneric(
-        void *data,
-        size_t elementSize, size_t minCapacity,
-        size_t size, size_t capacity[static 1]
-);
-
 void *DynamicArray_ExtendGeneric(
         void *data,
         size_t size[static 1],
@@ -36,3 +30,13 @@ do {                                    \
 } while (0)
 
 #define DynamicArray_Clear(array) do { (array)->Size = 0; } while (0)
+
+#define DynamicArray_Pop(array, dst)            \
+({                                              \
+    bool ok = false;                            \
+    if ((array)->Size > 0) {                    \
+        *dst = (array)->Data[--(array)->Size];  \
+        ok = true;                              \
+    }                                           \
+    ok;                                         \
+})

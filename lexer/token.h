@@ -18,6 +18,9 @@ const char *TokenType_Name(TokenType tokenType);
 
 typedef struct Token {
     TokenType Type;
+    long Start;
+    long End;
+
     union {
         const char *Identifier;
         const char *StringLiteral;

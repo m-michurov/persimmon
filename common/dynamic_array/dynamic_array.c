@@ -5,7 +5,7 @@
 
 #include "common/macros.h"
 
-void *DynamicArray_ReserveGeneric(
+static void *DynamicArray_ReserveGeneric(
         void *data,
         size_t elementSize, size_t minCapacity,
         size_t size, size_t capacity[1]
@@ -17,7 +17,7 @@ void *DynamicArray_ReserveGeneric(
 
     void *newData = realloc(data, newCapacity * elementSize);
     if (NULL == newData) {
-        CALL_FAILED(realloc, "Failed to reallocate buffer");
+        CallFailed(realloc, "Failed to reallocate buffer");
     }
 
     *capacity = newCapacity;

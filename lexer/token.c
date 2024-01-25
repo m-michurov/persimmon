@@ -22,12 +22,12 @@ const char *TokenType_Name(TokenType tokenType) {
         case TOKEN_STRING_LITERAL:
             return "TOKEN_STRING_LITERAL";
         default:
-            UNREACHABLE("tokenType=%d", tokenType);
+            Unreachable("tokenType=%d", tokenType);
     }
 }
 
 void Token_Print(FILE file[static 1], Token token) {
-    fprintf(file, "Token{ .Type=%s", TokenType_Name(token.Type));
+    fprintf(file, "Token{ .Type=%s, .Start=%ld", TokenType_Name(token.Type), token.Start);
     switch (token.Type) {
         case TOKEN_IDENTIFIER: {
             fprintf(file, ", .Identifier=`%s`", token.Identifier);

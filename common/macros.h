@@ -17,13 +17,43 @@ do {                                        \
     exit(EXIT_FAILURE);                     \
 } while (0)
 
-#define UNREACHABLE(why, ...) LOG("This code should never be reached: " why, ##__VA_ARGS__)
+#define Unreachable(why, ...) LOG("This code should never be reached: " why, ##__VA_ARGS__)
 
-#define TODO(msg) do { fprintf(stderr, "[%s:%d] TODO: " msg "\n", __FILE__, __LINE__); exit(EXIT_FAILURE); } while (0)
+#define TODO(msg) do { LOG("TODO: " msg); exit(EXIT_FAILURE); } while (0)
 
-#define CALL_FAILED(callee, msg, ...)   \
-do {                                    \
-    perror(#callee);                    \
-    LOG(msg, ##__VA_ARGS__);            \
-    exit(EXIT_FAILURE);                 \
+#define VA_ARGS_IS_EMPTY(dummy, ...) ( sizeof( (char[]){#__VA_ARGS__} ) == 1 )
+#define CallFailed(callee, ...)             \
+do {                                        \
+    perror(#callee);                        \
+    if (VA_ARGS_IS_EMPTY(__VA_ARGS__)) {    \
+        LOG(__VA_ARGS__);                   \
+    }                                       \
+    exit(EXIT_FAILURE);                     \
 } while (0)
+
+#define CallChecked(callee, args, ...)                      \
+({                                                          \
+    __auto_type _result = (callee args);                    \
+    if (errno) {                                            \
+        if (VA_ARGS_IS_EMPTY(__VA_ARGS__)) {                \
+            CallFailed(#callee, "`" #callee "` failed");    \
+        } else {                                            \
+            CallFailed(#callee, __VA_ARGS__);               \
+        }                                                   \
+    }                                                       \
+    _result;                                                \
+})
+
+#define Assert(expression)          \
+({                                  \
+    __auto_type _e = (expression);  \
+    if (_e) {                       \
+        LOG(                        \
+            "Assertion `"           \
+            #expression             \
+            "` failed. "            \
+        );                          \
+        exit(EXIT_SUCCESS);         \
+    }                               \
+    _e;                             \
+})
