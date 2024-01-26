@@ -23,7 +23,7 @@ static bool IsSpace(int c) {
     return isspace(c) || ',' == c;
 }
 
-static bool IsIdentifierChar(int c) {
+static bool IsIdentifierFirstChar(int c) {
     if (isalpha(c)) {
         return true;
     }
@@ -38,6 +38,12 @@ static bool IsIdentifierChar(int c) {
     return false;
 }
 
+static bool IsIdentifierChar(int c) { return IsIdentifierFirstChar(c) || isdigit(c); }
+
+static bool IsTokenEndChar(int c) {
+    return IsSpace(c) || '(' == c || ')' == c;
+}
+
 Lexer *Lexer_Init(FILE file[1]) {
     DiscardWhile(file, IsSpace, DISCARD_WHILE_TRUE);
     Lexer *lexer = CallChecked(calloc, (1, sizeof(*lexer)));
@@ -45,7 +51,6 @@ Lexer *Lexer_Init(FILE file[1]) {
             .File = file,
             .LastTokenType = TOKEN_NONE,
             .Buffer = {0},
-//            .HasMoreTokens = false == CallChecked(feof, (file))
     };
     return lexer;
 }
@@ -56,15 +61,6 @@ void Lexer_Free(Lexer *lexer) {
     DynamicArray_Free(&lexer->Buffer);
     free(lexer);
 }
-
-//static void SetError(Lexer lexer[static 1], int badChar, char const *why) {
-//    lexer->Token = (Token) {.Type = TOKEN_INVALID};
-//    lexer->Error = (LexerError) {
-//            .StreamPosition = CallChecked(ftell, (lexer->File)) - 1,
-//            .BadChar = badChar,
-//            .Why = why
-//    };
-//}
 
 #define ReturnError(lexer, error)           \
 do {                                        \
@@ -77,7 +73,7 @@ do {                                        \
     ));                                     \
     DiscardWhile(                           \
         (lexer)->File,                      \
-        IsSpace,                            \
+        IsTokenEndChar,                     \
         DISCARD_WHILE_FALSE                 \
     );                                      \
     return (LexerResult) {                  \
@@ -126,7 +122,7 @@ static LexerResult ParseStringLiteral(Lexer lexer[1]) {
 
 static LexerResult ParseIdentifier(Lexer lexer[1]) {
     int c;
-    while (EOF != (c = CallChecked(fgetc, (lexer->File))) && (IsIdentifierChar(c) || isdigit(c))) {
+    while (EOF != (c = CallChecked(fgetc, (lexer->File))) && IsIdentifierChar(c)) {
         DynamicArray_Append(&lexer->Buffer, c);
     }
     DynamicArray_Append(&lexer->Buffer, '\0');
@@ -154,6 +150,7 @@ static LexerResult ParseIntLiteral(Lexer lexer[1]) {
         DynamicArray_Append(&lexer->Buffer, c);
     }
     DynamicArray_Append(&lexer->Buffer, '\0');
+    CallChecked(ungetc, (c, lexer->File));
 
     if (false == IsSpace(c) && ')' != c) {
         ReturnError(lexer, ((LexerError) {
@@ -183,7 +180,7 @@ LexerResult Lexer_Next(Lexer *lexer) {
         DynamicArray_Append(&lexer->Buffer, c);
         lexer->TokenStart = CallChecked(ftell, (lexer->File)) - 1;
 
-        if (TOKEN_DOT == lexer->LastTokenType && false == IsIdentifierChar(c)) {
+        if (TOKEN_DOT == lexer->LastTokenType && false == IsIdentifierFirstChar(c)) {
             ReturnError(lexer, ((LexerError) {
                     .StreamPosition=CallChecked(ftell, (lexer->File)) - 1,
                     .BadChar=c,
@@ -223,7 +220,7 @@ LexerResult Lexer_Next(Lexer *lexer) {
             return ParseIntLiteral(lexer);
         }
 
-        if (IsIdentifierChar(c)) {
+        if (IsIdentifierFirstChar(c)) {
             return ParseIdentifier(lexer);
         }
 
