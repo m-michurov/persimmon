@@ -163,7 +163,6 @@ static LexerResult ParseIntLiteral(Lexer lexer[1]) {
         }));
     }
 
-    errno = 0;
     auto value = CallChecked(strtoll, (lexer->Buffer.Data, NULL, 10));
 
     ReturnToken(lexer, ((Token) {
