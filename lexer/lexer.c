@@ -178,7 +178,7 @@ LexerResult Lexer_Next(Lexer *lexer) {
     Assert(NULL != lexer);
 
     DynamicArray_Clear(&lexer->Buffer);
-    // TODO skip until whitespace after error
+
     int c;
     while (EOF != (c = CallChecked(fgetc, (lexer->File)))) {
         DynamicArray_Append(&lexer->Buffer, c);
