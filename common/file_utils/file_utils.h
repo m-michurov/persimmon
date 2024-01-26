@@ -11,3 +11,14 @@ bool SeekLineStart(
         long lineStart[static 1],
         long lineIndex[static 1]
 );
+
+typedef enum DiscardMode {
+    DISCARD_WHILE_TRUE,
+    DISCARD_WHILE_FALSE
+} DiscardMode;
+
+void DiscardWhile(
+        FILE file[static 1],
+        bool (predicate)(int),
+        DiscardMode mode
+);

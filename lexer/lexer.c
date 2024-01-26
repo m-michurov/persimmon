@@ -6,6 +6,19 @@
 #include "common/file_utils/file_utils.h"
 #include "common/macros.h"
 
+typedef struct CharBuffer {
+    char *Data;
+    size_t Size;
+    size_t Capacity;
+} CharBuffer;
+
+struct Lexer {
+    FILE *File;
+    CharBuffer Buffer;
+    long TokenStart;
+    TokenType LastTokenType;
+};
+
 static bool IsSpace(int c) {
     return isspace(c) || ',' == c;
 }
@@ -25,237 +38,223 @@ static bool IsIdentifierChar(int c) {
     return false;
 }
 
-static bool IsSpecialChar(int c, const char *seq[static 1]) {
-    if ('\n' == c) {
-        *seq = "\\n";
-        return true;
-    }
-
-    if ('\t' == c) {
-        *seq = "\\t";
-        return true;
-    }
-
-    if ('\r' == c) {
-        *seq = "\\r";
-        return true;
-    }
-
-    if ('\f' == c) {
-        *seq = "\\f";
-        return true;
-    }
-
-    if ('\v' == c) {
-        *seq = "\\v";
-        return true;
-    }
-
-    if (EOF == c) {
-        *seq = "EOF";
-        return true;
-    }
-
-    return false;
-}
-
-Lexer Lexer_New(FILE file[static 1]) {
-    return (Lexer) {
-            .file = file,
-            .lastTokenType = TOKEN_NONE,
-            .buffer = {0}
+Lexer *Lexer_Init(FILE file[1]) {
+    DiscardWhile(file, IsSpace, DISCARD_WHILE_TRUE);
+    Lexer *lexer = CallChecked(calloc, (1, sizeof(*lexer)));
+    *lexer = (Lexer) {
+            .File = file,
+            .LastTokenType = TOKEN_NONE,
+            .Buffer = {0},
+//            .HasMoreTokens = false == CallChecked(feof, (file))
     };
+    return lexer;
 }
 
-void Lexer_Free(Lexer lexer[static 1]) {
-    DynamicArray_Free(&lexer->buffer);
+void Lexer_Free(Lexer *lexer) {
+    Assert(NULL != lexer);
+
+    DynamicArray_Free(&lexer->Buffer);
+    free(lexer);
 }
 
-bool Lexer_SkipToken(Lexer lexer[static 1]) {
-    int c;
-    while (EOF != (c = fgetc(lexer->file))) {
-        if (IsSpace(c)) {
-            break;
-        }
-    }
+//static void SetError(Lexer lexer[static 1], int badChar, char const *why) {
+//    lexer->Token = (Token) {.Type = TOKEN_INVALID};
+//    lexer->Error = (LexerError) {
+//            .StreamPosition = CallChecked(ftell, (lexer->File)) - 1,
+//            .BadChar = badChar,
+//            .Why = why
+//    };
+//}
 
-    return EOF != c;
-}
+#define ReturnError(lexer, error)           \
+do {                                        \
+    __auto_type _e = (error);               \
+    (lexer)->LastTokenType = TOKEN_INVALID; \
+    CallChecked(fseek, (                    \
+        (lexer)->File,                      \
+        _e.StreamPosition,                  \
+        SEEK_SET                            \
+    ));                                     \
+    DiscardWhile(                           \
+        (lexer)->File,                      \
+        IsSpace,                            \
+        DISCARD_WHILE_FALSE                 \
+    );                                      \
+    return (LexerResult) {                  \
+        .Type = LEXER_ERROR,                \
+        .Error = _e,                        \
+    };                                      \
+} while (0)
 
-bool Lexer_SyntaxError(Lexer lexer[static 1], const char *expected, int got, Token token[static 1]) {
-    auto const charPos = CallChecked(ftell, (lexer->file)) - 1;
+#define ReturnToken(lexer, token)           \
+do {                                        \
+    (lexer)->LastTokenType = (token).Type;  \
+    return (LexerResult) {                  \
+        .Type = LEXER_TOKEN,                \
+        .Token = (token),                   \
+    };                                      \
+} while (0)\
 
-    long lineStart, lineNumber;
-    if (false == SeekLineStart(lexer->file, charPos, &lineStart, &lineNumber)) {
-        Unreachable("SeekLineStart must succeed for position within file");
-    }
 
-    long charLineOffset = charPos - lineStart;
-    printf("Line %ld, offset %ld:\n", lineNumber, charLineOffset);
-
-    CopyLine(lexer->file, stdout);
-    printf("\n");
-
-    for (long i = 0; i < charLineOffset; i++) {
-        printf(" ");
-    }
-    printf("^\n");
-
-    char const *charRepr;
-    if (IsSpecialChar(got, &charRepr)) {
-        printf("SyntaxError: Expected %s, got '%s'\n", expected, charRepr);
-    } else {
-        printf("SyntaxError: Expected %s, got '%c'\n", expected, got);
-    }
-
-    CallChecked(fseek, (lexer->file, charPos, SEEK_SET));
-
-    lexer->lastTokenType = TOKEN_INVALID;
-    *token = (Token) {
-            .Type = lexer->lastTokenType,
-            .Start = lexer->tokenStart,
-            .End = CallChecked(ftell, (lexer->file))
-    };
-
-    return Lexer_SkipToken(lexer);
-}
-
-bool Lexer_ParseStringLiteral(Lexer lexer[static 1], Token token[static 1]) {
-    DynamicArray_Clear(&lexer->buffer);
+static LexerResult ParseStringLiteral(Lexer lexer[1]) {
+    DynamicArray_Clear(&lexer->Buffer);
 
     int c;
-    while (EOF != (c = fgetc(lexer->file)) && '"' != c) {
+    while (EOF != (c = CallChecked(fgetc, (lexer->File))) && '"' != c) {
         if ('\\' == c) {
-            Lexer_SyntaxError(lexer, "valid string literal character", c, token);
             TODO("Escape sequences are not supported yet");
         }
-        DynamicArray_Append(&lexer->buffer, c);
+        DynamicArray_Append(&lexer->Buffer, c);
+    }
+    DynamicArray_Append(&lexer->Buffer, '\0');
+
+    if (EOF == c) {
+        ReturnError(lexer, ((LexerError) {
+                .StreamPosition = CallChecked(ftell, (lexer->File)),
+                .BadChar = c,
+                .Why = "Unexpected end of file",
+        }));
     }
 
-    if (feof(lexer->file)) {
-        return Lexer_SyntaxError(lexer, "'\"'", EOF, token);
-    }
-
-    DynamicArray_Append(&lexer->buffer, '\0');
-
-    lexer->lastTokenType = TOKEN_STRING_LITERAL;
-    *token = (Token) {
-            .Type = lexer->lastTokenType,
-            .Start = lexer->tokenStart,
-            .End = ftell(lexer->file),
-            .StringLiteral = lexer->buffer.Data,
-    };
-
-    return EOF != c;
+    ReturnToken(lexer, ((Token) {
+            .Type = TOKEN_STRING_LITERAL,
+            .Start = lexer->TokenStart,
+            .End = CallChecked(ftell, (lexer->File)),
+            .StringLiteral = lexer->Buffer.Data,
+    }));
 }
 
-bool Lexer_ParseIdentifier(Lexer lexer[static 1], Token token[static 1]) {
+static LexerResult ParseIdentifier(Lexer lexer[1]) {
     int c;
-    while (EOF != (c = fgetc(lexer->file)) && IsIdentifierChar(c)) {
-        DynamicArray_Append(&lexer->buffer, c);
+    while (EOF != (c = CallChecked(fgetc, (lexer->File))) && (IsIdentifierChar(c) || isdigit(c))) {
+        DynamicArray_Append(&lexer->Buffer, c);
     }
-    DynamicArray_Append(&lexer->buffer, '\0');
+    DynamicArray_Append(&lexer->Buffer, '\0');
+    CallChecked(ungetc, (c, lexer->File));
 
-    lexer->lastTokenType = TOKEN_IDENTIFIER;
-    *token = (Token) {
-            .Type = lexer->lastTokenType,
-            .Start = lexer->tokenStart,
-            .End = ftell(lexer->file) - 1,
-            .Identifier = lexer->buffer.Data,
-    };
+    if (false == IsSpace(c) && ')' != c && '.' != c) {
+        ReturnError(lexer, ((LexerError) {
+                .StreamPosition = CallChecked(ftell, (lexer->File)),
+                .BadChar = c,
+                .Why = "Expected whitespace or ')' or '.'",
+        }));
+    }
 
-    ungetc(c, lexer->file);
-    return EOF != c;
+    ReturnToken(lexer, ((Token) {
+            .Type = TOKEN_IDENTIFIER,
+            .Start = lexer->TokenStart,
+            .End = CallChecked(ftell, (lexer->File)),
+            .Identifier = lexer->Buffer.Data,
+    }));
 }
 
-bool Lexer_ParseIntLiteral(Lexer lexer[static 1], Token token[static 1]) {
+static LexerResult ParseIntLiteral(Lexer lexer[1]) {
     int c;
-    while (EOF != (c = fgetc(lexer->file)) && isdigit(c)) {
-        DynamicArray_Append(&lexer->buffer, c);
+    while (EOF != (c = CallChecked(fgetc, (lexer->File))) && isdigit(c)) {
+        DynamicArray_Append(&lexer->Buffer, c);
     }
-    DynamicArray_Append(&lexer->buffer, '\0');
+    DynamicArray_Append(&lexer->Buffer, '\0');
+
+    if (false == IsSpace(c) && ')' != c) {
+        ReturnError(lexer, ((LexerError) {
+                .StreamPosition = CallChecked(ftell, (lexer->File)) - 1,
+                .BadChar = c,
+                .Why = "Invalid int literal: expected digit, whitespace or ')'",
+        }));
+    }
 
     errno = 0;
-    auto value = CallChecked(strtoll, (lexer->buffer.Data, NULL, 10));
+    auto value = CallChecked(strtoll, (lexer->Buffer.Data, NULL, 10));
 
-    lexer->lastTokenType = TOKEN_INT_LITERAL;
-    *token = (Token) {
-            .Type = lexer->lastTokenType,
-            .Start = lexer->tokenStart,
-            .End = ftell(lexer->file) - 1,
+    ReturnToken(lexer, ((Token) {
+            .Type = TOKEN_INT_LITERAL,
+            .Start = lexer->TokenStart,
+            .End = ftell(lexer->File) - 1,
             .IntLiteral = value
-    };
-
-    return EOF != c;
+    }));
 }
 
-bool Lexer_NextToken(Lexer lexer[static 1], Token token[static 1]) {
-    DynamicArray_Clear(&lexer->buffer);
+LexerResult Lexer_Next(Lexer *lexer) {
+    Assert(NULL != lexer);
 
+    DynamicArray_Clear(&lexer->Buffer);
+    // TODO skip until whitespace after error
     int c;
-    while (EOF != (c = fgetc(lexer->file))) {
-        lexer->tokenStart = CallChecked(ftell, (lexer->file)) - 1;
-        DynamicArray_Append(&lexer->buffer, c);
+    while (EOF != (c = CallChecked(fgetc, (lexer->File)))) {
+        DynamicArray_Append(&lexer->Buffer, c);
+        lexer->TokenStart = CallChecked(ftell, (lexer->File)) - 1;
 
-        if (TOKEN_DOT == lexer->lastTokenType) {
-            if (IsIdentifierChar(c)) {
-                return Lexer_ParseIdentifier(lexer, token);
-            }
-            return Lexer_SyntaxError(lexer, "identifier", c, token);
+        if (TOKEN_DOT == lexer->LastTokenType && false == IsIdentifierChar(c)) {
+            ReturnError(lexer, ((LexerError) {
+                    .StreamPosition=CallChecked(ftell, (lexer->File)) - 1,
+                    .BadChar=c,
+                    .Why="Expected identifier"
+            }));
         }
 
-        if (TOKEN_IDENTIFIER == lexer->lastTokenType) {
-            if ('.' == c) {
-                lexer->lastTokenType = TOKEN_DOT;
-                *token = (Token) {
-                        .Type = lexer->lastTokenType,
-                        .Start = lexer->tokenStart,
-                        .End = lexer->tokenStart + 1
-                };
-                break;
-            }
+        if (TOKEN_IDENTIFIER == lexer->LastTokenType && '.' == c) {
+            ReturnToken(lexer, ((Token) {
+                    .Type = TOKEN_DOT,
+                    .Start = lexer->TokenStart,
+                    .End = lexer->TokenStart + 1
+            }));
         }
 
         if ('"' == c) {
-            return Lexer_ParseStringLiteral(lexer, token);
+            return ParseStringLiteral(lexer);
         }
 
         if ('(' == c) {
-            lexer->lastTokenType = TOKEN_OPEN_PAREN;
-            *token = (Token) {
-                    .Type = lexer->lastTokenType,
-                    .Start = lexer->tokenStart,
-                    .End = lexer->tokenStart + 1
-            };
-            break;
+            ReturnToken(lexer, ((Token) {
+                    .Type = TOKEN_OPEN_PAREN,
+                    .Start = lexer->TokenStart,
+                    .End = lexer->TokenStart + 1
+            }));
         }
 
         if (')' == c) {
-            lexer->lastTokenType = TOKEN_CLOSE_PAREN;
-            *token = (Token) {
-                    .Type = lexer->lastTokenType,
-                    .Start = lexer->tokenStart,
-                    .End = lexer->tokenStart + 1
-            };
-            break;
+            ReturnToken(lexer, ((Token) {
+                    .Type = TOKEN_CLOSE_PAREN,
+                    .Start = lexer->TokenStart,
+                    .End = lexer->TokenStart + 1
+            }));
         }
 
         if ('-' == c || '+' == c || isdigit(c)) {
-            return Lexer_ParseIntLiteral(lexer, token);
+            return ParseIntLiteral(lexer);
         }
 
         if (IsIdentifierChar(c)) {
-            return Lexer_ParseIdentifier(lexer, token);
+            return ParseIdentifier(lexer);
         }
 
         if (IsSpace(c)) {
-            lexer->lastTokenType = TOKEN_NONE;
-            DynamicArray_Clear(&lexer->buffer);
+            lexer->LastTokenType = TOKEN_NONE;
+            DynamicArray_Clear(&lexer->Buffer);
             continue;
         }
 
-        return Lexer_SyntaxError(lexer, "whitespace or ','", c, token);
+        ReturnError(lexer, ((LexerError) {
+                .StreamPosition=CallChecked(ftell, (lexer->File)) - 1,
+                .BadChar=c,
+                .Why="Expected whitespace"
+        }));
     }
 
-    return EOF != c;
+    ReturnError(lexer, ((LexerError) {
+            .StreamPosition=CallChecked(ftell, (lexer->File)) - 1,
+            .BadChar=c,
+            .Why="Unexpected EOF"
+    }));
+}
+
+bool Lexer_HasNext(Lexer *lexer) {
+    Assert(NULL != lexer);
+
+    auto const pos = CallChecked(ftell, (lexer->File));
+    DiscardWhile(lexer->File, IsSpace, DISCARD_WHILE_TRUE);
+    auto const hasNext = false == feof(lexer->File);
+    CallChecked(fseek, (lexer->File, pos, SEEK_SET));
+
+    return hasNext;
 }

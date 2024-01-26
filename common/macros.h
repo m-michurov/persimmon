@@ -45,9 +45,9 @@ do {                                        \
 })
 
 #define Assert(expression)          \
-({                                  \
+do {                                \
     __auto_type _e = (expression);  \
-    if (_e) {                       \
+    if (!_e) {                      \
         LOG(                        \
             "Assertion `"           \
             #expression             \
@@ -55,5 +55,4 @@ do {                                        \
         );                          \
         exit(EXIT_SUCCESS);         \
     }                               \
-    _e;                             \
-})
+} while (0)

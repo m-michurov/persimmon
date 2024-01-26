@@ -4,32 +4,31 @@
 
 #include "token.h"
 
-typedef struct CharBuffer {
-    char *Data;
-    size_t Size;
-    size_t Capacity;
-} CharBuffer;
+typedef struct LexerError {
+    long StreamPosition;
+    int BadChar;
+    char const *Why;
+} LexerError;
 
-typedef struct Lexer {
-    FILE *file;
-    long tokenStart;
+typedef struct Lexer Lexer;
 
-    TokenType lastTokenType;
-    CharBuffer buffer;
-} Lexer;
+Lexer *Lexer_Init(FILE file[1]);
 
-Lexer Lexer_New(FILE file[static 1]);
+void Lexer_Free(Lexer *lexer);
 
-void Lexer_Free(Lexer lexer[static 1]);
+typedef enum LexerResultType {
+    LEXER_ERROR,
+    LEXER_TOKEN
+} LexerResultType;
 
-bool Lexer_SkipToken(Lexer lexer[static 1]);
+typedef struct LexerResult {
+    LexerResultType Type;
+    union {
+        Token Token;
+        LexerError Error;
+    };
+} LexerResult;
 
-bool Lexer_SyntaxError(Lexer lexer[static 1], const char *expected, int got, Token token[static 1]);
+LexerResult Lexer_Next(Lexer *lexer);
 
-bool Lexer_ParseStringLiteral(Lexer lexer[static 1], Token token[static 1]);
-
-bool Lexer_ParseIdentifier(Lexer lexer[static 1], Token token[static 1]);
-
-bool Lexer_ParseIntLiteral(Lexer lexer[static 1], Token token[static 1]);
-
-bool Lexer_NextToken(Lexer lexer[static 1], Token token[static 1]);
+bool Lexer_HasNext(Lexer *lexer);

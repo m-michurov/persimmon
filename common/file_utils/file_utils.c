@@ -27,12 +27,12 @@ bool SeekLineStart(
     long curLineEnd;
 
     while (true) {
-        auto c = fgetc(file);
-        if ('\n' == c || feof(file)) {
+        auto const c = CallChecked(fgetc, (file));
+        if ('\n' == c || EOF == c) {
             curLineEnd = CallChecked(ftell, (file));
             lineNo++;
 
-            if (charPos >= curLineStart && charPos < curLineEnd) {
+            if ((charPos >= curLineStart && charPos < curLineEnd) || (EOF == c && charPos == curLineEnd)) {
                 CallChecked(fseek, (file, curLineStart, SEEK_SET));
 
                 *lineStart = curLineStart;
@@ -50,4 +50,30 @@ bool SeekLineStart(
     }
 
     return false;
+}
+
+void DiscardWhile(
+        FILE file[static 1],
+        bool (predicate)(int),
+        DiscardMode mode
+) {
+    Assert(DISCARD_WHILE_TRUE == mode || DISCARD_WHILE_FALSE == mode);
+
+    int c;
+    while (EOF != (c = CallChecked(fgetc, (file)))) {
+        auto const r = predicate(c);
+        if (DISCARD_WHILE_TRUE == mode) {
+            if (true == r) continue;
+            break;
+        }
+
+        if (DISCARD_WHILE_FALSE == mode) {
+            if (false == r) continue;
+            break;
+        }
+
+        Unreachable("Invalid mode");
+    }
+
+    CallChecked(ungetc, (c, file));
 }

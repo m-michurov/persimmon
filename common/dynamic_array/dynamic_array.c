@@ -5,7 +5,7 @@
 
 #include "common/macros.h"
 
-static void *DynamicArray_ReserveGeneric(
+static void *ReserveGeneric(
         void *data,
         size_t elementSize, size_t minCapacity,
         size_t size, size_t capacity[1]
@@ -17,7 +17,7 @@ static void *DynamicArray_ReserveGeneric(
 
     void *newData = realloc(data, newCapacity * elementSize);
     if (NULL == newData) {
-        CallFailed(realloc, "Failed to reallocate buffer");
+        CallFailed(realloc, "Failed to reallocate _buffer");
     }
 
     *capacity = newCapacity;
@@ -33,7 +33,7 @@ void *DynamicArray_ExtendGeneric(
         const void *src
 ) {
     if (NULL == data || *size + count > *capacity) {
-        data = DynamicArray_ReserveGeneric(data, elementSize, *size + count, *size, capacity);
+        data = ReserveGeneric(data, elementSize, *size + count, *size, capacity);
     }
 
     memcpy(((uint8_t *) data) + *size * elementSize, src, count * elementSize);
