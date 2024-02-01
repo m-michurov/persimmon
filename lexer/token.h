@@ -6,7 +6,6 @@
 typedef enum TokenType {
     TOKEN_NONE = 0,
     TOKEN_INVALID,
-    TOKEN_DOT,
     TOKEN_OPEN_PAREN,
     TOKEN_CLOSE_PAREN,
     TOKEN_IDENTIFIER,

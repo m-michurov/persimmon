@@ -28,7 +28,7 @@ static bool IsIdentifierFirstChar(int c) {
         return true;
     }
 
-    const char otherChars[] = "+-*/|";
+    const char otherChars[] = ".+-*/|";
     for (const char *it = otherChars; '\0' != *it; it++) {
         if (*it == c) {
             return true;
@@ -165,7 +165,7 @@ static LexerResult ParseIntLiteral(Lexer lexer[1]) {
     ReturnToken(lexer, ((Token) {
             .Type = TOKEN_INT_LITERAL,
             .Start = lexer->TokenStart,
-            .End = ftell(lexer->File) - 1,
+            .End = ftell(lexer->File),
             .IntLiteral = value
     }));
 }
@@ -179,22 +179,6 @@ LexerResult Lexer_Next(Lexer *lexer) {
     while (EOF != (c = CallChecked(fgetc, (lexer->File)))) {
         DynamicArray_Append(&lexer->Buffer, c);
         lexer->TokenStart = CallChecked(ftell, (lexer->File)) - 1;
-
-        if (TOKEN_DOT == lexer->LastTokenType && false == IsIdentifierFirstChar(c)) {
-            ReturnError(lexer, ((LexerError) {
-                    .StreamPosition=CallChecked(ftell, (lexer->File)) - 1,
-                    .BadChar=c,
-                    .Why="Expected identifier"
-            }));
-        }
-
-        if (TOKEN_IDENTIFIER == lexer->LastTokenType && '.' == c) {
-            ReturnToken(lexer, ((Token) {
-                    .Type = TOKEN_DOT,
-                    .Start = lexer->TokenStart,
-                    .End = lexer->TokenStart + 1
-            }));
-        }
 
         if ('"' == c) {
             return ParseStringLiteral(lexer);
@@ -216,12 +200,12 @@ LexerResult Lexer_Next(Lexer *lexer) {
             }));
         }
 
-        if ('-' == c || '+' == c || isdigit(c)) {
-            return ParseIntLiteral(lexer);
-        }
-
         if (IsIdentifierFirstChar(c)) {
             return ParseIdentifier(lexer);
+        }
+
+        if (isdigit(c)) {
+            return ParseIntLiteral(lexer);
         }
 
         if (IsSpace(c)) {

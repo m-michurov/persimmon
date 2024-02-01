@@ -1,6 +1,9 @@
 (val x (List))
 (x.Append "hello world")
 
+(Fmt.Print (+ 45
+              (- 1)
+              (- 3 5)))
 (a.)
 
 line.

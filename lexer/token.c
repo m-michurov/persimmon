@@ -7,8 +7,6 @@
 
 const char *TokenType_Name(TokenType tokenType) {
     switch (tokenType) {
-        case TOKEN_DOT:
-            return "TOKEN_DOT";
         case TOKEN_INVALID:
             return "TOKEN_INVALID";
         case TOKEN_OPEN_PAREN:
