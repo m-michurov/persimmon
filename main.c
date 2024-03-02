@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "call_checked.h"
+
 #include "common/macros.h"
 #include "common/file_utils/file_utils.h"
 #include "lexer/lexer.h"
@@ -93,7 +95,7 @@ void PrintTokenInfo(Token token, FILE in[static 1]) {
 }
 
 int main() {
-    auto const path = "../demo/test.p";
+    auto const path = "../demo/fib.pmn";
     auto const in = fopen(path, "rb");
     if (NULL == in) {
         fprintf(stderr, "Could not open \"%s\": %s\n", path, strerror(errno));

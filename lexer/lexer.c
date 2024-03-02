@@ -2,19 +2,15 @@
 
 #include <ctype.h>
 
-#include "common/dynamic_array/dynamic_array.h"
+#include "call_checked.h"
+#include "collections/vector.h"
+
 #include "common/file_utils/file_utils.h"
 #include "common/macros.h"
 
-typedef struct CharBuffer {
-    char *Data;
-    size_t Size;
-    size_t Capacity;
-} CharBuffer;
-
 struct Lexer {
     FILE *File;
-    CharBuffer Buffer;
+    Vector_Of(char) Buffer;
     long TokenStart;
     TokenType LastTokenType;
 };
@@ -28,7 +24,7 @@ static bool IsIdentifierFirstChar(int c) {
         return true;
     }
 
-    const char otherChars[] = ".+-*/|";
+    const char otherChars[] = ".+-*/|=:";
     for (const char *it = otherChars; '\0' != *it; it++) {
         if (*it == c) {
             return true;
@@ -58,7 +54,7 @@ Lexer *Lexer_Init(FILE file[1]) {
 void Lexer_Free(Lexer *lexer) {
     Assert(NULL != lexer);
 
-    DynamicArray_Free(&lexer->Buffer);
+    Vector_Free(&lexer->Buffer);
     free(lexer);
 }
 
@@ -89,20 +85,20 @@ do {                                        \
         .Type = LEXER_TOKEN,                \
         .Token = (token),                   \
     };                                      \
-} while (0)\
+} while (0)
 
 
 static LexerResult ParseStringLiteral(Lexer lexer[1]) {
-    DynamicArray_Clear(&lexer->Buffer);
+    lexer->Buffer.Size = 0;
 
     int c;
     while (EOF != (c = CallChecked(fgetc, (lexer->File))) && '"' != c) {
         if ('\\' == c) {
             TODO("Escape sequences are not supported yet");
         }
-        DynamicArray_Append(&lexer->Buffer, c);
+        Vector_PushBack(&lexer->Buffer, c);
     }
-    DynamicArray_Append(&lexer->Buffer, '\0');
+    Vector_PushBack(&lexer->Buffer, '\0');
 
     if (EOF == c) {
         ReturnError(lexer, ((LexerError) {
@@ -116,16 +112,16 @@ static LexerResult ParseStringLiteral(Lexer lexer[1]) {
             .Type = TOKEN_STRING_LITERAL,
             .Start = lexer->TokenStart,
             .End = CallChecked(ftell, (lexer->File)),
-            .StringLiteral = lexer->Buffer.Data,
+            .StringLiteral = lexer->Buffer.Items,
     }));
 }
 
 static LexerResult ParseIdentifier(Lexer lexer[1]) {
     int c;
     while (EOF != (c = CallChecked(fgetc, (lexer->File))) && IsIdentifierChar(c)) {
-        DynamicArray_Append(&lexer->Buffer, c);
+        Vector_PushBack(&lexer->Buffer, c);
     }
-    DynamicArray_Append(&lexer->Buffer, '\0');
+    Vector_PushBack(&lexer->Buffer, '\0');
     CallChecked(ungetc, (c, lexer->File));
 
     if (false == IsSpace(c) && ')' != c && '.' != c) {
@@ -140,16 +136,16 @@ static LexerResult ParseIdentifier(Lexer lexer[1]) {
             .Type = TOKEN_IDENTIFIER,
             .Start = lexer->TokenStart,
             .End = CallChecked(ftell, (lexer->File)),
-            .Identifier = lexer->Buffer.Data,
+            .Identifier = lexer->Buffer.Items,
     }));
 }
 
 static LexerResult ParseIntLiteral(Lexer lexer[1]) {
     int c;
     while (EOF != (c = CallChecked(fgetc, (lexer->File))) && isdigit(c)) {
-        DynamicArray_Append(&lexer->Buffer, c);
+        Vector_PushBack(&lexer->Buffer, c);
     }
-    DynamicArray_Append(&lexer->Buffer, '\0');
+    Vector_PushBack(&lexer->Buffer, '\0');
     CallChecked(ungetc, (c, lexer->File));
 
     if (false == IsSpace(c) && ')' != c) {
@@ -160,7 +156,7 @@ static LexerResult ParseIntLiteral(Lexer lexer[1]) {
         }));
     }
 
-    auto value = CallChecked(strtoll, (lexer->Buffer.Data, NULL, 10));
+    auto value = CallChecked(strtoll, (lexer->Buffer.Items, NULL, 10));
 
     ReturnToken(lexer, ((Token) {
             .Type = TOKEN_INT_LITERAL,
@@ -173,11 +169,11 @@ static LexerResult ParseIntLiteral(Lexer lexer[1]) {
 LexerResult Lexer_Next(Lexer *lexer) {
     Assert(NULL != lexer);
 
-    DynamicArray_Clear(&lexer->Buffer);
+    lexer->Buffer.Size = 0;
 
     int c;
     while (EOF != (c = CallChecked(fgetc, (lexer->File)))) {
-        DynamicArray_Append(&lexer->Buffer, c);
+        Vector_PushBack(&lexer->Buffer, c);
         lexer->TokenStart = CallChecked(ftell, (lexer->File)) - 1;
 
         if ('"' == c) {
@@ -210,7 +206,7 @@ LexerResult Lexer_Next(Lexer *lexer) {
 
         if (IsSpace(c)) {
             lexer->LastTokenType = TOKEN_NONE;
-            DynamicArray_Clear(&lexer->Buffer);
+            lexer->Buffer.Size = 0;
             continue;
         }
 

@@ -1,5 +1,7 @@
 #include "file_utils.h"
 
+#include "call_checked.h"
+
 #include "common/macros.h"
 
 void CopyLine(FILE src[static 1], FILE dst[static 1]) {

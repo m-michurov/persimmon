@@ -9,6 +9,5 @@ add_executable(persimmon
         lexer/token.c
         lexer/lexer.c
         common/file_utils/file_utils.c
-        common/dynamic_array/dynamic_array.c
 )
-target_include_directories(persimmon PRIVATE ${CMAKE_SOURCE_DIR})
+target_include_directories(persimmon PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/external)

@@ -31,26 +31,6 @@ do {                                        \
     exit(EXIT_FAILURE);                     \
 } while (0)
 
-/**
- * Usage: CallChecked(callee, (arg1, arg2, ...) [, format [, args]])
- * <li> callee - library call that sets errno on failure
- * <li> (arg1, arg2, ...) - arguments to be passed to callee
- * <li> format, args - optional formatted message (printed on failure)
- */
-#define CallChecked(callee, args, ...)                      \
-({                                                          \
-    errno = 0;                                              \
-    __auto_type _result = (callee args);                    \
-    if (errno) {                                            \
-        if (VA_ARGS_IS_EMPTY(__VA_ARGS__)) {                \
-            CallFailed(#callee, "`" #callee "` failed");    \
-        } else {                                            \
-            CallFailed(#callee, __VA_ARGS__);               \
-        }                                                   \
-    }                                                       \
-    _result;                                                \
-})
-
 #define Assert(expression)          \
 do {                                \
     __auto_type _e = (expression);  \
