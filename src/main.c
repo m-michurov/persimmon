@@ -4,27 +4,11 @@
 #include <string.h>
 
 #include "call_checked.h"
-#include "collections/map.h"
 
 #include "common/macros.h"
 #include "common/file_utils/file_utils.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
-
-size_t StrHash(char const *s) {
-    unsigned long hash = 5381;
-    int c;
-
-    while ('\0' != (c = (unsigned char) *s++)) {
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-    }
-
-    return hash;
-}
-
-bool StrEquals(char const *s1, char const *s2) {
-    return 0 == strcmp(s1, s2);
-}
 
 static bool IsSpecialChar(int c, char const *seq[static 1]) {
     if ('\n' == c) {
@@ -111,41 +95,13 @@ void PrintTokenInfo(Token token, FILE in[static 1]) {
     fseek(in, p, SEEK_SET);
 }
 
-typedef Map_Of(char const *, AstNode) Env;
+void PrintParserError(ParserError error, FILE in[static 1]) {
+    auto const pos = CallChecked(ftell, (in));
 
+    printf("\nLexerError: %s\n", error.Why);
+    PrintTokenInfo(error.BadToken, in);
 
-AstNode Evaluate(AstNode node, Env env) {
-    switch (node.Type) {
-        case AST_INT_LITERAL:
-        case AST_STRING_LITERAL:
-            return node;
-        case AST_IDENTIFIER:
-            return Map_GetOrDefault(
-                    env,
-                    node.AsIdentifier.Name,
-                    ((AstNode) {.Type=AST_IDENTIFIER, .AsIdentifier={"undefined"}})
-            );
-        case AST_EXPRESSION: {
-            auto const subExpressions = node.AsExpression.Items;
-            if (0 == subExpressions.Size) { Unreachable("Empty expression"); }
-
-            auto subExpressionValues = (AstNodes) {0};
-            Vector_ForEach(nodePtr, subExpressions) {
-                Vector_PushBack(&subExpressionValues, Evaluate(*nodePtr, env));
-            }
-
-            if (AST_IDENTIFIER != subExpressionValues.Items[0].Type) { Unreachable("Expected identifier"); }
-            if (StrEquals(":=", "subExpressions")) {
-                Map_Put(&env, subExpressionValues.Items[1].AsIdentifier.Name, subExpressionValues.Items[1]);
-            }
-
-            Unreachable("Not implemented");
-        }
-        default:
-            Unreachable("%d", node.Type);
-    }
-
-    Unreachable();
+    CallChecked(fseek, (in, pos, SEEK_SET));
 }
 
 int main() {
@@ -158,15 +114,19 @@ int main() {
 
     auto const lexer = Lexer_Init(in);
     auto const parser = Parser_Init(lexer);
-    while (Parser_HasNext(parser)) {
+
+    auto ok = true;
+    while (ok && Parser_HasNext(parser)) {
         auto const result = Parser_Next(parser);
         switch (result.Type) {
             case PARSER_LEXER_ERROR: {
                 PrintLexerError(result.AsLexerError, in);
+                ok = false;
                 break;
             }
             case PARSER_PARSER_ERROR: {
-                printf("TODO Parser error\n");
+                PrintParserError(result.AsParserError, in);
+                ok = false;
                 break;
             }
             case PARSER_AST_NODE: {
@@ -178,23 +138,10 @@ int main() {
                 AstNode_Free(&node);
                 break;
             }
+            default:
+                Unreachable("Invalid result type");
         }
     }
-//    while (Lexer_HasNext(lexer)) {
-//        auto const result = Lexer_Next(lexer);
-//        switch (result.Type) {
-//            case LEXER_ERROR: {
-//                PrintLexerError(result.Error, in);
-//                break;
-//            }
-//            case LEXER_TOKEN: {
-//                PrintTokenInfo(result.Token, in);
-//                break;
-//            }
-//            default:
-//                Unreachable("Invalid result type");
-//        }
-//    }
 
     Parser_Free(parser);
     Lexer_Free(lexer);
