@@ -61,3 +61,27 @@ static void PrettyPrint(FILE file[static 1], AstNode node, size_t depth) {
 void AstNode_PrettyPrint(FILE file[static 1], AstNode node) {
     PrettyPrint(file, node, 0);
 }
+
+void AstNode_Free(AstNode node[static 1]) {
+    switch (node->Type) {
+        case AST_INT_LITERAL:
+            break;
+        case AST_STRING_LITERAL: {
+            free((void *) node->AsStringLiteral.Value);
+            break;
+        }
+        case AST_IDENTIFIER: {
+            free((void *) node->AsIdentifier.Name);
+            break;
+        }
+        case AST_EXPRESSION: {
+            Vector_ForEach(childNode, node->AsExpression.Items) {
+                AstNode_Free(childNode);
+            }
+            Vector_Free(&node->AsExpression.Items);
+            break;
+        }
+        default:
+            Unreachable("%d", node->Type);
+    }
+}

@@ -51,3 +51,5 @@ struct AstNode {
 #define AstNode_Expression(Items)       ((AstNode) {AST_EXPRESSION, .AsExpression={(Items)}})
 
 void AstNode_PrettyPrint(FILE file[static 1], AstNode);
+
+void AstNode_Free(AstNode node[static 1]);
