@@ -12,9 +12,9 @@ typedef struct LexerError {
 
 typedef struct Lexer Lexer;
 
-Lexer *Lexer_Init(FILE file[1]);
+Lexer *Lexer_Init(FILE file[static 1]);
 
-void Lexer_Free(Lexer *lexer);
+void Lexer_Free(Lexer *);
 
 typedef enum LexerResultType {
     LEXER_ERROR,
@@ -29,6 +29,6 @@ typedef struct LexerResult {
     };
 } LexerResult;
 
-LexerResult Lexer_Next(Lexer *lexer);
+LexerResult Lexer_Next(Lexer *);
 
-bool Lexer_HasNext(Lexer *lexer);
+bool Lexer_HasNext(Lexer *);

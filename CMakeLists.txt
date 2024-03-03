@@ -9,5 +9,6 @@ add_executable(persimmon
         lexer/token.c
         lexer/lexer.c
         common/file_utils/file_utils.c
+        parser/parser.c
 )
 target_include_directories(persimmon PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/external)

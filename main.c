@@ -8,6 +8,7 @@
 #include "common/macros.h"
 #include "common/file_utils/file_utils.h"
 #include "lexer/lexer.h"
+#include "parser/parser.h"
 
 static bool IsSpecialChar(int c, char const *seq[static 1]) {
     if ('\n' == c) {
@@ -103,22 +104,38 @@ int main() {
     }
 
     auto const lexer = Lexer_Init(in);
-    while (Lexer_HasNext(lexer)) {
-        auto const result = Lexer_Next(lexer);
+    auto const parser = Parser_Init(lexer);
+    while (Parser_HasNext(parser)) {
+        auto const result = Parser_Next(parser);
         switch (result.Type) {
-            case LEXER_ERROR: {
-                PrintLexerError(result.Error, in);
+            case PARSER_LEXER_ERROR:
+                PrintLexerError(result.AsLexerError, in);
                 break;
-            }
-            case LEXER_TOKEN: {
-                PrintTokenInfo(result.Token, in);
+            case PARSER_PARSER_ERROR:
+                printf("Parser error\n");
                 break;
-            }
-            default:
-                Unreachable("Invalid result type");
+            case PARSER_OBJECT:
+                printf("Object\n");
+                break;
         }
     }
+//    while (Lexer_HasNext(lexer)) {
+//        auto const result = Lexer_Next(lexer);
+//        switch (result.Type) {
+//            case LEXER_ERROR: {
+//                PrintLexerError(result.Error, in);
+//                break;
+//            }
+//            case LEXER_TOKEN: {
+//                PrintTokenInfo(result.Token, in);
+//                break;
+//            }
+//            default:
+//                Unreachable("Invalid result type");
+//        }
+//    }
 
+    Parser_Free(parser);
     Lexer_Free(lexer);
     CallChecked(fclose, (in));
     return EXIT_SUCCESS;

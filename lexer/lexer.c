@@ -40,7 +40,7 @@ static bool IsTokenEndChar(int c) {
     return IsSpace(c) || '(' == c || ')' == c;
 }
 
-Lexer *Lexer_Init(FILE file[1]) {
+Lexer *Lexer_Init(FILE file[static 1]) {
     DiscardWhile(file, IsSpace, DISCARD_WHILE_TRUE);
     Lexer *lexer = CallChecked(calloc, (1, sizeof(*lexer)));
     *lexer = (Lexer) {
