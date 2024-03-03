@@ -161,16 +161,23 @@ int main() {
     while (Parser_HasNext(parser)) {
         auto const result = Parser_Next(parser);
         switch (result.Type) {
-            case PARSER_LEXER_ERROR:
+            case PARSER_LEXER_ERROR: {
                 PrintLexerError(result.AsLexerError, in);
                 break;
-            case PARSER_PARSER_ERROR:
-                printf("Parser error\n");
+            }
+            case PARSER_PARSER_ERROR: {
+                printf("TODO Parser error\n");
                 break;
-            case PARSER_OBJECT:
-                AstNode_PrettyPrint(stdout, result.AsObject);
+            }
+            case PARSER_AST_NODE: {
+                auto node = result.AsAstNode;
+
+                AstNode_PrettyPrint(stdout, node);
                 fprintf(stdout, "\n");
+
+                AstNode_Free(&node);
                 break;
+            }
         }
     }
 //    while (Lexer_HasNext(lexer)) {
