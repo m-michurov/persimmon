@@ -4,11 +4,27 @@
 #include <string.h>
 
 #include "call_checked.h"
+#include "collections/map.h"
 
 #include "common/macros.h"
 #include "common/file_utils/file_utils.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
+
+size_t StrHash(char const *s) {
+    unsigned long hash = 5381;
+    int c;
+
+    while ('\0' != (c = (unsigned char) *s++)) {
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    }
+
+    return hash;
+}
+
+bool StrEquals(char const *s1, char const *s2) {
+    return 0 == strcmp(s1, s2);
+}
 
 static bool IsSpecialChar(int c, char const *seq[static 1]) {
     if ('\n' == c) {
@@ -95,6 +111,43 @@ void PrintTokenInfo(Token token, FILE in[static 1]) {
     fseek(in, p, SEEK_SET);
 }
 
+typedef Map_Of(char const *, AstNode) Env;
+
+
+AstNode Evaluate(AstNode node, Env env) {
+    switch (node.Type) {
+        case AST_INT_LITERAL:
+        case AST_STRING_LITERAL:
+            return node;
+        case AST_IDENTIFIER:
+            return Map_GetOrDefault(
+                    env,
+                    node.AsIdentifier.Name,
+                    ((AstNode) {.Type=AST_IDENTIFIER, .AsIdentifier={"undefined"}})
+            );
+        case AST_EXPRESSION: {
+            auto const subExpressions = node.AsExpression.Items;
+            if (0 == subExpressions.Size) { Unreachable("Empty expression"); }
+
+            auto subExpressionValues = (AstNodes) {0};
+            Vector_ForEach(nodePtr, subExpressions) {
+                Vector_PushBack(&subExpressionValues, Evaluate(*nodePtr, env));
+            }
+
+            if (AST_IDENTIFIER != subExpressionValues.Items[0].Type) { Unreachable("Expected identifier"); }
+            if (StrEquals(":=", "subExpressions")) {
+                Map_Put(&env, subExpressionValues.Items[1].AsIdentifier.Name, subExpressionValues.Items[1]);
+            }
+
+            Unreachable("Not implemented");
+        }
+        default:
+            Unreachable("%d", node.Type);
+    }
+
+    Unreachable();
+}
+
 int main() {
     auto const path = "../demo/fib.pmn";
     auto const in = fopen(path, "rb");
@@ -115,7 +168,8 @@ int main() {
                 printf("Parser error\n");
                 break;
             case PARSER_OBJECT:
-                printf("Object\n");
+                AstNode_Print(stdout, result.AsObject);
+                fprintf(stdout, "\n");
                 break;
         }
     }
