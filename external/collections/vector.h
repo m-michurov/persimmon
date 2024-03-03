@@ -45,6 +45,20 @@ do {                                                            \
     _ok;                                            \
 })
 
+#define Vector_At(Vec, Index)               \
+({                                          \
+    long long _idx = (Index);               \
+    long long _sz = (Vec).Size;             \
+    typeof((Vec).Items[0]) *_value = NULL;  \
+    if (0 <= _idx && _idx < _sz) {          \
+        _value = (Vec).Items + _idx;        \
+    }                                       \
+    if (-_sz <= _idx && _idx < 0) {         \
+        _value = (Vec).Items + _sz + _idx;  \
+    }                                       \
+    _value;                                 \
+})
+
 #define Vector_ForEach(ValuePtr, Vec)                       \
 size_t VECTOR_CONCAT(_it_, __LINE__) = 0;                   \
 for (                                                       \
