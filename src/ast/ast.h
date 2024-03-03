@@ -45,4 +45,9 @@ struct AstNode {
     };
 };
 
-void AstNode_Print(FILE file[static 1], AstNode);
+#define AstNode_IntLiteral(Value)       ((AstNode) {AST_INT_LITERAL, .AsIntLiteral={(Value)}})
+#define AstNode_StringLiteral(Value)    ((AstNode) {AST_STRING_LITERAL, .AsStringLiteral={(Value)}})
+#define AstNode_Identifier(Name)        ((AstNode) {AST_IDENTIFIER, .AsIdentifier={(Name)}})
+#define AstNode_Expression(Items)       ((AstNode) {AST_EXPRESSION, .AsExpression={(Items)}})
+
+void AstNode_PrettyPrint(FILE file[static 1], AstNode);

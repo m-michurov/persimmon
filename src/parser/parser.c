@@ -52,10 +52,7 @@ static ParserResult ParseExpression(Parser *parser) {
 
     return (ParserResult) {
             .Type = PARSER_OBJECT,
-            .AsObject = (AstNode) {
-                    .Type = AST_EXPRESSION,
-                    .AsExpression = {items}
-            }
+            .AsObject = AstNode_Expression(items)
     };
 }
 
@@ -71,26 +68,17 @@ static ParserResult ParseToken(Parser *parser, Token token) {
         case TOKEN_IDENTIFIER:
             return (ParserResult) {
                     .Type = PARSER_OBJECT,
-                    .AsObject = (AstNode) {
-                            .Type = AST_IDENTIFIER,
-                            .AsIdentifier = {strdup(token.Identifier)}
-                    }
+                    .AsObject = AstNode_Identifier(strdup(token.Identifier))
             };
         case TOKEN_INT_LITERAL:
             return (ParserResult) {
                     .Type = PARSER_OBJECT,
-                    .AsObject = (AstNode) {
-                            .Type = AST_INT_LITERAL,
-                            .AsIntLiteral = {token.IntLiteral}
-                    }
+                    .AsObject = AstNode_IntLiteral(token.IntLiteral)
             };
         case TOKEN_STRING_LITERAL:
             return (ParserResult) {
                     .Type = PARSER_OBJECT,
-                    .AsObject = (AstNode) {
-                            .Type = AST_STRING_LITERAL,
-                            .AsStringLiteral = {strdup(token.StringLiteral)}
-                    }
+                    .AsObject = AstNode_StringLiteral(strdup(token.StringLiteral))
             };
         default:
             Unreachable();

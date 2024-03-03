@@ -21,7 +21,14 @@ char const *AstNodeType_Name(AstNodeType nodeType) {
     Unreachable();
 }
 
-void AstNode_Print(FILE file[static 1], AstNode node) {
+static void Indent(FILE file[static 1], size_t depth) {
+    for (size_t i = 0; i < depth; i++) {
+        fprintf(file, "  ");
+    }
+}
+
+static void PrettyPrint(FILE file[static 1], AstNode node, size_t depth) {
+    Indent(file, depth);
     fprintf(file, "AstNode{.Type=%s, ", AstNodeType_Name(node.Type));
 
     switch (node.Type) {
@@ -35,11 +42,12 @@ void AstNode_Print(FILE file[static 1], AstNode node) {
             fprintf(file, ".AsIdentifier={%s}", node.AsIdentifier.Name);
             break;
         case AST_EXPRESSION: {
-            fprintf(file, ".AsExpression={[");
+            fprintf(file, ".AsExpression={[\n");
             Vector_ForEach(childNodePtr, node.AsExpression.Items) {
-                AstNode_Print(file, *childNodePtr);
-                fprintf(file, ", ");
+                PrettyPrint(file, *childNodePtr, depth + 1);
+                fprintf(file, ",\n");
             }
+            Indent(file, depth);
             fprintf(file, "]}");
             break;
         }
@@ -48,4 +56,8 @@ void AstNode_Print(FILE file[static 1], AstNode node) {
     }
 
     fprintf(file, "}");
+}
+
+void AstNode_PrettyPrint(FILE file[static 1], AstNode node) {
+    PrettyPrint(file, node, 0);
 }

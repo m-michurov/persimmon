@@ -168,7 +168,7 @@ int main() {
                 printf("Parser error\n");
                 break;
             case PARSER_OBJECT:
-                AstNode_Print(stdout, result.AsObject);
+                AstNode_PrettyPrint(stdout, result.AsObject);
                 fprintf(stdout, "\n");
                 break;
         }
