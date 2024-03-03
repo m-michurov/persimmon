@@ -22,7 +22,7 @@ void Parser_Free(Parser *);
 typedef enum ParserResultType {
     PARSER_LEXER_ERROR,
     PARSER_PARSER_ERROR,
-    PARSER_OBJECT
+    PARSER_AST_NODE
 } ParserResultType;
 
 typedef struct ParserResult {
@@ -30,7 +30,7 @@ typedef struct ParserResult {
     union {
         LexerError AsLexerError;
         ParserError AsParserError;
-        AstNode AsObject;
+        AstNode AsAstNode;
     };
 } ParserResult;
 

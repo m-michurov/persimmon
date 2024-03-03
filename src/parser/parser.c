@@ -2,8 +2,17 @@
 
 #include "common/macros.h"
 
+#define ParserResult_LexerError(Error)  ((ParserResult) {.Type=PARSER_LEXER_ERROR, .AsLexerError=Error})
+#define ParserResult_ParserError(BadToken, Why) \
+((ParserResult) {                               \
+    .Type=PARSER_PARSER_ERROR,                  \
+    .AsParserError={(BadToken), (Why)}          \
+})
+#define ParserResult_AstNode(Node)      ((ParserResult) {.Type=PARSER_AST_NODE, .AsAstNode=Node})
+
 struct Parser {
     Lexer *Lexer;
+    Vector_Of(AstNodes) ExpressionsStack;
 };
 
 Parser *Parser_Init(Lexer *lexer) {
@@ -13,88 +22,91 @@ Parser *Parser_Init(Lexer *lexer) {
 }
 
 void Parser_Free(Parser *parser) {
+    Vector_Free(&parser->ExpressionsStack);
     free(parser);
 }
 
-static ParserResult ParseToken(Parser *parser, Token token);
+static bool HandleToken(Parser parser[static 1], Token token, ParserResult result[static 1]) {
+    auto const stack = &parser->ExpressionsStack;
 
-static ParserResult ParseExpression(Parser *parser) {
-    auto items = (AstNodes) {0};
-    while (true) {
-        auto const lexerResult = Lexer_Next(parser->Lexer);
-        Token token;
-        switch (lexerResult.Type) {
-            case LEXER_ERROR:
-                return (ParserResult) {.Type = PARSER_LEXER_ERROR, .AsLexerError = lexerResult.Error};
-            case LEXER_TOKEN:
-                token = lexerResult.Token;
-                break;
-            default:
-                Unreachable();
-        }
-
-        if (TOKEN_CLOSE_PAREN == token.Type) {
+    switch (token.Type) {
+        case TOKEN_OPEN_PAREN: {
+            Vector_PushBack(stack, ((AstNodes) {0}));
             break;
         }
+        case TOKEN_CLOSE_PAREN: {
+            AstNodes items;
+            if (false == Vector_TryPopBack(stack, &items)) {
+                *result = ParserResult_ParserError(token, "unexpected closing parenthesis");
+                return true;
+            }
 
-        auto const parserResult = ParseToken(parser, token);
-        switch (parserResult.Type) {
-            case PARSER_LEXER_ERROR:
-            case PARSER_PARSER_ERROR:
-                return parserResult;
-            case PARSER_OBJECT:
-                Vector_PushBack(&items, parserResult.AsObject);
-                break;
-            default:
-                Unreachable();
+            auto const node = AstNode_Expression(items);
+            if (0 == stack->Size) {
+                *result = ParserResult_AstNode(node);
+                return true;
+            }
+
+            Vector_PushBack(Vector_At(*stack, -1), node);
+            break;
         }
-    }
+        case TOKEN_INT_LITERAL: {
+            auto const node = AstNode_IntLiteral(token.IntLiteral);
+            if (0 == stack->Size) {
+                *result = ParserResult_AstNode(node);
+                return true;
+            }
 
-    return (ParserResult) {
-            .Type = PARSER_OBJECT,
-            .AsObject = AstNode_Expression(items)
-    };
-}
+            Vector_PushBack(Vector_At(*stack, -1), node);
+            break;
+        }
+        case TOKEN_STRING_LITERAL: {
+            auto const node = AstNode_StringLiteral(strdup(token.StringLiteral));
+            if (0 == stack->Size) {
+                *result = ParserResult_AstNode(node);
+                return true;
+            }
 
-static ParserResult ParseToken(Parser *parser, Token token) {
-    switch (token.Type) {
+            Vector_PushBack(Vector_At(*stack, -1), node);
+            break;
+        }
+        case TOKEN_IDENTIFIER: {
+            auto const node = AstNode_Identifier(strdup(token.Identifier));
+            if (0 == stack->Size) {
+                *result = ParserResult_AstNode(node);
+                return true;
+            }
+
+            Vector_PushBack(Vector_At(*stack, -1), node);
+            break;
+        }
         case TOKEN_NONE:
         case TOKEN_INVALID:
-            Unreachable();
-        case TOKEN_OPEN_PAREN:
-            return ParseExpression(parser);
-        case TOKEN_CLOSE_PAREN:
-            Unreachable("Must be handled in ParseExpressions");
-        case TOKEN_IDENTIFIER:
-            return (ParserResult) {
-                    .Type = PARSER_OBJECT,
-                    .AsObject = AstNode_Identifier(strdup(token.Identifier))
-            };
-        case TOKEN_INT_LITERAL:
-            return (ParserResult) {
-                    .Type = PARSER_OBJECT,
-                    .AsObject = AstNode_IntLiteral(token.IntLiteral)
-            };
-        case TOKEN_STRING_LITERAL:
-            return (ParserResult) {
-                    .Type = PARSER_OBJECT,
-                    .AsObject = AstNode_StringLiteral(strdup(token.StringLiteral))
-            };
+            *result = ParserResult_ParserError(token, "unexpected token");
+            return true;
         default:
-            Unreachable();
+            Unreachable("%d", token.Type);
     }
+
+    return false;
 }
 
 ParserResult Parser_Next(Parser *parser) {
-    auto const lexerResult = Lexer_Next(parser->Lexer);
-    switch (lexerResult.Type) {
-        case LEXER_ERROR:
-            return (ParserResult) {
-                    .Type = PARSER_LEXER_ERROR,
-                    .AsLexerError = lexerResult.Error
-            };
-        case LEXER_TOKEN:
-            return ParseToken(parser, lexerResult.Token);
+    while (Lexer_HasNext(parser->Lexer)) {
+        auto const r = Lexer_Next(parser->Lexer);
+        switch (r.Type) {
+            case LEXER_ERROR:
+                return ParserResult_LexerError(r.Error);
+            case LEXER_TOKEN:
+                break;
+            default:
+                Unreachable("%d", r.Type);
+        }
+
+        ParserResult result;
+        if (HandleToken(parser, r.Token, &result)) {
+            return result;
+        }
     }
 
     Unreachable();
