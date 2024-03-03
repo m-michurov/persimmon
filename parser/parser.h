@@ -5,35 +5,8 @@
 #include "call_checked.h"
 #include "collections/vector.h"
 
+#include "ast/ast.h"
 #include "lexer/lexer.h"
-
-typedef enum ObjectType {
-    OBJECT_INT,
-    OBJECT_STRING,
-    OBJECT_IDENTIFIER,
-    OBJECT_EXPRESSION,
-} ObjectType;
-
-typedef struct Object Object;
-typedef Vector_Of(Object) Objects;
-
-struct Object {
-    ObjectType Type;
-    union {
-        struct {
-            int64_t Value;
-        } AsInt;
-        struct {
-            char const *Value;
-        } AsString;
-        struct {
-            char const *Name;
-        } AsIdentifier;
-        struct {
-            Objects Items;
-        } AsExpression;
-    };
-};
 
 typedef struct ParserError {
     Token BadToken;
@@ -57,7 +30,7 @@ typedef struct ParserResult {
     union {
         LexerError AsLexerError;
         ParserError AsParserError;
-        Object AsObject;
+        AstNode AsObject;
     };
 } ParserResult;
 

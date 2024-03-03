@@ -19,7 +19,7 @@ void Parser_Free(Parser *parser) {
 static ParserResult ParseToken(Parser *parser, Token token);
 
 static ParserResult ParseExpression(Parser *parser) {
-    auto items = (Objects) {0};
+    auto items = (AstNodes) {0};
     while (true) {
         auto const lexerResult = Lexer_Next(parser->Lexer);
         Token token;
@@ -52,8 +52,8 @@ static ParserResult ParseExpression(Parser *parser) {
 
     return (ParserResult) {
             .Type = PARSER_OBJECT,
-            .AsObject = (Object) {
-                    .Type = OBJECT_EXPRESSION,
+            .AsObject = (AstNode) {
+                    .Type = AST_EXPRESSION,
                     .AsExpression = {items}
             }
     };
@@ -71,25 +71,25 @@ static ParserResult ParseToken(Parser *parser, Token token) {
         case TOKEN_IDENTIFIER:
             return (ParserResult) {
                     .Type = PARSER_OBJECT,
-                    .AsObject = (Object) {
-                            .Type = OBJECT_IDENTIFIER,
-                            .AsIdentifier = {token.Identifier}
+                    .AsObject = (AstNode) {
+                            .Type = AST_IDENTIFIER,
+                            .AsIdentifier = {strdup(token.Identifier)}
                     }
             };
         case TOKEN_INT_LITERAL:
             return (ParserResult) {
                     .Type = PARSER_OBJECT,
-                    .AsObject = (Object) {
-                            .Type = OBJECT_INT,
-                            .AsInt = {token.IntLiteral}
+                    .AsObject = (AstNode) {
+                            .Type = AST_INT_LITERAL,
+                            .AsIntLiteral = {token.IntLiteral}
                     }
             };
         case TOKEN_STRING_LITERAL:
             return (ParserResult) {
                     .Type = PARSER_OBJECT,
-                    .AsObject = (Object) {
-                            .Type = OBJECT_STRING,
-                            .AsString = {token.StringLiteral}
+                    .AsObject = (AstNode) {
+                            .Type = AST_STRING_LITERAL,
+                            .AsStringLiteral = {strdup(token.StringLiteral)}
                     }
             };
         default:
