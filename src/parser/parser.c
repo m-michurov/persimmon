@@ -109,6 +109,11 @@ ParserResult Parser_Next(Parser *parser) {
         }
     }
 
+    auto const r = Lexer_Next(parser->Lexer);
+    if (LEXER_ERROR == r.Type) {
+        return ParserResult_LexerError(r.Error);
+    }
+
     Unreachable();
 }
 
