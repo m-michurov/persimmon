@@ -25,18 +25,18 @@ const char *TokenType_Name(TokenType tokenType) {
 }
 
 void Token_Print(FILE file[static 1], Token token) {
-    fprintf(file, "Token{ .Type=%s, .Start=%ld", TokenType_Name(token.Type), token.Start);
+    fprintf(file, "AsToken{ .Type=%s, .Start=%ld", TokenType_Name(token.Type), token.Start);
     switch (token.Type) {
         case TOKEN_IDENTIFIER: {
-            fprintf(file, ", .Identifier=`%s`", token.Identifier);
+            fprintf(file, ", .AsIdentifier=`%s`", token.Value.AsIdentifier);
             break;
         }
         case TOKEN_STRING_LITERAL: {
-            fprintf(file, ", .StringLiteral=\"%s\"", token.StringLiteral);
+            fprintf(file, ", .AsStringLiteral=\"%s\"", token.Value.AsStringLiteral);
             break;
         }
         case TOKEN_INT_LITERAL: {
-            fprintf(file, ", .IntLiteral=%" PRId64, token.IntLiteral);
+            fprintf(file, ", .AsIntLiteral=%" PRId64, token.Value.AsIntLiteral);
             break;
         }
         default:

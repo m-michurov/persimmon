@@ -51,7 +51,7 @@ static bool HandleToken(Parser parser[static 1], Token token, ParserResult resul
             break;
         }
         case TOKEN_INT_LITERAL: {
-            auto const node = AstNode_IntLiteral(token.IntLiteral);
+            auto const node = AstNode_IntLiteral(token.Value.AsIntLiteral);
             if (0 == stack->Size) {
                 *result = ParserResult_AstNode(node);
                 return true;
@@ -61,7 +61,7 @@ static bool HandleToken(Parser parser[static 1], Token token, ParserResult resul
             break;
         }
         case TOKEN_STRING_LITERAL: {
-            auto const node = AstNode_StringLiteral(strdup(token.StringLiteral));
+            auto const node = AstNode_StringLiteral(strdup(token.Value.AsStringLiteral));
             if (0 == stack->Size) {
                 *result = ParserResult_AstNode(node);
                 return true;
@@ -71,7 +71,7 @@ static bool HandleToken(Parser parser[static 1], Token token, ParserResult resul
             break;
         }
         case TOKEN_IDENTIFIER: {
-            auto const node = AstNode_Identifier(strdup(token.Identifier));
+            auto const node = AstNode_Identifier(strdup(token.Value.AsIdentifier));
             if (0 == stack->Size) {
                 *result = ParserResult_AstNode(node);
                 return true;
@@ -96,7 +96,7 @@ ParserResult Parser_Next(Parser *parser) {
         auto const r = Lexer_Next(parser->Lexer);
         switch (r.Type) {
             case LEXER_ERROR:
-                return ParserResult_LexerError(r.Error);
+                return ParserResult_LexerError(r.AsError);
             case LEXER_TOKEN:
                 break;
             default:
@@ -104,14 +104,14 @@ ParserResult Parser_Next(Parser *parser) {
         }
 
         ParserResult result;
-        if (HandleToken(parser, r.Token, &result)) {
+        if (HandleToken(parser, r.AsToken, &result)) {
             return result;
         }
     }
 
     auto const r = Lexer_Next(parser->Lexer);
     if (LEXER_ERROR == r.Type) {
-        return ParserResult_LexerError(r.Error);
+        return ParserResult_LexerError(r.AsError);
     }
 
     Unreachable();

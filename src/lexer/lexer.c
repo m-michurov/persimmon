@@ -74,7 +74,7 @@ do {                                        \
     );                                      \
     return (LexerResult) {                  \
         .Type = LEXER_ERROR,                \
-        .Error = _e,                        \
+        .AsError = _e,                      \
     };                                      \
 } while (0)
 
@@ -83,7 +83,7 @@ do {                                        \
     (lexer)->LastTokenType = (token).Type;  \
     return (LexerResult) {                  \
         .Type = LEXER_TOKEN,                \
-        .Token = (token),                   \
+        .AsToken = (token),                 \
     };                                      \
 } while (0)
 
@@ -108,12 +108,7 @@ static LexerResult ParseStringLiteral(Lexer lexer[1]) {
         }));
     }
 
-    ReturnToken(lexer, ((Token) {
-            .Type = TOKEN_STRING_LITERAL,
-            .Start = lexer->TokenStart,
-            .End = CallChecked(ftell, (lexer->File)),
-            .StringLiteral = lexer->Buffer.Items,
-    }));
+    ReturnToken(lexer, Token_StringLiteral(lexer->TokenStart, CallChecked(ftell, (lexer->File)), lexer->Buffer.Items));
 }
 
 static LexerResult ParseIdentifier(Lexer lexer[1]) {
@@ -132,12 +127,7 @@ static LexerResult ParseIdentifier(Lexer lexer[1]) {
         }));
     }
 
-    ReturnToken(lexer, ((Token) {
-            .Type = TOKEN_IDENTIFIER,
-            .Start = lexer->TokenStart,
-            .End = CallChecked(ftell, (lexer->File)),
-            .Identifier = lexer->Buffer.Items,
-    }));
+    ReturnToken(lexer, Token_Identifier(lexer->TokenStart, CallChecked(ftell, (lexer->File)), lexer->Buffer.Items));
 }
 
 static LexerResult ParseIntLiteral(Lexer lexer[1]) {
@@ -158,12 +148,7 @@ static LexerResult ParseIntLiteral(Lexer lexer[1]) {
 
     auto value = CallChecked(strtoll, (lexer->Buffer.Items, NULL, 10));
 
-    ReturnToken(lexer, ((Token) {
-            .Type = TOKEN_INT_LITERAL,
-            .Start = lexer->TokenStart,
-            .End = ftell(lexer->File),
-            .IntLiteral = value
-    }));
+    ReturnToken(lexer, Token_IntLiteral(lexer->TokenStart, CallChecked(ftell, (lexer->File)), value));
 }
 
 LexerResult Lexer_Next(Lexer *lexer) {
@@ -181,19 +166,11 @@ LexerResult Lexer_Next(Lexer *lexer) {
         }
 
         if ('(' == c) {
-            ReturnToken(lexer, ((Token) {
-                    .Type = TOKEN_OPEN_PAREN,
-                    .Start = lexer->TokenStart,
-                    .End = lexer->TokenStart + 1
-            }));
+            ReturnToken(lexer, Token_OpenParenthesis(lexer->TokenStart));
         }
 
         if (')' == c) {
-            ReturnToken(lexer, ((Token) {
-                    .Type = TOKEN_CLOSE_PAREN,
-                    .Start = lexer->TokenStart,
-                    .End = lexer->TokenStart + 1
-            }));
+            ReturnToken(lexer, Token_CloseParenthesis(lexer->TokenStart));
         }
 
         if (IsIdentifierFirstChar(c)) {

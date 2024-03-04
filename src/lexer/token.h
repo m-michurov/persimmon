@@ -21,10 +21,37 @@ typedef struct Token {
     long End;
 
     union {
-        const char *Identifier;
-        const char *StringLiteral;
-        int64_t IntLiteral;
-    };
+        const char *AsIdentifier;
+        const char *AsStringLiteral;
+        int64_t AsIntLiteral;
+    } Value;
 } Token;
+
+#define Token_Identifier(Start_, End_, Name)    \
+((Token) {                                      \
+    .Type=TOKEN_IDENTIFIER,                     \
+    .Start=(Start_),                            \
+    .End=(End_),                                \
+    .Value.AsIdentifier=(Name)                  \
+})
+
+#define Token_StringLiteral(Start_, End_, Value_)   \
+((Token) {                                          \
+    .Type=TOKEN_STRING_LITERAL,                     \
+    .Start=(Start_),                                \
+    .End=(End_),                                    \
+    .Value.AsStringLiteral=(Value_)                 \
+})
+
+#define Token_IntLiteral(Start_, End_, Value_)  \
+((Token) {                                      \
+    .Type=TOKEN_INT_LITERAL,                    \
+    .Start=(Start_),                            \
+    .End=(End_),                                \
+    .Value.AsIntLiteral=(Value_)                \
+})
+
+#define Token_OpenParenthesis(Start_)   ((Token) {.Type=TOKEN_OPEN_PAREN, .Start=(Start_), .End=(Start_)+1})
+#define Token_CloseParenthesis(Start_)  ((Token) {.Type=TOKEN_CLOSE_PAREN, .Start=(Start_), .End=(Start_)+1})
 
 void Token_Print(FILE file[static 1], Token token);

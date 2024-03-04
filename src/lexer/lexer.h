@@ -24,8 +24,8 @@ typedef enum LexerResultType {
 typedef struct LexerResult {
     LexerResultType Type;
     union {
-        Token Token;
-        LexerError Error;
+        Token AsToken;
+        LexerError AsError;
     };
 } LexerResult;
 
