@@ -34,7 +34,7 @@ do {                                                            \
     (VecPtr)->Items[(VecPtr)->Size++] = (Val);                  \
 } while (0)
 
-#define Vector_TryPopBack(VecPtr, ValuePtr) \
+#define Vector_TryPopBack(VecPtr, ValuePtr)         \
 ({                                                  \
     bool _ok = false;                               \
     if ((VecPtr)->Size > 0) {                       \
@@ -73,3 +73,7 @@ for (                                                       \
             ? NULL                                          \
             : &(Vec).Items[VECTOR_CONCAT(_it_, __LINE__)]   \
 )
+
+#define Vector_Empty(Vec)       (0 == (Vec).Size)
+
+#define Vector_Clear(VecPtr)    do { (VecPtr)->Size = 0; } while (0)
