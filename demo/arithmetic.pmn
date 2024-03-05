@@ -1,0 +1,15 @@
+(:= x 5)
+(:= y 7)
+
+(print "x =" x)
+(print "y ="y)
+
+(print (+ 1 2))
+(print (* x y))
+
+(+ (* 2 x) y)
+
+(:= hello "Hello")
+(:= space " ")
+
+(print (+ hello space "world"))
