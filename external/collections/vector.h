@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdlib.h>
+
 #ifndef CallChecked
 #error Please include call_checked.h before vector.h
 #endif
