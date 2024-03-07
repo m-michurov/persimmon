@@ -60,12 +60,12 @@ void Scope_Put(Scope scope[static 1], char const *name, RuntimeObject object) {
 
 void Scope_Update(Scope scope[static 1], char const *name, RuntimeObject object) {
     for (; NULL != scope; scope = scope->Parent) {
-        RuntimeObject existingValue;
-        if (false == Map_TryGet(scope->Vars, name, &existingValue)) {
+        RuntimeObject *existingPtr;
+        if (NULL == (existingPtr = Map_At(scope->Vars, name))) {
             continue;
         }
 
-        Map_Put(&scope->Vars, name, object);
+        *existingPtr = object;
         return;
     }
 
