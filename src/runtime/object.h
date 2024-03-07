@@ -14,6 +14,8 @@ typedef enum RuntimeType {
     RUNTIME_TYPE_NATIVE_FUNCTION,
 } RuntimeType;
 
+char const *RuntimeType_Name(RuntimeType);
+
 typedef struct RuntimeObject RuntimeObject;
 
 typedef int64_t RuntimeInt;
@@ -39,3 +41,5 @@ struct RuntimeObject {
 void RuntimeObject_Free(RuntimeObject object[static 1]);
 
 void RuntimeObject_Print(FILE file[static 1], RuntimeObject);
+
+void RuntimeObject_Repr(FILE file[static 1], RuntimeObject);

@@ -240,6 +240,8 @@ int main() {
 //                fprintf(stdout, "\n");
 
                 auto value = Evaluate(&globalScope, node);
+                RuntimeObject_Repr(stdout, value);
+                fprintf(stdout, "\n");
                 RuntimeObject_Print(stdout, value);
                 fprintf(stdout, "\n");
 
