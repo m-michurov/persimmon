@@ -204,7 +204,7 @@ void Print(size_t argsCount, RuntimeObject args[static argsCount], RuntimeObject
 }
 
 int main() {
-    auto const path = "../demo/arithmetic.pmn";
+    auto const path = "../demo/fib.pmn";
     auto const in = fopen(path, "rb");
     if (NULL == in) {
         fprintf(stderr, "Could not open \"%s\": %s\n", path, strerror(errno));
@@ -235,18 +235,20 @@ int main() {
             }
             case PARSER_AST_NODE: {
                 auto node = result.AsAstNode;
-
-//                AstNode_PrettyPrint(stdout, node);
-//                fprintf(stdout, "\n");
-
+                /*
+                AstNode_PrettyPrint(stdout, node);
+                fprintf(stdout, "\n");
+                 */
                 auto value = Evaluate(&globalScope, node);
+                AstNode_Free(&node);
+                /*
                 RuntimeObject_Repr(stdout, value);
                 fprintf(stdout, "\n");
                 RuntimeObject_Print(stdout, value);
                 fprintf(stdout, "\n");
+                 */
 
                 RuntimeObject_Free(&value);
-                AstNode_Free(&node);
                 break;
             }
             default:

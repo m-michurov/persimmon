@@ -14,5 +14,6 @@ add_executable(persimmon
         src/runtime/object.c
         src/runtime/eval.c
         src/runtime/scope.c
+        src/ast/match.c
 )
 target_include_directories(persimmon PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/external)

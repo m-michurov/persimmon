@@ -31,6 +31,7 @@ bool Scope_TryResolve(Scope scope, char const *name, RuntimeObject object[static
     }
 
     if (NULL == scope.Parent) {
+        fprintf(stdout, "Unresolved identifier `%s`\n", name);
         return false;
     }
 
@@ -49,7 +50,7 @@ void Scope_Update(Scope scope[static 1], char const *name, RuntimeObject object)
     }
 
     if (NULL == scope->Parent) {
-        // TODO handle assignment to undeclared variable
+        fprintf(stdout, "Unresolved identifier `%s`\n", name);
         return;
     }
 

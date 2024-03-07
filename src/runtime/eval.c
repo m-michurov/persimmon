@@ -2,45 +2,123 @@
 
 #include "common/macros.h"
 
+#include "ast/match.h"
+
 bool IsSpecialForm(AstNode node) {
-    if (AST_EXPRESSION != node.Type
-        || Vector_Empty(node.AsExpression.Items)
-        || AST_IDENTIFIER != node.AsExpression.Items.Items[0].Type) {
+    auto const pattern =
+            AstPattern_Expression(
+                    AstPattern_Type(AST_IDENTIFIER),
+                    AstPattern_Rest()
+            );
+
+    if (false == Ast_MatchByType(&pattern->Base, node)) {
         return false;
     }
 
-    auto const name = node.AsExpression.Items.Items[0].AsIdentifier.Name;
-    return 0 == strcmp(":=", name);
+    auto const name = pattern->ItemPatterns[0]->MatchedNode.AsIdentifier.Name;
+    return 0 == strcmp(":=", name)
+           || 0 == strcmp("=", name)
+           || 0 == strcmp("for", name);
 }
 
 RuntimeObject EvaluateVariableDefinition(Scope scope[static 1], AstNode node) {
-    Assert(AST_EXPRESSION == node.Type);
+    auto const pattern =
+            AstPattern_Expression(
+                    AstPattern_Any(),
+                    AstPattern_Type(AST_IDENTIFIER),
+                    AstPattern_Any()
+            );
 
-    auto const childNodes = node.AsExpression.Items;
-    if (3 != childNodes.Size) {
+    if (false == Ast_MatchByType((AstPattern *) pattern, node)) {
+        fprintf(stdout, "Invalid usage of special form `:=`\n");
         return RuntimeObject_Undefined();
     }
 
-    auto const head = childNodes.Items[0];
-    if (AST_IDENTIFIER != head.Type || 0 != strcmp(":=", head.AsIdentifier.Name)) {
-        return RuntimeObject_Undefined();
-    }
+    auto const target = pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.Name;
+    auto const value = Evaluate(scope, pattern->ItemPatterns[2]->MatchedNode);
 
-    auto const target = childNodes.Items[1];
-    if (AST_IDENTIFIER != target.Type) {
-        return RuntimeObject_Undefined();
-    }
-
-    auto const value = Evaluate(scope, childNodes.Items[2]);
-    Scope_Put(scope, target.AsIdentifier.Name, value);
+    Scope_Put(scope, target, value);
 
     return RuntimeObject_Undefined();
+}
+
+RuntimeObject EvaluateAssignment(Scope scope[static 1], AstNode node) {
+    auto const pattern =
+            AstPattern_Expression(
+                    AstPattern_Any(),
+                    AstPattern_Type(AST_IDENTIFIER),
+                    AstPattern_Any()
+            );
+
+    if (false == Ast_MatchByType((AstPattern *) pattern, node)) {
+        fprintf(stdout, "Invalid usage of special form `=`\n");
+        return RuntimeObject_Undefined();
+    }
+
+    auto const target = pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.Name;
+    auto const value = Evaluate(scope, pattern->ItemPatterns[2]->MatchedNode);
+
+    Scope_Update(scope, target, value);
+
+    return RuntimeObject_Undefined();
+}
+
+RuntimeObject EvaluateFor(Scope scope[static 1], AstNode node) {
+    auto const pattern =
+            AstPattern_Expression(
+                    AstPattern_Any(),
+                    AstPattern_Type(AST_IDENTIFIER),
+                    AstPattern_Any(),
+                    AstPattern_Any(),
+                    AstPattern_Rest()
+            );
+
+    if (false == Ast_MatchByType((AstPattern *) pattern, node)) {
+        fprintf(stdout, "Invalid usage of special form `for`\n");
+        return RuntimeObject_Undefined();
+    }
+
+    auto const counter = pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.Name;
+
+    auto const lower = Evaluate(scope, pattern->ItemPatterns[2]->MatchedNode);
+    if (RUNTIME_TYPE_INT != lower.Type) {
+        return RuntimeObject_Undefined();
+    }
+
+    auto const upper = Evaluate(scope, pattern->ItemPatterns[3]->MatchedNode);
+    if (RUNTIME_TYPE_INT != upper.Type) {
+        return RuntimeObject_Undefined();
+    }
+
+    auto result = RuntimeObject_Undefined();
+    auto const body = (AstPatternRest *) pattern->ItemPatterns[4];
+
+    for (int64_t i = lower.AsInt; i <= upper.AsInt; i++) {
+        auto bodyScope = Scope_Empty();
+        bodyScope.Parent = scope;
+
+        Scope_Put(&bodyScope, counter, RuntimeObject_Int(i));
+
+        for (size_t j = 0; j < body->NodesCount; j++) {
+            result = Evaluate(&bodyScope, body->Nodes[j]);
+        }
+    }
+
+    return result;
 }
 
 RuntimeObject EvaluateSpecialForm(Scope scope[static 1], AstNode node) {
     auto const head = node.AsExpression.Items.Items[0].AsIdentifier;
     if (0 == strcmp(":=", head.Name)) {
         return EvaluateVariableDefinition(scope, node);
+    }
+
+    if (0 == strcmp("=", head.Name)) {
+        return EvaluateAssignment(scope, node);
+    }
+
+    if (0 == strcmp("for", head.Name)) {
+        return EvaluateFor(scope, node);
     }
 
     return RuntimeObject_Undefined();
