@@ -25,22 +25,35 @@ const char *TokenType_Name(TokenType tokenType) {
 }
 
 void Token_Print(FILE file[static 1], Token token) {
-    fprintf(file, "AsToken{ .Type=%s, .Start=%ld", TokenType_Name(token.Type), token.Start);
+    fprintf(
+            file,
+            "(Token) {.Type=%s, .Start=%ld, .End=%ld",
+            TokenType_Name(token.Type),
+            token.Start,
+            token.End
+    );
+
     switch (token.Type) {
         case TOKEN_IDENTIFIER: {
-            fprintf(file, ", .AsIdentifier=`%s`", token.Value.AsIdentifier);
-            break;
+            fprintf(file, ", .AsIdentifier=`%s`}", token.Value.AsIdentifier);
+            return;
         }
         case TOKEN_STRING_LITERAL: {
-            fprintf(file, ", .AsStringLiteral=\"%s\"", token.Value.AsStringLiteral);
-            break;
+            fprintf(file, ", .AsStringLiteral=\"%s\"}", token.Value.AsStringLiteral);
+            return;
         }
         case TOKEN_INT_LITERAL: {
-            fprintf(file, ", .AsIntLiteral=%" PRId64, token.Value.AsIntLiteral);
-            break;
+            fprintf(file, ", .AsIntLiteral=%" PRId64 "}", token.Value.AsIntLiteral);
+            return;
         }
-        default:
-            break;
+        case TOKEN_NONE:
+        case TOKEN_INVALID:
+        case TOKEN_OPEN_PAREN:
+        case TOKEN_CLOSE_PAREN: {
+            fprintf(file, "}");
+            return;
+        }
     }
-    fprintf(file, " }");
+
+    Unreachable("%d", token.Type);
 }
