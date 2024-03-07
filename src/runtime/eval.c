@@ -94,14 +94,15 @@ RuntimeObject EvaluateFor(Scope scope[static 1], AstNode node) {
     auto const body = (AstPatternRest *) pattern->ItemPatterns[4];
 
     for (int64_t i = lower.AsInt; i <= upper.AsInt; i++) {
-        auto bodyScope = Scope_Empty();
-        bodyScope.Parent = scope;
+        auto bodyScope = Scope_WithParent(scope);
 
         Scope_Put(&bodyScope, counter, RuntimeObject_Int(i));
 
         for (size_t j = 0; j < body->NodesCount; j++) {
             result = Evaluate(&bodyScope, body->Nodes[j]);
         }
+
+        Scope_Free(&bodyScope);
     }
 
     return result;

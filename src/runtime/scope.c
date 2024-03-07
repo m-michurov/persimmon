@@ -1,5 +1,7 @@
 #include "scope.h"
 
+#include "common/macros.h"
+
 static size_t StrHash(char const *s) {
     unsigned long hash = 5381;
     int c;
@@ -25,36 +27,11 @@ Scope Scope_Empty() {
     };
 }
 
-bool Scope_TryResolve(Scope scope, char const *name, RuntimeObject object[static 1]) {
-    if (Map_TryGet(scope.Vars, name, object)) {
-        return true;
-    }
+Scope Scope_WithParent(Scope parent[static 1]) {
+    auto scope = Scope_Empty();
+    scope.Parent = parent;
 
-    if (NULL == scope.Parent) {
-        fprintf(stdout, "Unresolved identifier `%s`\n", name);
-        return false;
-    }
-
-    return Scope_TryResolve(*scope.Parent, name, object);
-}
-
-void Scope_Put(Scope scope[static 1], char const *name, RuntimeObject object) {
-    Map_Put(&scope->Vars, strdup(name), object);
-}
-
-void Scope_Update(Scope scope[static 1], char const *name, RuntimeObject object) {
-    RuntimeObject existingValue;
-    if (Map_TryGet(scope->Vars, name, &existingValue)) {
-        Map_Put(&scope->Vars, name, object);
-        return;
-    }
-
-    if (NULL == scope->Parent) {
-        fprintf(stdout, "Unresolved identifier `%s`\n", name);
-        return;
-    }
-
-    Scope_Update(scope->Parent, name, object);
+    return scope;
 }
 
 void Scope_Free(Scope scope[static 1]) {
@@ -64,4 +41,34 @@ void Scope_Free(Scope scope[static 1]) {
     }
     Map_Free(&scope->Vars);
     scope->Parent = NULL;
+}
+
+bool Scope_TryResolve(Scope scope, char const *name, RuntimeObject object[static 1]) {
+    for (auto currentScope = &scope; NULL != currentScope; currentScope = currentScope->Parent) {
+        if (Map_TryGet(currentScope->Vars, name, object)) {
+            return true;
+        }
+    }
+
+    fprintf(stdout, "Unresolved identifier `%s`\n", name);
+    return false;
+}
+
+void Scope_Put(Scope scope[static 1], char const *name, RuntimeObject object) {
+    Map_Put(&scope->Vars, strdup(name), object);
+}
+
+void Scope_Update(Scope scope[static 1], char const *name, RuntimeObject object) {
+    for (; NULL != scope; scope = scope->Parent) {
+        RuntimeObject existingValue;
+        if (false == Map_TryGet(scope->Vars, name, &existingValue)) {
+            continue;
+        }
+
+        Map_Put(&scope->Vars, name, object);
+        return;
+    }
+
+
+    fprintf(stdout, "Unresolved identifier `%s`\n", name);
 }
