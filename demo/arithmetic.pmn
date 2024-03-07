@@ -12,4 +12,7 @@
 (:= hello "Hello")
 (:= space " ")
 
+(:= helloWorld (+ hello space "world"))
+
 (print (+ hello space "world"))
+(print helloWorld)
