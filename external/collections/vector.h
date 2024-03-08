@@ -79,3 +79,29 @@ for (                                                       \
 #define Vector_Empty(Vec)       (0 == (Vec).Size)
 
 #define Vector_Clear(VecPtr)    do { (VecPtr)->Size = 0; } while (0)
+
+#define Slice_Of(TValue)    \
+struct {                    \
+    size_t Size;            \
+    TValue *Items;          \
+}
+
+#define Vector_Slice(Vec, Begin, End)       \
+({                                          \
+    size_t _begin = (Begin);                \
+    size_t _end = (End);                    \
+    (Slice_Of(typeof((Vec).Items[0]))) {    \
+        .Size=(_end-_begin),                \
+        .Items=(Vec).Items+_begin           \
+    };                                      \
+})
+
+#define Vector_SliceAs(TSlice, Vec, Begin, End) \
+({                                              \
+    size_t _begin = (Begin);                    \
+    size_t _end = (End);                        \
+    (TSlice) {                                  \
+        .Size=(_end-_begin),                    \
+        .Items=(Vec).Items+_begin               \
+    };                                          \
+})
