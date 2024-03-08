@@ -107,95 +107,91 @@ void PrintParserError(ParserError error, FILE in[static 1]) {
     CallChecked(fseek, (in, pos, SEEK_SET));
 }
 
-void SumInts(size_t argsCount, RuntimeObject args[static argsCount], RuntimeObject result[static 1]) {
+void SumInts(RuntimeObjectsSlice args, RuntimeObject result[static 1]) {
     RuntimeInt acc = 0;
-    for (size_t i = 0; i < argsCount; i++) {
-        if (RUNTIME_TYPE_INT != args[i].Type) {
+    Vector_ForEach(argPtr, args) {
+        if (RUNTIME_TYPE_INT != argPtr->Type) {
             *result = RuntimeObject_Undefined();
             return;
         }
 
-        acc += args[i].AsInt;
+        acc += argPtr->AsInt;
     }
 
     *result = RuntimeObject_Int(acc);
 }
 
-void MulInts(size_t argsCount, RuntimeObject args[static argsCount], RuntimeObject result[static 1]) {
+void MulInts(RuntimeObjectsSlice args, RuntimeObject result[static 1]) {
     RuntimeInt acc = 1;
-    for (size_t i = 0; i < argsCount; i++) {
-        if (RUNTIME_TYPE_INT != args[i].Type) {
+    Vector_ForEach(argPtr, args) {
+        if (RUNTIME_TYPE_INT != argPtr->Type) {
             *result = RuntimeObject_Undefined();
             return;
         }
 
-        acc *= args[i].AsInt;
+        acc *= argPtr->AsInt;
     }
 
     *result = RuntimeObject_Int(acc);
 }
 
-void ConcatStrings(size_t argsCount, RuntimeObject args[static argsCount], RuntimeObject result[static 1]) {
+void ConcatStrings(RuntimeObjectsSlice args, RuntimeObject result[static 1]) {
     size_t totalLength = 0;
-    for (size_t i = 0; i < argsCount; i++) {
-        if (RUNTIME_TYPE_STRING != args[i].Type) {
+    Vector_ForEach(argPtr, args) {
+        if (RUNTIME_TYPE_STRING != argPtr->Type) {
             *result = RuntimeObject_Undefined();
             return;
         }
 
-        totalLength += strlen(args[i].AsString);
+        totalLength += strlen(argPtr->AsString);
     }
 
     auto buffer = (char *) calloc(totalLength + 1, sizeof(char));
-    for (size_t i = 0; i < argsCount; i++) {
-        strcat(buffer, args[i].AsString);
+    Vector_ForEach(argPtr, args) {
+        strcat(buffer, argPtr->AsString);
     }
 
     *result = RuntimeObject_String(buffer);
     free(buffer);
 }
 
-void Add(size_t argsCount, RuntimeObject args[static argsCount], RuntimeObject result[static 1]) {
-    if (0 == argsCount) {
+void Add(RuntimeObjectsSlice args, RuntimeObject result[static 1]) {
+    if (Vector_Empty(args)) { return; }
+
+    if (RUNTIME_TYPE_INT == args.Items[0].Type) {
+        SumInts(args, result);
         return;
     }
 
-    if (RUNTIME_TYPE_INT == args[0].Type) {
-        SumInts(argsCount, args, result);
-        return;
-    }
-
-    if (RUNTIME_TYPE_STRING == args[0].Type) {
-        ConcatStrings(argsCount, args, result);
-        return;
-    }
-
-    *result = RuntimeObject_Undefined();
-}
-
-void Mul(size_t argsCount, RuntimeObject args[static argsCount], RuntimeObject result[static 1]) {
-    if (0 == argsCount) {
-        return;
-    }
-
-    if (RUNTIME_TYPE_INT == args[0].Type) {
-        MulInts(argsCount, args, result);
+    if (RUNTIME_TYPE_STRING == args.Items[0].Type) {
+        ConcatStrings(args, result);
         return;
     }
 
     *result = RuntimeObject_Undefined();
 }
 
-void Print(size_t argsCount, RuntimeObject args[static argsCount], RuntimeObject result[static 1]) {
-    if (0 == argsCount) {
+void Mul(RuntimeObjectsSlice args, RuntimeObject result[static 1]) {
+    if (Vector_Empty(args)) { return; }
+
+    if (RUNTIME_TYPE_INT == args.Items[0].Type) {
+        MulInts(args, result);
         return;
     }
 
-    for (size_t i = 0; i < argsCount; i++) {
-        RuntimeObject_Print(stdout, args[i]);
-        if (i + 1 < argsCount) {
+    *result = RuntimeObject_Undefined();
+}
+
+void Print(RuntimeObjectsSlice args, RuntimeObject result[static 1]) {
+    if (Vector_Empty(args)) { return; }
+
+    size_t i = 0;
+    Vector_ForEach(argPtr, args) {
+        RuntimeObject_Print(stdout, *argPtr);
+        if (i + 1 < args.Size) {
             printf(" ");
         }
+        i++;
     }
 
     printf("\n");

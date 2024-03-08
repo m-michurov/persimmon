@@ -161,7 +161,10 @@ RuntimeObject Evaluate(Scope scope[static 1], AstNode node) {
             }
 
             RuntimeObject result;
-            fn.AsNativeFunction(itemValues.Size - 1, itemValues.Items + 1, &result);
+            fn.AsNativeFunction(Vector_SliceAs(RuntimeObjectsSlice, itemValues, 1, itemValues.Size), &result);
+
+            Vector_Free(&itemValues);
+
             return result;
         }
     }

@@ -6,6 +6,7 @@
 
 #include "call_checked.h"
 #include "collections/map.h"
+#include "collections/vector.h"
 
 typedef enum RuntimeType {
     RUNTIME_TYPE_UNDEFINED,
@@ -21,7 +22,9 @@ typedef struct RuntimeObject RuntimeObject;
 typedef int64_t RuntimeInt;
 typedef char const *RuntimeString;
 
-typedef void (*RuntimeNativeFunction)(size_t, RuntimeObject *, RuntimeObject *);
+typedef Slice_Of(RuntimeObject) RuntimeObjectsSlice;
+
+typedef void (*RuntimeNativeFunction)(RuntimeObjectsSlice, RuntimeObject *);
 
 struct RuntimeObject {
     RuntimeType Type;
