@@ -251,8 +251,6 @@ int main() {
                 RuntimeObject_Free(&value);
                 break;
             }
-            default:
-                Unreachable("Invalid result type");
         }
     }
 
