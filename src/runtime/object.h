@@ -22,12 +22,14 @@ typedef struct RuntimeObject RuntimeObject;
 typedef int64_t RuntimeInt;
 typedef char const *RuntimeString;
 
-typedef Slice_Of(RuntimeObject) RuntimeObjectsSlice;
+typedef Slice_Of(RuntimeObject *) RuntimeObjectsSlice;
 
-typedef void (*RuntimeNativeFunction)(RuntimeObjectsSlice, RuntimeObject *);
+typedef RuntimeObject *(*RuntimeNativeFunction)(RuntimeObjectsSlice);
 
 struct RuntimeObject {
     RuntimeType Type;
+    size_t ReferencesCount;
+
     union {
         RuntimeInt AsInt;
         RuntimeString AsString;
@@ -35,13 +37,21 @@ struct RuntimeObject {
     };
 };
 
-#define RuntimeObject_Undefined()   ((RuntimeObject) {.Type=RUNTIME_TYPE_UNDEFINED})
-#define RuntimeObject_Int(Value)    ((RuntimeObject) {.Type=RUNTIME_TYPE_INT, .AsInt=(Value)})
-#define RuntimeObject_String(Value) ((RuntimeObject) {.Type=RUNTIME_TYPE_STRING, .AsString=strdup((Value))})
-#define RuntimeObject_NativeFunction(Value) \
-    ((RuntimeObject) {.Type=RUNTIME_TYPE_NATIVE_FUNCTION, .AsNativeFunction=(Value)})
+extern int64_t RuntimeObject_DanglingPointers;
 
-void RuntimeObject_Free(RuntimeObject object[static 1]);
+RuntimeObject *RuntimeObject_Undefined();
+
+RuntimeObject *RuntimeObject_NewInt(RuntimeInt value);
+
+RuntimeObject *RuntimeObject_NewString(RuntimeString value);
+
+RuntimeObject *RuntimeObject_NewNativeFunction(RuntimeNativeFunction functionPtr);
+
+void RuntimeObject_ReferenceCreated(RuntimeObject object[static 1]);
+
+void RuntimeObject_ReferenceDeleted(RuntimeObject object[static 1]);
+
+bool RuntimeObject_Equals(RuntimeObject, RuntimeObject);
 
 void RuntimeObject_Print(FILE file[static 1], RuntimeObject);
 

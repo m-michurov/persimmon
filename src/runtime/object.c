@@ -19,19 +19,106 @@ char const *RuntimeType_Name(RuntimeType type) {
     }
 }
 
-void RuntimeObject_Free(RuntimeObject object[static 1]) {
+int64_t RuntimeObject_DanglingPointers = 0;
+
+static auto Undefined = (RuntimeObject) {.Type = RUNTIME_TYPE_UNDEFINED};
+
+static bool IsSingletonType(RuntimeType type) {
+    return RUNTIME_TYPE_UNDEFINED == type;
+}
+
+RuntimeObject *RuntimeObject_Undefined() { return &Undefined; }
+
+RuntimeObject *RuntimeObject_NewInt(RuntimeInt value) {
+    auto object = (RuntimeObject *) calloc(1, sizeof(RuntimeObject));
+    *object = (RuntimeObject) {
+            .Type = RUNTIME_TYPE_INT,
+            .AsInt = value
+    };
+
+    RuntimeObject_DanglingPointers++;
+    return object;
+}
+
+RuntimeObject *RuntimeObject_NewString(RuntimeString value) {
+    auto object = (RuntimeObject *) calloc(1, sizeof(RuntimeObject));
+    *object = (RuntimeObject) {
+            .Type = RUNTIME_TYPE_STRING,
+            .AsString = strdup(value)
+    };
+
+    RuntimeObject_DanglingPointers++;
+    return object;
+}
+
+RuntimeObject *RuntimeObject_NewNativeFunction(RuntimeNativeFunction functionPtr) {
+    auto object = (RuntimeObject *) calloc(1, sizeof(RuntimeObject));
+    *object = (RuntimeObject) {
+            .Type = RUNTIME_TYPE_NATIVE_FUNCTION,
+            .AsNativeFunction = functionPtr
+    };
+
+    RuntimeObject_DanglingPointers++;
+    return object;
+}
+
+void RuntimeObject_ReferenceCreated(RuntimeObject object[static 1]) {
+    if (IsSingletonType(object->Type)) { return; }
+
+    object->ReferencesCount++;
+}
+
+static void FreeObject(RuntimeObject *object) {
+    Assert(NULL != object);
+
     switch (object->Type) {
-        case RUNTIME_TYPE_INT:
-        case RUNTIME_TYPE_NATIVE_FUNCTION:
         case RUNTIME_TYPE_UNDEFINED:
             return;
+        case RUNTIME_TYPE_INT:
+        case RUNTIME_TYPE_NATIVE_FUNCTION: {
+            RuntimeObject_DanglingPointers--;
+            free(object);
+            return;
+        }
         case RUNTIME_TYPE_STRING: {
+            RuntimeObject_DanglingPointers--;
             free((void *) object->AsString);
             object->AsString = NULL;
+
+            free(object);
             return;
         }
     }
+
     Unreachable("%d", object->Type);
+}
+
+void RuntimeObject_ReferenceDeleted(RuntimeObject object[static 1]) {
+    if (IsSingletonType(object->Type)) { return; }
+
+    if (object->ReferencesCount > 1) {
+        object->ReferencesCount--;
+        return;
+    }
+
+    FreeObject(object);
+}
+
+bool RuntimeObject_Equals(RuntimeObject object, RuntimeObject other) {
+    if (object.Type != other.Type) { return false; }
+
+    switch (object.Type) {
+        case RUNTIME_TYPE_UNDEFINED:
+            return true;
+        case RUNTIME_TYPE_INT:
+            return object.AsInt == other.AsInt;
+        case RUNTIME_TYPE_STRING:
+            return 0 == strcmp(object.AsString, other.AsString);
+        case RUNTIME_TYPE_NATIVE_FUNCTION:
+            return object.AsNativeFunction == other.AsNativeFunction;
+    }
+
+    Unreachable("%d", object.Type);
 }
 
 void RuntimeObject_Print(FILE file[static 1], RuntimeObject object) {

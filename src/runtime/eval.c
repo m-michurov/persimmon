@@ -18,10 +18,10 @@ bool IsSpecialForm(AstNode node) {
     auto const name = pattern->ItemPatterns[0]->MatchedNode.AsIdentifier.Name;
     return 0 == strcmp(":=", name)
            || 0 == strcmp("=", name)
-           || 0 == strcmp("for", name);
+           || 0 == strcmp("while", name);
 }
 
-RuntimeObject EvaluateVariableDefinition(Scope scope[static 1], AstNode node) {
+RuntimeObject *EvaluateVariableDefinition(Scope scope[static 1], AstNode node) {
     auto const pattern =
             AstPattern_Expression(
                     AstPattern_Any(),
@@ -42,7 +42,7 @@ RuntimeObject EvaluateVariableDefinition(Scope scope[static 1], AstNode node) {
     return RuntimeObject_Undefined();
 }
 
-RuntimeObject EvaluateAssignment(Scope scope[static 1], AstNode node) {
+RuntimeObject *EvaluateAssignment(Scope scope[static 1], AstNode node) {
     auto const pattern =
             AstPattern_Expression(
                     AstPattern_Any(),
@@ -63,11 +63,9 @@ RuntimeObject EvaluateAssignment(Scope scope[static 1], AstNode node) {
     return RuntimeObject_Undefined();
 }
 
-RuntimeObject EvaluateFor(Scope scope[static 1], AstNode node) {
+RuntimeObject *EvaluateWhile(Scope scope[static 1], AstNode node) {
     auto const pattern =
             AstPattern_Expression(
-                    AstPattern_Any(),
-                    AstPattern_Type(AST_IDENTIFIER),
                     AstPattern_Any(),
                     AstPattern_Any(),
                     AstPattern_Rest()
@@ -78,37 +76,36 @@ RuntimeObject EvaluateFor(Scope scope[static 1], AstNode node) {
         return RuntimeObject_Undefined();
     }
 
-    auto const counter = pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.Name;
+    auto const condition = pattern->ItemPatterns[1]->MatchedNode;
+    auto const body = (AstPatternRest *) pattern->ItemPatterns[2];
 
-    auto const lower = Evaluate(scope, pattern->ItemPatterns[2]->MatchedNode);
-    if (RUNTIME_TYPE_INT != lower.Type) {
-        return RuntimeObject_Undefined();
-    }
+    auto const runtimeFalse = RuntimeObject_NewInt(0);
+    RuntimeObject_ReferenceCreated(runtimeFalse);
 
-    auto const upper = Evaluate(scope, pattern->ItemPatterns[3]->MatchedNode);
-    if (RUNTIME_TYPE_INT != upper.Type) {
-        return RuntimeObject_Undefined();
-    }
+    while (true) {
+        auto const conditionValue = Evaluate(scope, condition);
+        RuntimeObject_ReferenceCreated(conditionValue);
+        auto const conditionHolds = false == RuntimeObject_Equals(*runtimeFalse, *conditionValue);
+        RuntimeObject_ReferenceDeleted(conditionValue);
+        if (false == conditionHolds) {
+            break;
+        }
 
-    auto result = RuntimeObject_Undefined();
-    auto const body = (AstPatternRest *) pattern->ItemPatterns[4];
-
-    for (int64_t i = lower.AsInt; i <= upper.AsInt; i++) {
         auto bodyScope = Scope_WithParent(scope);
 
-        Scope_Put(&bodyScope, counter, RuntimeObject_Int(i));
-
         for (size_t j = 0; j < body->NodesCount; j++) {
-            result = Evaluate(&bodyScope, body->Nodes[j]);
+            auto const result = Evaluate(&bodyScope, body->Nodes[j]);
+            RuntimeObject_ReferenceDeleted(result);
         }
 
         Scope_Free(&bodyScope);
     }
+    RuntimeObject_ReferenceDeleted(runtimeFalse);
 
-    return result;
+    return RuntimeObject_Undefined();
 }
 
-RuntimeObject EvaluateSpecialForm(Scope scope[static 1], AstNode node) {
+RuntimeObject *EvaluateSpecialForm(Scope scope[static 1], AstNode node) {
     auto const head = node.AsExpression.Items.Items[0].AsIdentifier;
     if (0 == strcmp(":=", head.Name)) {
         return EvaluateVariableDefinition(scope, node);
@@ -118,21 +115,21 @@ RuntimeObject EvaluateSpecialForm(Scope scope[static 1], AstNode node) {
         return EvaluateAssignment(scope, node);
     }
 
-    if (0 == strcmp("for", head.Name)) {
-        return EvaluateFor(scope, node);
+    if (0 == strcmp("while", head.Name)) {
+        return EvaluateWhile(scope, node);
     }
 
     return RuntimeObject_Undefined();
 }
 
-RuntimeObject Evaluate(Scope scope[static 1], AstNode node) {
+RuntimeObject *Evaluate(Scope scope[static 1], AstNode node) {
     switch (node.Type) {
         case AST_INT_LITERAL:
-            return RuntimeObject_Int(node.AsIntLiteral.Value);
+            return RuntimeObject_NewInt(node.AsIntLiteral.Value);
         case AST_STRING_LITERAL:
-            return RuntimeObject_String(node.AsStringLiteral.Value);
+            return RuntimeObject_NewString(node.AsStringLiteral.Value);
         case AST_IDENTIFIER: {
-            RuntimeObject object;
+            RuntimeObject *object;
             if (Scope_TryResolve(*scope, node.AsIdentifier.Name, &object)) {
                 return object;
             }
@@ -145,10 +142,12 @@ RuntimeObject Evaluate(Scope scope[static 1], AstNode node) {
             }
 
             auto const items = node.AsExpression.Items;
-            auto itemValues = (Vector_Of(RuntimeObject)) {0};
+            auto itemValues = (Vector_Of(RuntimeObject *)) {0};
 
             Vector_ForEach(itemPtr, items) {
-                Vector_PushBack(&itemValues, Evaluate(scope, *itemPtr));
+                auto const itemValue = Evaluate(scope, *itemPtr);
+                RuntimeObject_ReferenceCreated(itemValue);
+                Vector_PushBack(&itemValues, itemValue);
             }
 
             if (Vector_Empty(itemValues)) {
@@ -156,13 +155,17 @@ RuntimeObject Evaluate(Scope scope[static 1], AstNode node) {
             }
 
             auto const fn = itemValues.Items[0];
-            if (RUNTIME_TYPE_NATIVE_FUNCTION != fn.Type) {
+            if (RUNTIME_TYPE_NATIVE_FUNCTION != fn->Type) {
+                fprintf(stdout, "Not a function\n");
                 return RuntimeObject_Undefined();
             }
 
-            RuntimeObject result;
-            fn.AsNativeFunction(Vector_SliceAs(RuntimeObjectsSlice, itemValues, 1, itemValues.Size), &result);
+            auto const args = Vector_SliceAs(RuntimeObjectsSlice, itemValues, 1, itemValues.Size);
+            auto const result = fn->AsNativeFunction(args);
 
+            Vector_ForEach(itemPtr, itemValues) {
+                RuntimeObject_ReferenceDeleted(*itemPtr);
+            }
             Vector_Free(&itemValues);
 
             return result;
