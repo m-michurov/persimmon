@@ -4,8 +4,10 @@
 (print "a =" a)
 (print "b =" b)
 
-(for i 1 10
+(:= i 0)
+(while (!= 10 i)
     (:= tmp a)
     (= a b)
     (= b (+ tmp b))
-    (print "Fibonacci number" i "is" a))
+    (print "Fibonacci number" (+ 1 i) "is" a)
+    (= i (+ i 1)))
