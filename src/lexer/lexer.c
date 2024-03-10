@@ -24,7 +24,7 @@ static bool IsIdentifierFirstChar(int c) {
         return true;
     }
 
-    const char otherChars[] = ".+-*/|=:";
+    const char otherChars[] = "!.+-*/|=:";
     for (const char *it = otherChars; '\0' != *it; it++) {
         if (*it == c) {
             return true;
