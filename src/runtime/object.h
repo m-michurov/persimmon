@@ -47,7 +47,7 @@ RuntimeObject *RuntimeObject_NewString(RuntimeString value);
 
 RuntimeObject *RuntimeObject_NewNativeFunction(RuntimeNativeFunction functionPtr);
 
-void RuntimeObject_ReferenceCreated(RuntimeObject object[static 1]);
+RuntimeObject * RuntimeObject_ReferenceCreated(RuntimeObject object[static 1]);
 
 void RuntimeObject_ReferenceDeleted(RuntimeObject object[static 1]);
 

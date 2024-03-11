@@ -247,6 +247,8 @@ int main() {
     auto const lexer = Lexer_Init(in);
     auto const parser = Parser_Init(lexer);
 
+    auto tmpRefs = TemporaryReferences_Empty();
+
     auto ok = true;
     while (ok && Parser_HasNext(parser)) {
         auto const result = Parser_Next(parser);
@@ -267,8 +269,8 @@ int main() {
                 AstNode_PrettyPrint(stdout, node);
                 fprintf(stdout, "\n");
                  */
-                auto value = Evaluate(&globalScope, node);
-                RuntimeObject_ReferenceCreated(value);
+                TemporaryReferences_Add(&tmpRefs, Evaluate(&globalScope, node));
+                TemporaryReferences_Free(&tmpRefs);
                 AstNode_Free(&node);
                 /*
                 RuntimeObject_Repr(stdout, value);
@@ -276,8 +278,6 @@ int main() {
                 RuntimeObject_Print(stdout, value);
                 fprintf(stdout, "\n");
                  */
-
-                RuntimeObject_ReferenceDeleted(value);
                 break;
             }
         }

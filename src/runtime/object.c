@@ -14,9 +14,9 @@ char const *RuntimeType_Name(RuntimeType type) {
             return "RUNTIME_TYPE_STRING";
         case RUNTIME_TYPE_NATIVE_FUNCTION:
             return "RUNTIME_TYPE_NATIVE_FUNCTION";
-        default:
-            Unreachable("%d", type);
     }
+
+    Unreachable("%d", type);
 }
 
 int64_t RuntimeObject_DanglingPointers = 0;
@@ -62,10 +62,11 @@ RuntimeObject *RuntimeObject_NewNativeFunction(RuntimeNativeFunction functionPtr
     return object;
 }
 
-void RuntimeObject_ReferenceCreated(RuntimeObject object[static 1]) {
-    if (IsSingletonType(object->Type)) { return; }
+RuntimeObject * RuntimeObject_ReferenceCreated(RuntimeObject object[static 1]) {
+    if (IsSingletonType(object->Type)) { return object; }
 
     object->ReferencesCount++;
+    return object;
 }
 
 static void FreeObject(RuntimeObject *object) {

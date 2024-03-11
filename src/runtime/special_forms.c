@@ -19,14 +19,13 @@ RuntimeObject *While(Scope scope[static 1], AstNode node) {
     auto const condition = pattern->ItemPatterns[1]->MatchedNode;
     auto const body = (AstPatternRest *) pattern->ItemPatterns[2];
 
-    auto const runtimeFalse = RuntimeObject_NewInt(0);
-    RuntimeObject_ReferenceCreated(runtimeFalse);
+    auto const runtimeFalse = RuntimeObject_ReferenceCreated(RuntimeObject_NewInt(0));
 
     while (true) {
-        auto const conditionValue = Evaluate(scope, condition);
-        RuntimeObject_ReferenceCreated(conditionValue);
+        auto const conditionValue = RuntimeObject_ReferenceCreated(Evaluate(scope, condition));
         auto const conditionHolds = false == RuntimeObject_Equals(*runtimeFalse, *conditionValue);
         RuntimeObject_ReferenceDeleted(conditionValue);
+
         if (false == conditionHolds) {
             break;
         }
@@ -34,8 +33,9 @@ RuntimeObject *While(Scope scope[static 1], AstNode node) {
         auto bodyScope = Scope_WithParent(scope);
 
         for (size_t j = 0; j < body->NodesCount; j++) {
-            auto const result = Evaluate(&bodyScope, body->Nodes[j]);
-            RuntimeObject_ReferenceDeleted(result);
+            auto const value =
+                    RuntimeObject_ReferenceCreated(Evaluate(&bodyScope, body->Nodes[j]));
+            RuntimeObject_ReferenceDeleted(value);
         }
 
         Scope_Free(&bodyScope);
@@ -58,12 +58,10 @@ RuntimeObject *VariableDefinition(Scope scope[1], AstNode node) {
         return RuntimeObject_Undefined();
     }
 
-    auto const target = pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.Name;
     auto const value = Evaluate(scope, pattern->ItemPatterns[2]->MatchedNode);
+    Scope_Put(scope, pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.Name, value);
 
-    Scope_Put(scope, target, value);
-
-    return RuntimeObject_Undefined();
+    return value;
 }
 
 RuntimeObject *VariableAssignment(Scope scope[static 1], AstNode node) {
@@ -79,12 +77,10 @@ RuntimeObject *VariableAssignment(Scope scope[static 1], AstNode node) {
         return RuntimeObject_Undefined();
     }
 
-    auto const target = pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.Name;
     auto const value = Evaluate(scope, pattern->ItemPatterns[2]->MatchedNode);
+    Scope_Update(scope, pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.Name, value);
 
-    Scope_Update(scope, target, value);
-
-    return RuntimeObject_Undefined();
+    return value;
 }
 
 static struct {

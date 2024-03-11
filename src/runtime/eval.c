@@ -16,6 +16,7 @@ void TemporaryReferences_Free(TemporaryReferences references[static 1]) {
         RuntimeObject_ReferenceDeleted(*objectPtr);
     }
     Vector_Free(&references->Objects);
+    *references = TemporaryReferences_Empty();
 }
 
 RuntimeObject *Apply(RuntimeObject *fn, RuntimeObjectsSlice args) {
@@ -49,14 +50,14 @@ static RuntimeObject *EvaluateCall(Scope scope[static 1], AstNode node) {
         );
     }
 
-    if (Vector_Empty(itemValues.Objects)) { return RuntimeObject_Undefined(); }
+    auto const result = Vector_Empty(itemValues.Objects)
+                        ? RuntimeObject_Undefined()
+                        : Apply(
+                    itemValues.Objects.Items[0],
+                    Vector_SliceAs(RuntimeObjectsSlice, itemValues.Objects, 1, itemValues.Objects.Size)
+            );
 
-    auto const result = Apply(
-            itemValues.Objects.Items[0],
-            Vector_SliceAs(RuntimeObjectsSlice, itemValues.Objects, 1, itemValues.Objects.Size)
-    );
     TemporaryReferences_Free(&itemValues);
-
     return result;
 }
 
