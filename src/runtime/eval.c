@@ -3,123 +3,76 @@
 #include "common/macros.h"
 
 #include "ast/match.h"
+#include "runtime/special_forms.h"
 
-bool IsSpecialForm(AstNode node) {
-    auto const pattern =
-            AstPattern_Expression(
-                    AstPattern_Type(AST_IDENTIFIER),
-                    AstPattern_Rest()
-            );
-
-    if (false == Ast_MatchByType(&pattern->Base, node)) {
-        return false;
-    }
-
-    auto const name = pattern->ItemPatterns[0]->MatchedNode.AsIdentifier.Name;
-    return 0 == strcmp(":=", name)
-           || 0 == strcmp("=", name)
-           || 0 == strcmp("while", name);
+RuntimeObject *TemporaryReferences_Add(TemporaryReferences references[static 1], RuntimeObject *object) {
+    Vector_PushBack(&references->Objects, object);
+    RuntimeObject_ReferenceCreated(object);
+    return object;
 }
 
-RuntimeObject *EvaluateVariableDefinition(Scope scope[static 1], AstNode node) {
-    auto const pattern =
-            AstPattern_Expression(
-                    AstPattern_Any(),
-                    AstPattern_Type(AST_IDENTIFIER),
-                    AstPattern_Any()
-            );
+void TemporaryReferences_Free(TemporaryReferences references[static 1]) {
+    Vector_ForEach(objectPtr, references->Objects) {
+        RuntimeObject_ReferenceDeleted(*objectPtr);
+    }
+    Vector_Free(&references->Objects);
+}
 
-    if (false == Ast_MatchByType((AstPattern *) pattern, node)) {
-        fprintf(stdout, "Invalid usage of special form `:=`\n");
+RuntimeObject *Apply(RuntimeObject *fn, RuntimeObjectsSlice args) {
+    if (RUNTIME_TYPE_NATIVE_FUNCTION != fn->Type) {
+        fprintf(stdout, "Not a function\n");
         return RuntimeObject_Undefined();
     }
 
-    auto const target = pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.Name;
-    auto const value = Evaluate(scope, pattern->ItemPatterns[2]->MatchedNode);
+    return fn->AsNativeFunction(args);
+}
 
-    Scope_Put(scope, target, value);
+static RuntimeObject *EvaluateIdentifier(Scope scope[static 1], AstNode node) {
+    Assert(AST_IDENTIFIER == node.Type);
+
+    RuntimeObject *value;
+    if (Scope_TryResolve(*scope, node.AsIdentifier.Name, &value)) {
+        return value;
+    }
 
     return RuntimeObject_Undefined();
 }
 
-RuntimeObject *EvaluateAssignment(Scope scope[static 1], AstNode node) {
-    auto const pattern =
-            AstPattern_Expression(
-                    AstPattern_Any(),
-                    AstPattern_Type(AST_IDENTIFIER),
-                    AstPattern_Any()
-            );
+static RuntimeObject *EvaluateCall(Scope scope[static 1], AstNode node) {
+    Assert(AST_EXPRESSION == node.Type);
 
-    if (false == Ast_MatchByType((AstPattern *) pattern, node)) {
-        fprintf(stdout, "Invalid usage of special form `=`\n");
-        return RuntimeObject_Undefined();
+    auto itemValues = TemporaryReferences_Empty();
+    Vector_ForEach(itemPtr, node.AsExpression.Items) {
+        TemporaryReferences_Add(
+                &itemValues,
+                Evaluate(scope, *itemPtr)
+        );
     }
 
-    auto const target = pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.Name;
-    auto const value = Evaluate(scope, pattern->ItemPatterns[2]->MatchedNode);
+    if (Vector_Empty(itemValues.Objects)) { return RuntimeObject_Undefined(); }
 
-    Scope_Update(scope, target, value);
+    auto const result = Apply(
+            itemValues.Objects.Items[0],
+            Vector_SliceAs(RuntimeObjectsSlice, itemValues.Objects, 1, itemValues.Objects.Size)
+    );
+    TemporaryReferences_Free(&itemValues);
 
-    return RuntimeObject_Undefined();
+    return result;
 }
 
-RuntimeObject *EvaluateWhile(Scope scope[static 1], AstNode node) {
-    auto const pattern =
-            AstPattern_Expression(
-                    AstPattern_Any(),
-                    AstPattern_Any(),
-                    AstPattern_Rest()
-            );
+static RuntimeObject *EvaluateExpression(Scope scope[static 1], AstNode node) {
+    auto const pattern = AstPattern_Expression(
+            AstPattern_Type(AST_IDENTIFIER),
+            AstPattern_Rest()
+    );
 
-    if (false == Ast_MatchByType((AstPattern *) pattern, node)) {
-        fprintf(stdout, "Invalid usage of special form `for`\n");
-        return RuntimeObject_Undefined();
+    RuntimeSpecialForm specialForm;
+    if (Ast_MatchByType((AstPattern *) pattern, node)
+        && SpecialForm_TryGet(pattern->ItemPatterns[0]->MatchedNode.AsIdentifier.Name, &specialForm)) {
+        return specialForm(scope, node);
     }
 
-    auto const condition = pattern->ItemPatterns[1]->MatchedNode;
-    auto const body = (AstPatternRest *) pattern->ItemPatterns[2];
-
-    auto const runtimeFalse = RuntimeObject_NewInt(0);
-    RuntimeObject_ReferenceCreated(runtimeFalse);
-
-    while (true) {
-        auto const conditionValue = Evaluate(scope, condition);
-        RuntimeObject_ReferenceCreated(conditionValue);
-        auto const conditionHolds = false == RuntimeObject_Equals(*runtimeFalse, *conditionValue);
-        RuntimeObject_ReferenceDeleted(conditionValue);
-        if (false == conditionHolds) {
-            break;
-        }
-
-        auto bodyScope = Scope_WithParent(scope);
-
-        for (size_t j = 0; j < body->NodesCount; j++) {
-            auto const result = Evaluate(&bodyScope, body->Nodes[j]);
-            RuntimeObject_ReferenceDeleted(result);
-        }
-
-        Scope_Free(&bodyScope);
-    }
-    RuntimeObject_ReferenceDeleted(runtimeFalse);
-
-    return RuntimeObject_Undefined();
-}
-
-RuntimeObject *EvaluateSpecialForm(Scope scope[static 1], AstNode node) {
-    auto const head = node.AsExpression.Items.Items[0].AsIdentifier;
-    if (0 == strcmp(":=", head.Name)) {
-        return EvaluateVariableDefinition(scope, node);
-    }
-
-    if (0 == strcmp("=", head.Name)) {
-        return EvaluateAssignment(scope, node);
-    }
-
-    if (0 == strcmp("while", head.Name)) {
-        return EvaluateWhile(scope, node);
-    }
-
-    return RuntimeObject_Undefined();
+    return EvaluateCall(scope, node);
 }
 
 RuntimeObject *Evaluate(Scope scope[static 1], AstNode node) {
@@ -128,48 +81,10 @@ RuntimeObject *Evaluate(Scope scope[static 1], AstNode node) {
             return RuntimeObject_NewInt(node.AsIntLiteral.Value);
         case AST_STRING_LITERAL:
             return RuntimeObject_NewString(node.AsStringLiteral.Value);
-        case AST_IDENTIFIER: {
-            RuntimeObject *object;
-            if (Scope_TryResolve(*scope, node.AsIdentifier.Name, &object)) {
-                return object;
-            }
-
-            return RuntimeObject_Undefined();
-        }
-        case AST_EXPRESSION: {
-            if (IsSpecialForm(node)) {
-                return EvaluateSpecialForm(scope, node);
-            }
-
-            auto const items = node.AsExpression.Items;
-            auto itemValues = (Vector_Of(RuntimeObject *)) {0};
-
-            Vector_ForEach(itemPtr, items) {
-                auto const itemValue = Evaluate(scope, *itemPtr);
-                RuntimeObject_ReferenceCreated(itemValue);
-                Vector_PushBack(&itemValues, itemValue);
-            }
-
-            if (Vector_Empty(itemValues)) {
-                return RuntimeObject_Undefined();
-            }
-
-            auto const fn = itemValues.Items[0];
-            if (RUNTIME_TYPE_NATIVE_FUNCTION != fn->Type) {
-                fprintf(stdout, "Not a function\n");
-                return RuntimeObject_Undefined();
-            }
-
-            auto const args = Vector_SliceAs(RuntimeObjectsSlice, itemValues, 1, itemValues.Size);
-            auto const result = fn->AsNativeFunction(args);
-
-            Vector_ForEach(itemPtr, itemValues) {
-                RuntimeObject_ReferenceDeleted(*itemPtr);
-            }
-            Vector_Free(&itemValues);
-
-            return result;
-        }
+        case AST_IDENTIFIER:
+            return EvaluateIdentifier(scope, node);
+        case AST_EXPRESSION:
+            return EvaluateExpression(scope, node);
     }
 
     Unreachable("%d", node.Type);
