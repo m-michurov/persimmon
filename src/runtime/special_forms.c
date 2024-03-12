@@ -95,13 +95,13 @@ void CaptureFreeVariables(
             return;
         case AST_IDENTIFIER: {
             auto const name = node.AsIdentifier.NameChars;
-            auto const isFree = false == Vector_Any(argumentNames, it, 0 == strcmp(it, name));
+            if (Vector_Any(argumentNames, it, 0 == strcmp(it, name)) || Scope_IsDeclared(*to, name)) {
+                return;
+            }
 
             RuntimeObject *object;
-            if (isFree && false == Scope_TryResolve(*to, name, &object)) {
-                if (Scope_TryResolve(from, name, &object)) {
-                    Scope_Put(to, name, object);
-                }
+            if (Scope_TryResolve(from, name, &object)) {
+                Scope_Put(to, name, object);
             }
 
             return;
@@ -119,13 +119,13 @@ void CaptureFreeVariables(
 }
 
 RuntimeObject *Function(Scope scope[static 1], AstNode node) {
+    auto const argsPattern = AstPattern_MatchRestByType(AST_IDENTIFIER);
+    auto const bodyPattern = AstPattern_MatchRest();
     auto const pattern =
             AstPattern_MatchExpression(
                     AstPattern_MatchAny(),
-                    (AstPattern *) AstPattern_MatchExpression(
-                            AstPattern_MatchRestByType(AST_IDENTIFIER)
-                    ),
-                    AstPattern_MatchRest()
+                    (AstPattern *) AstPattern_MatchExpression(argsPattern),
+                    bodyPattern
             );
 
     if (false == Ast_MatchByType((AstPattern *) pattern, node)) {
@@ -133,18 +133,15 @@ RuntimeObject *Function(Scope scope[static 1], AstNode node) {
         return RuntimeObject_Undefined();
     }
 
-    auto const argNodes = (AstPatternRestByType *) ((AstPatternExpression *) pattern->ItemPatterns[1])->ItemPatterns[0];
     auto argNames = (ArgumentNames) {0};
-
-    Vector_ForEach(argNodePtr, argNodes->Nodes) {
+    Vector_ForEach(argNodePtr, ((AstPatternRestByType *) argsPattern)->Nodes) {
         Vector_PushBack(&argNames, strdup(argNodePtr->AsIdentifier.NameChars));
     }
 
-    auto const bodyNodes = (AstPatternRest *) pattern->ItemPatterns[2];
     auto body = (FunctionBody) {0};
     auto capturedVariables = Scope_Empty();
 
-    Vector_ForEach(bodyNodePtr, bodyNodes->Nodes) {
+    Vector_ForEach(bodyNodePtr, ((AstPatternRest *) bodyPattern)->Nodes) {
         Vector_PushBack(&body, AstNode_Copy(*bodyNodePtr));
         CaptureFreeVariables(argNames, *bodyNodePtr, *scope, &capturedVariables);
     }

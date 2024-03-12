@@ -36,6 +36,16 @@ Scope Scope_WithParent(Scope parent[static 1]) {
     return scope;
 }
 
+bool Scope_IsDeclared(Scope scope, char const * name) {
+    for (auto currentScope = &scope; NULL != currentScope; currentScope = currentScope->Parent) {
+        if (NULL != Map_At(currentScope->Vars, name)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void Scope_Free(Scope scope[static 1]) {
     Map_ForEach(p, scope->Vars) {
         free((void *) p->Key);
