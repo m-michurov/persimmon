@@ -29,27 +29,27 @@ static bool MatchExpression(AstPatternExpression pattern[static 1], AstNode cons
         return false;
     }
 
-    auto const children = node.AsExpression.Items;
+    auto const expression = node.AsExpression;
 
     size_t i = 0;
-    Vector_ForEach(childPtr, children) {
+    Vector_ForEach(childPtr, expression) {
         auto itemPattern = pattern->ItemPatterns[i];
         if (NULL == itemPattern) { return false; }
 
         if (AST_PATTERN_MATCH_REST == itemPattern->Type) {
-            MatchRest((AstPatternRest *) itemPattern, children.Size - i, childPtr);
-            i = children.Size;
+            MatchRest((AstPatternRest *) itemPattern, expression.Size - i, childPtr);
+            i = expression.Size;
             break;
         }
 
-        if (false == Ast_MatchByType(itemPattern, children.Items[i])) {
+        if (false == Ast_MatchByType(itemPattern, expression.Items[i])) {
             return false;
         }
 
         i++;
     }
 
-    if (children.Size != i) {
+    if (expression.Size != i) {
         return false;
     }
 

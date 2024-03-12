@@ -32,7 +32,7 @@ static RuntimeObject *EvaluateIdentifier(Scope scope[static 1], AstNode node) {
     Assert(AST_IDENTIFIER == node.Type);
 
     RuntimeObject *value;
-    if (Scope_TryResolve(*scope, node.AsIdentifier.Name, &value)) {
+    if (Scope_TryResolve(*scope, node.AsIdentifier.NameChars, &value)) {
         return value;
     }
 
@@ -43,7 +43,7 @@ static RuntimeObject *EvaluateCall(Scope scope[static 1], AstNode node) {
     Assert(AST_EXPRESSION == node.Type);
 
     auto itemValues = TemporaryReferences_Empty();
-    Vector_ForEach(itemPtr, node.AsExpression.Items) {
+    Vector_ForEach(itemPtr, node.AsExpression) {
         TemporaryReferences_Add(
                 &itemValues,
                 Evaluate(scope, *itemPtr)
@@ -69,7 +69,7 @@ static RuntimeObject *EvaluateExpression(Scope scope[static 1], AstNode node) {
 
     RuntimeSpecialForm specialForm;
     if (Ast_MatchByType((AstPattern *) pattern, node)
-        && SpecialForm_TryGet(pattern->ItemPatterns[0]->MatchedNode.AsIdentifier.Name, &specialForm)) {
+        && SpecialForm_TryGet(pattern->ItemPatterns[0]->MatchedNode.AsIdentifier.NameChars, &specialForm)) {
         return specialForm(scope, node);
     }
 

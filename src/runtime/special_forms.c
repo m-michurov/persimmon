@@ -59,7 +59,7 @@ RuntimeObject *VariableDefinition(Scope scope[1], AstNode node) {
     }
 
     auto const value = Evaluate(scope, pattern->ItemPatterns[2]->MatchedNode);
-    Scope_Put(scope, pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.Name, value);
+    Scope_Put(scope, pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.NameChars, value);
 
     return value;
 }
@@ -78,7 +78,7 @@ RuntimeObject *VariableAssignment(Scope scope[static 1], AstNode node) {
     }
 
     auto const value = Evaluate(scope, pattern->ItemPatterns[2]->MatchedNode);
-    Scope_Update(scope, pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.Name, value);
+    Scope_Update(scope, pattern->ItemPatterns[1]->MatchedNode.AsIdentifier.NameChars, value);
 
     return value;
 }

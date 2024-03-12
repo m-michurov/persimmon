@@ -12,7 +12,7 @@
 
 struct Parser {
     Lexer *Lexer;
-    Vector_Of(AstNodes) ExpressionsStack;
+    Vector_Of(AstExpression) ExpressionsStack;
 };
 
 Parser *Parser_Init(Lexer *lexer) {
@@ -31,11 +31,11 @@ static bool HandleToken(Parser parser[static 1], Token token, ParserResult resul
 
     switch (token.Type) {
         case TOKEN_OPEN_PAREN: {
-            Vector_PushBack(stack, ((AstNodes) {0}));
+            Vector_PushBack(stack, ((AstExpression) {0}));
             break;
         }
         case TOKEN_CLOSE_PAREN: {
-            AstNodes items;
+            AstExpression items;
             if (false == Vector_TryPopBack(stack, &items)) {
                 *result = ParserResult_ParserError(token, "unexpected closing parenthesis");
                 return true;
