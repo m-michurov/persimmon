@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 #ifndef CallChecked
 #error Please include call_checked.h before vector.h
@@ -79,6 +80,19 @@ for (                                                       \
 #define Vector_Empty(Vec)       (0 == (Vec).Size)
 
 #define Vector_Clear(VecPtr)    do { (VecPtr)->Size = 0; } while (0)
+
+#define Vector_Any(Vec, Value, PredicateExpr)   \
+({                                              \
+    bool _matches = false;                      \
+    Vector_ForEach(p, (Vec)) {                  \
+        __auto_type Value = *p;                 \
+        if ((PredicateExpr)) {                  \
+            _matches = true;                    \
+            break;                              \
+        }                                       \
+    }                                           \
+    _matches;                                   \
+})
 
 #define Slice_Of(TValue)    \
 struct {                    \

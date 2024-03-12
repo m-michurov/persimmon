@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 #ifndef CallChecked
 #error Please include call_checked.h before map.h
