@@ -20,12 +20,41 @@ void TemporaryReferences_Free(TemporaryReferences references[static 1]) {
 }
 
 RuntimeObject *Apply(RuntimeObject *fn, RuntimeObjectsSlice args) {
-    if (RUNTIME_TYPE_NATIVE_FUNCTION != fn->Type) {
-        fprintf(stdout, "Not a function\n");
-        return RuntimeObject_Undefined();
+    if (RUNTIME_TYPE_NATIVE_FUNCTION == fn->Type) {
+        return fn->AsNativeFunction(args);
     }
 
-    return fn->AsNativeFunction(args);
+    if (RUNTIME_TYPE_FUNCTION == fn->Type) {
+        auto function = fn->AsFunction;
+        if (args.Size != function.ArgumentNames.Size) {
+            fprintf(
+                    stdout,
+                    "Wrong number of arguments: expected %zu, got %zu\n",
+                    function.ArgumentNames.Size, args.Size
+            );
+            return RuntimeObject_Undefined();
+        }
+
+        auto scope = Scope_WithParent(&function.CapturedVariables);
+        for (size_t i = 0; i < function.ArgumentNames.Size; i++) {
+            Scope_Put(&scope, function.ArgumentNames.Items[i], args.Items[i]);
+        }
+
+        for (size_t i = 0; i + 1 < function.Body.Size; i++) {
+            auto result = RuntimeObject_ReferenceCreated(Evaluate(&scope, function.Body.Items[i]));
+            RuntimeObject_ReferenceDeleted(result);
+        }
+
+        auto result = RuntimeObject_ReferenceCreated(Evaluate(&scope, *Vector_At(function.Body, -1)));
+
+        Scope_Free(&scope);
+        result->ReferencesCount--;
+
+        return result;
+    }
+
+    fprintf(stdout, "Not a function\n");
+    return RuntimeObject_Undefined();
 }
 
 static RuntimeObject *EvaluateIdentifier(Scope scope[static 1], AstNode node) {
@@ -36,6 +65,7 @@ static RuntimeObject *EvaluateIdentifier(Scope scope[static 1], AstNode node) {
         return value;
     }
 
+    fprintf(stdout, "Unresolved identifier `%s`\n", node.AsIdentifier.NameChars);
     return RuntimeObject_Undefined();
 }
 

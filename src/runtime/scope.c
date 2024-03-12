@@ -2,6 +2,8 @@
 
 #include "common/macros.h"
 
+#include "runtime/object.h"
+
 static size_t StrHash(char const *s) {
     unsigned long hash = 5381;
     int c;
@@ -50,11 +52,12 @@ bool Scope_TryResolve(Scope scope, char const *name, RuntimeObject *object[stati
         }
     }
 
-    fprintf(stdout, "Unresolved identifier `%s`\n", name);
     return false;
 }
 
-void Scope_Put(Scope scope[static 1], char const *name, RuntimeObject object[static 1]) {
+void Scope_Put(Scope scope[static 1], char const *name, RuntimeObject *object) {
+    Assert(NULL != object);
+
     auto oldValuePtr = Map_At(scope->Vars, name);
 
     if (NULL != oldValuePtr) {
@@ -74,7 +77,9 @@ void ReplaceObjectReference(RuntimeObject *p1[1], RuntimeObject p2[1]) {
     RuntimeObject_ReferenceCreated(p2);
 }
 
-void Scope_Update(Scope scope[static 1], char const *name, RuntimeObject newValue[static 1]) {
+void Scope_Update(Scope scope[static 1], char const *name, RuntimeObject *newValue) {
+    Assert(NULL != newValue);
+
     for (; NULL != scope; scope = scope->Parent) {
         auto oldValuePtr = Map_At(scope->Vars, name);
         if (NULL == oldValuePtr) {

@@ -230,7 +230,7 @@ RuntimeObject *NotEquals(RuntimeObjectsSlice args) {
 }
 
 int main() {
-    auto const path = "../demo/fib.pmn";
+    auto const path = "../demo/functions.pmn";
     auto const in = fopen(path, "rb");
     if (NULL == in) {
         fprintf(stderr, "Could not open \"%s\": %s\n", path, strerror(errno));

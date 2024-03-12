@@ -14,6 +14,8 @@ char const *RuntimeType_Name(RuntimeType type) {
             return "RUNTIME_TYPE_STRING";
         case RUNTIME_TYPE_NATIVE_FUNCTION:
             return "RUNTIME_TYPE_NATIVE_FUNCTION";
+        case RUNTIME_TYPE_FUNCTION:
+            return "RUNTIME_TYPE_FUNCTION";
     }
 
     Unreachable("%d", type);
@@ -62,6 +64,21 @@ RuntimeObject *RuntimeObject_NewNativeFunction(RuntimeNativeFunction functionPtr
     return object;
 }
 
+RuntimeObject *RuntimeObject_NewFunction(ArgumentNames argumentNames, FunctionBody body, Scope capturedVariables) {
+    auto object = (RuntimeObject *) calloc(1, sizeof(RuntimeObject));
+    *object = (RuntimeObject) {
+            .Type = RUNTIME_TYPE_FUNCTION,
+            .AsFunction = (RuntimeFunction) {
+                    .ArgumentNames = argumentNames,
+                    .Body = body,
+                    .CapturedVariables = capturedVariables
+            }
+    };
+
+    RuntimeObject_DanglingPointers++;
+    return object;
+}
+
 RuntimeObject *RuntimeObject_ReferenceCreated(RuntimeObject object[static 1]) {
     if (IsSingletonType(object->Type)) { return object; }
 
@@ -87,6 +104,24 @@ static void FreeObject(RuntimeObject *object) {
             object->AsString = NULL;
 
             free(object);
+            return;
+        }
+        case RUNTIME_TYPE_FUNCTION: {
+            RuntimeObject_DanglingPointers--;
+            auto fn = object->AsFunction;
+
+            Vector_ForEach(argNamePtr, fn.ArgumentNames) {
+                free((void *) *argNamePtr);
+            }
+            Vector_Free(&fn.ArgumentNames);
+
+            Vector_ForEach(bodyNodePtr, fn.Body) {
+                AstNode_Free(bodyNodePtr);
+            }
+            Vector_Free(&fn.Body);
+
+            Scope_Free(&fn.CapturedVariables);\
+
             return;
         }
     }
@@ -117,6 +152,8 @@ bool RuntimeObject_Equals(RuntimeObject const object[static 1], RuntimeObject co
             return 0 == strcmp(object->AsString, other->AsString);
         case RUNTIME_TYPE_NATIVE_FUNCTION:
             return object->AsNativeFunction == other->AsNativeFunction;
+        case RUNTIME_TYPE_FUNCTION:
+            return object == other;
     }
 
     Unreachable("%d", object->Type);
@@ -140,7 +177,12 @@ void RuntimeObject_Print(FILE file[static 1], RuntimeObject object) {
             fprintf(file, "<undefined>");
             return;
         }
+        case RUNTIME_TYPE_FUNCTION: {
+            fprintf(file, "<Function>");
+            return;
+        }
     }
+
     Unreachable("%d", object.Type);
 }
 
@@ -164,6 +206,10 @@ void RuntimeObject_Repr(FILE file[static 1], RuntimeObject object) {
         }
         case RUNTIME_TYPE_UNDEFINED: {
             fprintf(file, "}");
+            return;
+        }
+        case RUNTIME_TYPE_FUNCTION: {
+            fprintf(file, ", AsFunction=<Function>}");
             return;
         }
     }

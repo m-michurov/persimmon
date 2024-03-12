@@ -1,10 +1,11 @@
 #pragma once
 
+#include <stdbool.h>
+
 #include "call_checked.h"
 #include "collections/map.h"
 
-#include "runtime/object.h"
-
+typedef struct RuntimeObject RuntimeObject;
 typedef struct Scope Scope;
 
 struct Scope {
@@ -21,6 +22,6 @@ void Scope_Free(Scope scope[static 1]);
 
 bool Scope_TryResolve(Scope, char const *, RuntimeObject *object[static 1]);
 
-void Scope_Put(Scope scope[static 1], char const *, RuntimeObject object[static 1]);
+void Scope_Put(Scope scope[static 1], char const *, RuntimeObject *);
 
-void Scope_Update(Scope scope[static 1], char const *, RuntimeObject newValue[static 1]);
+void Scope_Update(Scope scope[static 1], char const *, RuntimeObject *);
