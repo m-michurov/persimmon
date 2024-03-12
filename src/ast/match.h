@@ -1,11 +1,15 @@
 #pragma once
 
+#include "call_checked.h"
+#include "collections/vector.h"
+
 #include "ast/ast.h"
 
 typedef enum AstPatternType {
     AST_PATTERN_MATCH_EXACT_TYPE,
     AST_PATTERN_MATCH_ANY_TYPE,
-    AST_PATTERN_MATCH_REST,
+    AST_PATTERN_MATCH_REST_EXACT_TYPE,
+    AST_PATTERN_MATCH_REST_ANY_TYPE,
     AST_PATTERN_MATCH_EXPRESSION,
 } AstPatternType;
 
@@ -16,19 +20,28 @@ struct AstPattern {
     AstNode MatchedNode;
 };
 
-typedef struct AstPatternExact AstPatternExact;
-struct AstPatternExact {
+typedef struct AstPatternByType AstPatternByType;
+struct AstPatternByType {
     AstPattern Base;
 
     AstNodeType NodeType;
+};
+
+typedef Slice_Of(AstNode) AstNodesSlice;
+
+typedef struct AstPatternRestByType AstPatternRestByType;
+struct AstPatternRestByType {
+    AstPattern Base;
+
+    AstNodeType NodeType;
+    AstNodesSlice Nodes;
 };
 
 typedef struct AstPatternRest AstPatternRest;
 struct AstPatternRest {
     AstPattern Base;
 
-    size_t NodesCount;
-    AstNode const *Nodes;
+    AstNodesSlice Nodes;
 };
 
 typedef struct AstPatternExpression AstPatternExpression;
@@ -38,16 +51,22 @@ struct AstPatternExpression {
     AstPattern **ItemPatterns;
 };
 
-#define AstPattern_Any()   ((AstPattern *) &(AstPattern) { .Type = AST_PATTERN_MATCH_ANY_TYPE, })
-#define AstPattern_Rest()  ((AstPattern *) &(AstPatternRest) { .Base.Type = AST_PATTERN_MATCH_REST, })
+#define AstPattern_MatchAny()   ((AstPattern *) &(AstPattern) { .Type = AST_PATTERN_MATCH_ANY_TYPE, })
+#define AstPattern_MatchRest()  ((AstPattern *) &(AstPatternRest) { .Base.Type = AST_PATTERN_MATCH_REST_ANY_TYPE, })
 
-#define AstPattern_Type(NodeType_)              \
-((AstPattern *) &(AstPatternExact) {            \
+#define AstPattern_MatchRestByType(NodeType_)       \
+((AstPattern *) &(AstPatternRestByType) {           \
+    .Base.Type = AST_PATTERN_MATCH_REST_EXACT_TYPE, \
+    .NodeType = NodeType_,                          \
+})
+
+#define AstPattern_MatchByType(NodeType_)       \
+((AstPattern *) &(AstPatternByType) {           \
     .Base.Type = AST_PATTERN_MATCH_EXACT_TYPE,  \
     .NodeType = (NodeType_),                    \
 })
 
-#define AstPattern_Expression(...)         \
+#define AstPattern_MatchExpression(...)         \
 (&(AstPatternExpression) {                      \
     .Base.Type = AST_PATTERN_MATCH_EXPRESSION,  \
     .ItemPatterns = (AstPattern *[]) {          \

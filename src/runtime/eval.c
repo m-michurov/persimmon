@@ -92,9 +92,9 @@ static RuntimeObject *EvaluateCall(Scope scope[static 1], AstNode node) {
 }
 
 static RuntimeObject *EvaluateExpression(Scope scope[static 1], AstNode node) {
-    auto const pattern = AstPattern_Expression(
-            AstPattern_Type(AST_IDENTIFIER),
-            AstPattern_Rest()
+    auto const pattern = AstPattern_MatchExpression(
+            AstPattern_MatchByType(AST_IDENTIFIER),
+            AstPattern_MatchRest()
     );
 
     RuntimeSpecialForm specialForm;

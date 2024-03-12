@@ -5,10 +5,10 @@
 
 RuntimeObject *While(Scope scope[static 1], AstNode node) {
     auto const pattern =
-            AstPattern_Expression(
-                    AstPattern_Any(),
-                    AstPattern_Any(),
-                    AstPattern_Rest()
+            AstPattern_MatchExpression(
+                    AstPattern_MatchAny(),
+                    AstPattern_MatchAny(),
+                    AstPattern_MatchRest()
             );
 
     if (false == Ast_MatchByType((AstPattern *) pattern, node)) {
@@ -32,9 +32,9 @@ RuntimeObject *While(Scope scope[static 1], AstNode node) {
 
         auto bodyScope = Scope_WithParent(scope);
 
-        for (size_t j = 0; j < body->NodesCount; j++) {
+        Vector_ForEach(bodyNodePtr, body->Nodes) {
             auto const value =
-                    RuntimeObject_ReferenceCreated(Evaluate(&bodyScope, body->Nodes[j]));
+                    RuntimeObject_ReferenceCreated(Evaluate(&bodyScope, *bodyNodePtr));
             RuntimeObject_ReferenceDeleted(value);
         }
 
@@ -47,10 +47,10 @@ RuntimeObject *While(Scope scope[static 1], AstNode node) {
 
 RuntimeObject *VariableDefinition(Scope scope[static 1], AstNode node) {
     auto const pattern =
-            AstPattern_Expression(
-                    AstPattern_Any(),
-                    AstPattern_Type(AST_IDENTIFIER),
-                    AstPattern_Any()
+            AstPattern_MatchExpression(
+                    AstPattern_MatchAny(),
+                    AstPattern_MatchByType(AST_IDENTIFIER),
+                    AstPattern_MatchAny()
             );
 
     if (false == Ast_MatchByType((AstPattern *) pattern, node)) {
@@ -66,10 +66,10 @@ RuntimeObject *VariableDefinition(Scope scope[static 1], AstNode node) {
 
 RuntimeObject *VariableAssignment(Scope scope[static 1], AstNode node) {
     auto const pattern =
-            AstPattern_Expression(
-                    AstPattern_Any(),
-                    AstPattern_Type(AST_IDENTIFIER),
-                    AstPattern_Any()
+            AstPattern_MatchExpression(
+                    AstPattern_MatchAny(),
+                    AstPattern_MatchByType(AST_IDENTIFIER),
+                    AstPattern_MatchAny()
             );
 
     if (false == Ast_MatchByType((AstPattern *) pattern, node)) {
@@ -95,15 +95,7 @@ void CaptureFreeVariables(
             return;
         case AST_IDENTIFIER: {
             auto const name = node.AsIdentifier.NameChars;
-            auto isFree = true;
-            Vector_ForEach(argNamePtr, argumentNames) {
-                if (0 != strcmp(*argNamePtr, name)) {
-                    continue;
-                }
-
-                isFree = false;
-                break;
-            }
+            auto const isFree = false == Vector_Any(argumentNames, it, 0 == strcmp(it, name));
 
             RuntimeObject *object;
             if (isFree && false == Scope_TryResolve(*to, name, &object)) {
@@ -128,12 +120,12 @@ void CaptureFreeVariables(
 
 RuntimeObject *Function(Scope scope[static 1], AstNode node) {
     auto const pattern =
-            AstPattern_Expression(
-                    AstPattern_Any(),
-                    (AstPattern *) AstPattern_Expression(
-                            AstPattern_Rest()
+            AstPattern_MatchExpression(
+                    AstPattern_MatchAny(),
+                    (AstPattern *) AstPattern_MatchExpression(
+                            AstPattern_MatchRestByType(AST_IDENTIFIER)
                     ),
-                    AstPattern_Rest()
+                    AstPattern_MatchRest()
             );
 
     if (false == Ast_MatchByType((AstPattern *) pattern, node)) {
@@ -141,28 +133,20 @@ RuntimeObject *Function(Scope scope[static 1], AstNode node) {
         return RuntimeObject_Undefined();
     }
 
-    auto const argNodes = (AstPatternRest *) ((AstPatternExpression *) pattern->ItemPatterns[1])->ItemPatterns[0];
+    auto const argNodes = (AstPatternRestByType *) ((AstPatternExpression *) pattern->ItemPatterns[1])->ItemPatterns[0];
     auto argNames = (ArgumentNames) {0};
 
-    for (size_t i = 0; i < argNodes->NodesCount; i++) {
-        auto const argNode = argNodes->Nodes[i];
-        if (AST_IDENTIFIER != argNode.Type) {
-            fprintf(stdout, "Invalid usage of special form `fn`: arguments must be identifiers\n");
-            Vector_Free(&argNames);
-            return RuntimeObject_Undefined();
-        }
-
-        Vector_PushBack(&argNames, strdup(argNode.AsIdentifier.NameChars));
+    Vector_ForEach(argNodePtr, argNodes->Nodes) {
+        Vector_PushBack(&argNames, strdup(argNodePtr->AsIdentifier.NameChars));
     }
 
     auto const bodyNodes = (AstPatternRest *) pattern->ItemPatterns[2];
     auto body = (FunctionBody) {0};
     auto capturedVariables = Scope_Empty();
 
-    for (size_t i = 0; i < bodyNodes->NodesCount; i++) {
-        auto const bodyNode = bodyNodes->Nodes[i];
-        Vector_PushBack(&body, AstNode_Copy(bodyNode));
-        CaptureFreeVariables(argNames, bodyNode, *scope, &capturedVariables);
+    Vector_ForEach(bodyNodePtr, bodyNodes->Nodes) {
+        Vector_PushBack(&body, AstNode_Copy(*bodyNodePtr));
+        CaptureFreeVariables(argNames, *bodyNodePtr, *scope, &capturedVariables);
     }
 
     return RuntimeObject_NewFunction(argNames, body, capturedVariables);
