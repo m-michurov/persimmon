@@ -62,7 +62,7 @@ RuntimeObject *RuntimeObject_NewNativeFunction(RuntimeNativeFunction functionPtr
     return object;
 }
 
-RuntimeObject * RuntimeObject_ReferenceCreated(RuntimeObject object[static 1]) {
+RuntimeObject *RuntimeObject_ReferenceCreated(RuntimeObject object[static 1]) {
     if (IsSingletonType(object->Type)) { return object; }
 
     object->ReferencesCount++;
@@ -105,21 +105,21 @@ void RuntimeObject_ReferenceDeleted(RuntimeObject object[static 1]) {
     FreeObject(object);
 }
 
-bool RuntimeObject_Equals(RuntimeObject object, RuntimeObject other) {
-    if (object.Type != other.Type) { return false; }
+bool RuntimeObject_Equals(RuntimeObject const object[static 1], RuntimeObject const other[static 1]) {
+    if (object->Type != other->Type) { return false; }
 
-    switch (object.Type) {
+    switch (object->Type) {
         case RUNTIME_TYPE_UNDEFINED:
             return true;
         case RUNTIME_TYPE_INT:
-            return object.AsInt == other.AsInt;
+            return object->AsInt == other->AsInt;
         case RUNTIME_TYPE_STRING:
-            return 0 == strcmp(object.AsString, other.AsString);
+            return 0 == strcmp(object->AsString, other->AsString);
         case RUNTIME_TYPE_NATIVE_FUNCTION:
-            return object.AsNativeFunction == other.AsNativeFunction;
+            return object->AsNativeFunction == other->AsNativeFunction;
     }
 
-    Unreachable("%d", object.Type);
+    Unreachable("%d", object->Type);
 }
 
 void RuntimeObject_Print(FILE file[static 1], RuntimeObject object) {

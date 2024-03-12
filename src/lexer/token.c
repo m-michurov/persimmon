@@ -39,11 +39,11 @@ void Token_Print(FILE file[static 1], Token token) {
             return;
         }
         case TOKEN_STRING_LITERAL: {
-            fprintf(file, ", .AsStringLiteral=\"%s\"}", token.Value.AsStringLiteral);
+            fprintf(file, ", .AsString=\"%s\"}", token.Value.AsStringLiteral);
             return;
         }
         case TOKEN_INT_LITERAL: {
-            fprintf(file, ", .AsIntLiteral=%" PRId64 "}", token.Value.AsIntLiteral);
+            fprintf(file, ", .AsInt=%" PRId64 "}", token.Value.AsIntLiteral);
             return;
         }
         case TOKEN_NONE:

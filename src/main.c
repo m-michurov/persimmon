@@ -210,7 +210,7 @@ RuntimeObject *Equals(RuntimeObjectsSlice args) {
     auto equals = true;
 
     for (size_t i = 0; i + 1 < args.Size; i++) {
-        equals = equals && RuntimeObject_Equals(*args.Items[i], *args.Items[i + 1]);
+        equals = equals && RuntimeObject_Equals(args.Items[i], args.Items[i + 1]);
     }
 
     return
@@ -221,7 +221,7 @@ RuntimeObject *Equals(RuntimeObjectsSlice args) {
 
 RuntimeObject *NotEquals(RuntimeObjectsSlice args) {
     for (size_t i = 0; i + 1 < args.Size; i++) {
-        if (false == RuntimeObject_Equals(*args.Items[i], *args.Items[i + 1])) {
+        if (false == RuntimeObject_Equals(args.Items[i], args.Items[i + 1])) {
             return RuntimeObject_NewInt(1);
         }
     }

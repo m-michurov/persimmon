@@ -23,7 +23,7 @@ RuntimeObject *While(Scope scope[static 1], AstNode node) {
 
     while (true) {
         auto const conditionValue = RuntimeObject_ReferenceCreated(Evaluate(scope, condition));
-        auto const conditionHolds = false == RuntimeObject_Equals(*runtimeFalse, *conditionValue);
+        auto const conditionHolds = false == RuntimeObject_Equals(runtimeFalse, conditionValue);
         RuntimeObject_ReferenceDeleted(conditionValue);
 
         if (false == conditionHolds) {

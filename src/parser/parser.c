@@ -51,7 +51,7 @@ static bool HandleToken(Parser parser[static 1], Token token, ParserResult resul
             break;
         }
         case TOKEN_INT_LITERAL: {
-            auto const node = AstNode_IntLiteral(token.Value.AsIntLiteral);
+            auto const node = AstNode_Int(token.Value.AsIntLiteral);
             if (0 == stack->Size) {
                 *result = ParserResult_AstNode(node);
                 return true;
@@ -61,7 +61,7 @@ static bool HandleToken(Parser parser[static 1], Token token, ParserResult resul
             break;
         }
         case TOKEN_STRING_LITERAL: {
-            auto const node = AstNode_StringLiteral(strdup(token.Value.AsStringLiteral));
+            auto const node = AstNode_String(strdup(token.Value.AsStringLiteral));
             if (0 == stack->Size) {
                 *result = ParserResult_AstNode(node);
                 return true;

@@ -33,10 +33,10 @@ static void PrettyPrint(FILE file[static 1], AstNode node, size_t depth) {
 
     switch (node.Type) {
         case AST_INT_LITERAL:
-            fprintf(file, ".AsIntLiteral={%" PRId64 "}", node.AsIntLiteral.Value);
+            fprintf(file, ".AsInt={%" PRId64 "}", node.AsInt.AsInt64);
             break;
         case AST_STRING_LITERAL:
-            fprintf(file, ".AsStringLiteral={\"%s\"}", node.AsStringLiteral.Value);
+            fprintf(file, ".AsString={\"%s\"}", node.AsString.Chars);
             break;
         case AST_IDENTIFIER:
             fprintf(file, ".AsIdentifier={%s}", node.AsIdentifier.Name);
@@ -67,7 +67,7 @@ void AstNode_Free(AstNode node[static 1]) {
         case AST_INT_LITERAL:
             break;
         case AST_STRING_LITERAL: {
-            free((void *) node->AsStringLiteral.Value);
+            free((void *) node->AsString.Chars);
             break;
         }
         case AST_IDENTIFIER: {

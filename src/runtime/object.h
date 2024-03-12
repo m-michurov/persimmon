@@ -51,7 +51,7 @@ RuntimeObject * RuntimeObject_ReferenceCreated(RuntimeObject object[static 1]);
 
 void RuntimeObject_ReferenceDeleted(RuntimeObject object[static 1]);
 
-bool RuntimeObject_Equals(RuntimeObject, RuntimeObject);
+bool RuntimeObject_Equals(RuntimeObject const object[static 1], RuntimeObject const other[static 1] );
 
 void RuntimeObject_Print(FILE file[static 1], RuntimeObject);
 

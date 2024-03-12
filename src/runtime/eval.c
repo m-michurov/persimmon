@@ -79,9 +79,9 @@ static RuntimeObject *EvaluateExpression(Scope scope[static 1], AstNode node) {
 RuntimeObject *Evaluate(Scope scope[static 1], AstNode node) {
     switch (node.Type) {
         case AST_INT_LITERAL:
-            return RuntimeObject_NewInt(node.AsIntLiteral.Value);
+            return RuntimeObject_NewInt(node.AsInt.AsInt64);
         case AST_STRING_LITERAL:
-            return RuntimeObject_NewString(node.AsStringLiteral.Value);
+            return RuntimeObject_NewString(node.AsString.Chars);
         case AST_IDENTIFIER:
             return EvaluateIdentifier(scope, node);
         case AST_EXPRESSION:
