@@ -1,0 +1,20 @@
+(:= adder (fn (value-to-add)
+    (fn (value)
+        (+ value value-to-add))))
+
+(:= multiplier (fn (factor)
+    (fn (value)
+        (* value factor))))
+
+(:= chain (fn (f1 f2)
+    (fn (value)
+        (f2 (f1 value)))))
+
+(:= plus-7 (adder 7))
+(:= times-3 (multiplier 3))
+
+(:= plus-7-times-3 (chain plus-7 times-3))
+(:= times-3-plus-7 (chain times-3 plus-7))
+
+(print (plus-7-times-3 5))
+(print (times-3-plus-7 5))

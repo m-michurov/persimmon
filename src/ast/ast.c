@@ -33,17 +33,17 @@ static void PrettyPrint(FILE file[static 1], AstNode node, size_t depth) {
 
     switch (node.Type) {
         case AST_INT_LITERAL:
-            fprintf(file, ".AsIntLiteral={%" PRId64 "}", node.AsIntLiteral.Value);
+            fprintf(file, ".AsInt={%" PRId64 "}", node.AsInt.AsInt64);
             break;
         case AST_STRING_LITERAL:
-            fprintf(file, ".AsStringLiteral={\"%s\"}", node.AsStringLiteral.Value);
+            fprintf(file, ".AsString={\"%s\"}", node.AsString.Chars);
             break;
         case AST_IDENTIFIER:
-            fprintf(file, ".AsIdentifier={%s}", node.AsIdentifier.Name);
+            fprintf(file, ".AsIdentifier={%s}", node.AsIdentifier.NameChars);
             break;
         case AST_EXPRESSION: {
             fprintf(file, ".AsExpression={[\n");
-            Vector_ForEach(childNodePtr, node.AsExpression.Items) {
+            Vector_ForEach(childNodePtr, node.AsExpression) {
                 PrettyPrint(file, *childNodePtr, depth + 1);
                 fprintf(file, ",\n");
             }
@@ -58,6 +58,27 @@ static void PrettyPrint(FILE file[static 1], AstNode node, size_t depth) {
     fprintf(file, "}");
 }
 
+AstNode AstNode_Copy(AstNode node) {
+    switch (node.Type) {
+        case AST_INT_LITERAL:
+            return AstNode_Int(node.AsInt.AsInt64);
+        case AST_STRING_LITERAL:
+            return AstNode_String(strdup(node.AsString.Chars));
+        case AST_IDENTIFIER:
+            return AstNode_Identifier(strdup(node.AsIdentifier.NameChars));
+        case AST_EXPRESSION: {
+            auto copy = (AstExpression) {0};
+            Vector_ForEach(nodeItemPtr, node.AsExpression) {
+                Vector_PushBack(&copy, AstNode_Copy(*nodeItemPtr));
+            }
+
+            return AstNode_Expression(copy);
+        }
+    }
+
+    Unreachable("%d", node.Type);
+}
+
 void AstNode_PrettyPrint(FILE file[static 1], AstNode node) {
     PrettyPrint(file, node, 0);
 }
@@ -67,18 +88,18 @@ void AstNode_Free(AstNode node[static 1]) {
         case AST_INT_LITERAL:
             break;
         case AST_STRING_LITERAL: {
-            free((void *) node->AsStringLiteral.Value);
+            free((void *) node->AsString.Chars);
             break;
         }
         case AST_IDENTIFIER: {
-            free((void *) node->AsIdentifier.Name);
+            free((void *) node->AsIdentifier.NameChars);
             break;
         }
         case AST_EXPRESSION: {
-            Vector_ForEach(childNode, node->AsExpression.Items) {
+            Vector_ForEach(childNode, node->AsExpression) {
                 AstNode_Free(childNode);
             }
-            Vector_Free(&node->AsExpression.Items);
+            Vector_Free(&node->AsExpression);
             break;
         }
         default:

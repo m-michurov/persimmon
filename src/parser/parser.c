@@ -12,7 +12,7 @@
 
 struct Parser {
     Lexer *Lexer;
-    Vector_Of(AstNodes) ExpressionsStack;
+    Vector_Of(AstExpression) ExpressionsStack;
 };
 
 Parser *Parser_Init(Lexer *lexer) {
@@ -31,11 +31,11 @@ static bool HandleToken(Parser parser[static 1], Token token, ParserResult resul
 
     switch (token.Type) {
         case TOKEN_OPEN_PAREN: {
-            Vector_PushBack(stack, ((AstNodes) {0}));
+            Vector_PushBack(stack, ((AstExpression) {0}));
             break;
         }
         case TOKEN_CLOSE_PAREN: {
-            AstNodes items;
+            AstExpression items;
             if (false == Vector_TryPopBack(stack, &items)) {
                 *result = ParserResult_ParserError(token, "unexpected closing parenthesis");
                 return true;
@@ -51,7 +51,7 @@ static bool HandleToken(Parser parser[static 1], Token token, ParserResult resul
             break;
         }
         case TOKEN_INT_LITERAL: {
-            auto const node = AstNode_IntLiteral(token.Value.AsIntLiteral);
+            auto const node = AstNode_Int(token.Value.AsIntLiteral);
             if (0 == stack->Size) {
                 *result = ParserResult_AstNode(node);
                 return true;
@@ -61,7 +61,7 @@ static bool HandleToken(Parser parser[static 1], Token token, ParserResult resul
             break;
         }
         case TOKEN_STRING_LITERAL: {
-            auto const node = AstNode_StringLiteral(strdup(token.Value.AsStringLiteral));
+            auto const node = AstNode_String(strdup(token.Value.AsStringLiteral));
             if (0 == stack->Size) {
                 *result = ParserResult_AstNode(node);
                 return true;

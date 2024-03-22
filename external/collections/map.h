@@ -1,5 +1,8 @@
 #pragma once
 
+#include <stdlib.h>
+#include <stdbool.h>
+
 #ifndef CallChecked
 #error Please include call_checked.h before map.h
 #endif
@@ -83,15 +86,21 @@ do {                                                            \
     &(_slot_put->Value);                                            \
 })
 
+#define Map_At(Map, Key_)                                   \
+({                                                          \
+    __auto_type _slot_at = Map_FindSlot((Map), (Key_));     \
+    (NULL == _slot_at || false == _slot_at->Used            \
+        ? NULL :                                            \
+        &_slot_at->Value);                                  \
+})
+
 #define Map_TryGet(Map, Key_, ValuePtr)                     \
 ({                                                          \
-    __auto_type _slot_get = Map_FindSlot((Map), (Key_));    \
-    bool _ok = false;                                       \
-    if (NULL != _slot_get && _slot_get->Used) {             \
-        *ValuePtr = _slot_get->Value;                       \
-        _ok = true;                                         \
+    __auto_type _value_try_get = Map_At((Map), (Key_));     \
+    if (NULL != _value_try_get) {                           \
+        *ValuePtr = *_value_try_get;                        \
     }                                                       \
-    _ok;                                                    \
+    NULL != _value_try_get;                                 \
 })
 
 #define Map_GetOrDefault(Map, Key_, DefaultExpr)                    \
@@ -131,3 +140,5 @@ for (                                                                           
             ? &((Map).Entries[MAP_CONCAT(_i_, __LINE__)])                                           \
             : NULL                                                                                  \
 )
+
+#define Map_Empty(Map) (0 == (Map).Size)

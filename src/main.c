@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "call_checked.h"
 
@@ -9,6 +10,10 @@
 #include "common/file_utils/file_utils.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
+#include "runtime/scope.h"
+#include "runtime/object.h"
+#include "runtime/eval.h"
+#include "runtime/builtin/functions.h"
 
 static bool IsSpecialChar(int c, char const *seq[static 1]) {
     if ('\n' == c) {
@@ -104,8 +109,7 @@ void PrintParserError(ParserError error, FILE in[static 1]) {
     CallChecked(fseek, (in, pos, SEEK_SET));
 }
 
-int main() {
-    auto const path = "../demo/fib.pmn";
+int RunFile(Scope globalScope[static 1], char const *path) {
     auto const in = fopen(path, "rb");
     if (NULL == in) {
         fprintf(stderr, "Could not open \"%s\": %s\n", path, strerror(errno));
@@ -114,6 +118,8 @@ int main() {
 
     auto const lexer = Lexer_Init(in);
     auto const parser = Parser_Init(lexer);
+
+    auto tmpRefs = TemporaryReferences_Empty();
 
     auto ok = true;
     while (ok && Parser_HasNext(parser)) {
@@ -131,20 +137,33 @@ int main() {
             }
             case PARSER_AST_NODE: {
                 auto node = result.AsAstNode;
-
-                AstNode_PrettyPrint(stdout, node);
-                fprintf(stdout, "\n");
-
+                TemporaryReferences_Add(&tmpRefs, Evaluate(globalScope, node));
                 AstNode_Free(&node);
+                TemporaryReferences_Free(&tmpRefs);
                 break;
             }
-            default:
-                Unreachable("Invalid result type");
         }
     }
 
     Parser_Free(parser);
     Lexer_Free(lexer);
     CallChecked(fclose, (in));
+
+    return EXIT_SUCCESS;
+}
+
+int main(int argc, char *argv[static argc]) {
+    auto globalScope = Scope_Empty();
+    DefineBuiltinFunctions(&globalScope);
+
+    for (int i = 1; i < argc; i++) {
+        auto const ret = RunFile(&globalScope, argv[i]);
+        if (EXIT_SUCCESS != ret) {
+            break;
+        }
+    }
+
+    Scope_Free(&globalScope);
+    printf("Leaked Objects: %" PRId64 "\n", RuntimeObject_DanglingPointers);
     return EXIT_SUCCESS;
 }

@@ -16,39 +16,37 @@ typedef enum AstNodeType {
 
 char const *AstNodeType_Name(AstNodeType);
 
-typedef struct AstNode AstNode;
-typedef Vector_Of(AstNode) AstNodes;
+typedef struct AstInt {
+    int64_t AsInt64;
+} AstInt;
 
-typedef struct AstIntLiteral {
-    int64_t Value;
-} AstIntLiteral;
-
-typedef struct AstStringLiteral {
-    char const *Value;
-} AstStringLiteral;
+typedef struct AstString {
+    char const *Chars;
+} AstString;
 
 typedef struct AstIdentifier {
-    char const *Name;
+    char const *NameChars;
 } AstIdentifier;
 
-typedef struct AstExpression {
-    AstNodes Items;
-} AstExpression;
+typedef struct AstNode AstNode;
+typedef Vector_Of(AstNode) AstExpression;
 
 struct AstNode {
     AstNodeType Type;
     union {
-        AstIntLiteral AsIntLiteral;
-        AstStringLiteral AsStringLiteral;
+        AstInt AsInt;
+        AstString AsString;
         AstIdentifier AsIdentifier;
         AstExpression AsExpression;
     };
 };
 
-#define AstNode_IntLiteral(Value)       ((AstNode) {AST_INT_LITERAL, .AsIntLiteral={(Value)}})
-#define AstNode_StringLiteral(Value)    ((AstNode) {AST_STRING_LITERAL, .AsStringLiteral={(Value)}})
-#define AstNode_Identifier(Name)        ((AstNode) {AST_IDENTIFIER, .AsIdentifier={(Name)}})
-#define AstNode_Expression(Items)       ((AstNode) {AST_EXPRESSION, .AsExpression={(Items)}})
+#define AstNode_Int(Value)          ((AstNode) {AST_INT_LITERAL, .AsInt={(Value)}})
+#define AstNode_String(Value)       ((AstNode) {AST_STRING_LITERAL, .AsString={(Value)}})
+#define AstNode_Identifier(Name)    ((AstNode) {AST_IDENTIFIER, .AsIdentifier={(Name)}})
+#define AstNode_Expression(Items)   ((AstNode) {AST_EXPRESSION, .AsExpression=(Items)})
+
+AstNode AstNode_Copy(AstNode);
 
 void AstNode_PrettyPrint(FILE file[static 1], AstNode);
 
