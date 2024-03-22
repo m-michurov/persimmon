@@ -84,7 +84,7 @@ static RuntimeObject *EvaluateCall(Scope scope[static 1], AstNode node) {
                         ? RuntimeObject_Undefined()
                         : Apply(
                     itemValues.Objects.Items[0],
-                    Vector_SliceAs(RuntimeObjectsSlice, itemValues.Objects, 1, itemValues.Objects.Size)
+                    Vector_SliceFrom(RuntimeObjectsSlice, itemValues.Objects, 1)
             );
 
     TemporaryReferences_Free(&itemValues);

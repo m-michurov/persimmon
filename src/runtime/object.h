@@ -26,7 +26,7 @@ typedef struct RuntimeObject RuntimeObject;
 typedef int64_t RuntimeInt;
 typedef char const *RuntimeString;
 
-typedef Slice_Of(RuntimeObject *) RuntimeObjectsSlice;
+typedef VectorSlice_Of(RuntimeObject *) RuntimeObjectsSlice;
 
 typedef RuntimeObject *(*RuntimeNativeFunction)(RuntimeObjectsSlice);
 

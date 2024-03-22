@@ -47,7 +47,7 @@ static bool MatchExpression(AstPatternExpression pattern[static 1], AstNode cons
         if (AST_PATTERN_MATCH_REST_ANY_TYPE == itemPattern->Type) {
             MatchRest(
                     (AstPatternRest *) itemPattern,
-                    Vector_SliceAs(AstNodesSlice, expression, i, expression.Size)
+                    Vector_SliceFrom(AstNodesSlice, expression, i)
             );
 
             i = expression.Size;
@@ -57,7 +57,7 @@ static bool MatchExpression(AstPatternExpression pattern[static 1], AstNode cons
         if (AST_PATTERN_MATCH_REST_EXACT_TYPE == itemPattern->Type) {
             if (false == MatchRestExact(
                     (AstPatternRestByType *) itemPattern,
-                    Vector_SliceAs(AstNodesSlice, expression, i, expression.Size)
+                    Vector_SliceFrom(AstNodesSlice, expression, i)
             )) {
                 return false;
             }

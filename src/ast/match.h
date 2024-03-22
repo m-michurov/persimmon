@@ -27,7 +27,7 @@ struct AstPatternByType {
     AstNodeType NodeType;
 };
 
-typedef Slice_Of(AstNode) AstNodesSlice;
+typedef VectorSlice_Of(AstNode) AstNodesSlice;
 
 typedef struct AstPatternRestByType AstPatternRestByType;
 struct AstPatternRestByType {
