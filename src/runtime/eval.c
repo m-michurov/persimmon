@@ -3,7 +3,7 @@
 #include "common/macros.h"
 
 #include "ast/match.h"
-#include "runtime/special_forms.h"
+#include "runtime/builtin/special_forms.h"
 
 RuntimeObject *TemporaryReferences_Add(TemporaryReferences references[static 1], RuntimeObject *object) {
     Vector_PushBack(&references->Objects, object);
