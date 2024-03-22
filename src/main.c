@@ -159,6 +159,22 @@ RuntimeObject *ConcatStrings(RuntimeObjectsSlice args) {
     return result;
 }
 
+RuntimeObject *Subtract(RuntimeObjectsSlice args) {
+    if (Vector_Empty(args)) {
+        return RuntimeObject_NewInt(0);
+    }
+    RuntimeInt acc = args.Items[0]->AsInt;
+    Vector_ForEach(argPtr, Vector_SliceFrom(RuntimeObjectsSlice, args, 1)) {
+        if (RUNTIME_TYPE_INT != (*argPtr)->Type) {
+            return RuntimeObject_Undefined();
+        }
+
+        acc -= (*argPtr)->AsInt;
+    }
+
+    return RuntimeObject_NewInt(acc);
+}
+
 RuntimeObject *Add(RuntimeObjectsSlice args) {
     if (Vector_Empty(args)) {
         return RuntimeObject_Undefined();
@@ -230,7 +246,7 @@ RuntimeObject *NotEquals(RuntimeObjectsSlice args) {
 }
 
 int main() {
-    auto const path = "../demo/functions.pmn";
+    auto const path = "../demo/fib.pmn";
     auto const in = fopen(path, "rb");
     if (NULL == in) {
         fprintf(stderr, "Could not open \"%s\": %s\n", path, strerror(errno));
@@ -239,6 +255,7 @@ int main() {
 
     auto globalScope = Scope_Empty();
     Scope_Put(&globalScope, "+", RuntimeObject_NewNativeFunction(Add));
+    Scope_Put(&globalScope, "-", RuntimeObject_NewNativeFunction(Subtract));
     Scope_Put(&globalScope, "*", RuntimeObject_NewNativeFunction(Mul));
     Scope_Put(&globalScope, "print", RuntimeObject_NewNativeFunction(Print));
     Scope_Put(&globalScope, "==", RuntimeObject_NewNativeFunction(Equals));
