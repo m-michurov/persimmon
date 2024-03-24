@@ -80,12 +80,13 @@ static RuntimeObject *EvaluateCall(Scope scope[static 1], AstNode node) {
         );
     }
 
-    auto const result = Vector_Empty(itemValues.Objects)
-                        ? RuntimeObject_Undefined()
-                        : Apply(
-                    itemValues.Objects.Items[0],
-                    Vector_SliceFrom(RuntimeObjectsSlice, itemValues.Objects, 1)
-            );
+    auto result = RuntimeObject_Undefined();
+    if (false == Vector_Empty(itemValues.Objects)) {
+        result = Apply(
+                itemValues.Objects.Items[0],
+                Vector_SliceFrom(RuntimeObjectsSlice, itemValues.Objects, 1)
+        );
+    }
 
     TemporaryReferences_Free(&itemValues);
     return result;

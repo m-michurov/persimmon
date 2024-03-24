@@ -14,6 +14,7 @@
 #include "runtime/object.h"
 #include "runtime/eval.h"
 #include "runtime/builtin/functions.h"
+#include "runtime/builtin/constants.h"
 
 static bool IsSpecialChar(int c, char const *seq[static 1]) {
     if ('\n' == c) {
@@ -155,6 +156,7 @@ int RunFile(Scope globalScope[static 1], char const *path) {
 int main(int argc, char *argv[static argc]) {
     auto globalScope = Scope_Empty();
     DefineBuiltinFunctions(&globalScope);
+    DefineBuiltinConstants(&globalScope);
 
     for (int i = 1; i < argc; i++) {
         auto const ret = RunFile(&globalScope, argv[i]);

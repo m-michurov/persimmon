@@ -17,5 +17,6 @@ add_executable(persimmon
         src/runtime/scope.c
         src/runtime/builtin/special_forms.c
         src/runtime/builtin/functions.c
+        src/runtime/builtin/constants.c
 )
 target_include_directories(persimmon PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/external)

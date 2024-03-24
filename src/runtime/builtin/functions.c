@@ -141,6 +141,40 @@ RuntimeObject *NotEquals(RuntimeObjectsSlice args) {
     return RuntimeObject_NewInt(0);
 }
 
+RuntimeObject *List_New(RuntimeObjectsSlice args) {
+    auto result = RuntimeObject_Null();
+    for (size_t i = 0; i < args.Size; i++) {
+        result = RuntimeObject_NewList(args.Items[args.Size - i - 1], result);
+    }
+
+    return result;
+}
+
+RuntimeObject *List_Head(RuntimeObjectsSlice args) {
+    if (1 != args.Size || RUNTIME_TYPE_LIST != args.Items[0]->Type) {
+        return RuntimeObject_Undefined();
+    }
+
+    return args.Items[0]->AsList.Head;
+}
+
+RuntimeObject *List_Tail(RuntimeObjectsSlice args) {
+    if (1 != args.Size || RUNTIME_TYPE_LIST != args.Items[0]->Type) {
+        return RuntimeObject_Undefined();
+    }
+
+    return args.Items[0]->AsList.Tail;
+}
+
+RuntimeObject *List_Prepend(RuntimeObjectsSlice args) {
+    if (2 != args.Size
+        || (RUNTIME_TYPE_LIST != args.Items[1]->Type && RUNTIME_TYPE_NULL != args.Items[1]->Type)) {
+        return RuntimeObject_Undefined();
+    }
+
+    return RuntimeObject_NewList(args.Items[0], args.Items[1]);
+}
+
 void DefineBuiltinFunctions(Scope scope[static 1]) {
     Scope_Put(scope, "+", RuntimeObject_NewNativeFunction(Add));
     Scope_Put(scope, "-", RuntimeObject_NewNativeFunction(Subtract));
@@ -148,4 +182,8 @@ void DefineBuiltinFunctions(Scope scope[static 1]) {
     Scope_Put(scope, "print", RuntimeObject_NewNativeFunction(Print));
     Scope_Put(scope, "==", RuntimeObject_NewNativeFunction(Equals));
     Scope_Put(scope, "!=", RuntimeObject_NewNativeFunction(NotEquals));
+    Scope_Put(scope, "list", RuntimeObject_NewNativeFunction(List_New));
+    Scope_Put(scope, "head", RuntimeObject_NewNativeFunction(List_Head));
+    Scope_Put(scope, "tail", RuntimeObject_NewNativeFunction(List_Tail));
+    Scope_Put(scope, "prepend", RuntimeObject_NewNativeFunction(List_Prepend));
 }

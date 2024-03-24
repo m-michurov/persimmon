@@ -16,6 +16,10 @@ char const *RuntimeType_Name(RuntimeType type) {
             return "RUNTIME_TYPE_NATIVE_FUNCTION";
         case RUNTIME_TYPE_FUNCTION:
             return "RUNTIME_TYPE_FUNCTION";
+        case RUNTIME_TYPE_NULL:
+            return "RUNTIME_TYPE_NULL";
+        case RUNTIME_TYPE_LIST:
+            return "RUNTIME_TYPE_LIST";
     }
 
     Unreachable("%d", type);
@@ -23,13 +27,24 @@ char const *RuntimeType_Name(RuntimeType type) {
 
 int64_t RuntimeObject_DanglingPointers = 0;
 
-static auto Undefined = (RuntimeObject) {.Type = RUNTIME_TYPE_UNDEFINED};
+static auto RuntimeUndefined = (RuntimeObject) {.Type = RUNTIME_TYPE_UNDEFINED};
+static auto RuntimeNull = (RuntimeObject) {.Type = RUNTIME_TYPE_NULL};
 
 static bool IsSingletonType(RuntimeType type) {
-    return RUNTIME_TYPE_UNDEFINED == type;
+    if (RUNTIME_TYPE_UNDEFINED == type) {
+        return true;
+    }
+
+    if (RUNTIME_TYPE_NULL == type) {
+        return true;
+    }
+
+    return false;
 }
 
-RuntimeObject *RuntimeObject_Undefined() { return &Undefined; }
+RuntimeObject *RuntimeObject_Null() { return &RuntimeNull; }
+
+RuntimeObject *RuntimeObject_Undefined() { return &RuntimeUndefined; }
 
 RuntimeObject *RuntimeObject_NewInt(RuntimeInt value) {
     auto object = (RuntimeObject *) calloc(1, sizeof(RuntimeObject));
@@ -79,6 +94,23 @@ RuntimeObject *RuntimeObject_NewFunction(ArgumentNames argumentNames, FunctionBo
     return object;
 }
 
+RuntimeObject *RuntimeObject_NewList(RuntimeObject *head, RuntimeObject *tail) {
+    auto object = (RuntimeObject *) calloc(1, sizeof(RuntimeObject));
+    *object = (RuntimeObject) {
+            .Type = RUNTIME_TYPE_LIST,
+            .AsList = (RuntimeList) {
+                    .Head = head,
+                    .Tail = tail
+            }
+    };
+
+    RuntimeObject_ReferenceCreated(head);
+    RuntimeObject_ReferenceCreated(tail);
+
+    RuntimeObject_DanglingPointers++;
+    return object;
+}
+
 RuntimeObject *RuntimeObject_ReferenceCreated(RuntimeObject object[static 1]) {
     if (IsSingletonType(object->Type)) { return object; }
 
@@ -90,6 +122,7 @@ static void FreeObject(RuntimeObject *object) {
     Assert(NULL != object);
 
     switch (object->Type) {
+        case RUNTIME_TYPE_NULL:
         case RUNTIME_TYPE_UNDEFINED:
             return;
         case RUNTIME_TYPE_INT:
@@ -120,8 +153,21 @@ static void FreeObject(RuntimeObject *object) {
             }
             Vector_Free(&fn.Body);
 
-            Scope_Free(&fn.CapturedVariables);\
+            Scope_Free(&fn.CapturedVariables);
 
+            return;
+        }
+        case RUNTIME_TYPE_LIST: {
+            RuntimeObject_DanglingPointers--;
+
+            auto list = object->AsList;
+            RuntimeObject_ReferenceDeleted(list.Head);
+            RuntimeObject_ReferenceDeleted(list.Tail);
+
+            list.Head = NULL;
+            list.Tail = NULL;
+
+            free(object);
             return;
         }
     }
@@ -144,6 +190,7 @@ bool RuntimeObject_Equals(RuntimeObject const object[static 1], RuntimeObject co
     if (object->Type != other->Type) { return false; }
 
     switch (object->Type) {
+        case RUNTIME_TYPE_NULL:
         case RUNTIME_TYPE_UNDEFINED:
             return true;
         case RUNTIME_TYPE_INT:
@@ -154,6 +201,9 @@ bool RuntimeObject_Equals(RuntimeObject const object[static 1], RuntimeObject co
             return object->AsNativeFunction == other->AsNativeFunction;
         case RUNTIME_TYPE_FUNCTION:
             return object == other;
+        case RUNTIME_TYPE_LIST:
+            return RuntimeObject_Equals(object->AsList.Head, other->AsList.Head)
+                   && RuntimeObject_Equals(object->AsList.Tail, other->AsList.Tail);
     }
 
     Unreachable("%d", object->Type);
@@ -181,6 +231,29 @@ void RuntimeObject_Print(FILE file[static 1], RuntimeObject object) {
             fprintf(file, "<Function>");
             return;
         }
+        case RUNTIME_TYPE_NULL: {
+            fprintf(file, "<null>");
+            return;
+        }
+        case RUNTIME_TYPE_LIST: {
+            auto list = object.AsList;
+            fprintf(file, "(");
+            while (true) {
+                RuntimeObject_Print(file, *list.Head);
+
+                if (RUNTIME_TYPE_LIST != list.Tail->Type) {
+                    if (RUNTIME_TYPE_NULL != list.Tail->Type) {
+                        RuntimeObject_Print(file, *list.Tail);
+                    }
+                    break;
+                }
+
+                fprintf(file, " ");
+                list = list.Tail->AsList;
+            }
+            fprintf(file, ")");
+            return;
+        }
     }
 
     Unreachable("%d", object.Type);
@@ -204,12 +277,21 @@ void RuntimeObject_Repr(FILE file[static 1], RuntimeObject object) {
             );
             return;
         }
+        case RUNTIME_TYPE_NULL:
         case RUNTIME_TYPE_UNDEFINED: {
             fprintf(file, "}");
             return;
         }
         case RUNTIME_TYPE_FUNCTION: {
-            fprintf(file, ", AsFunction=<Function>}");
+            fprintf(file, ", .AsFunction=<Function>}");
+            return;
+        }
+        case RUNTIME_TYPE_LIST: {
+            fprintf(file, ", .AsList={.Head=");
+            RuntimeObject_Repr(file, *object.AsList.Head);
+            fprintf(file, ", .Tail=");
+            RuntimeObject_Repr(file, *object.AsList.Tail);
+            fprintf(file, "}}");
             return;
         }
     }
