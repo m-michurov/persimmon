@@ -1,11 +1,16 @@
-(:= null (list))
-
 (:= for-each (fn (function target-list)
     (while (!= null target-list)
         (function (head target-list))
         (= target-list (tail target-list))
     )))
 
+(:= l1 (prepend 1 (prepend 2 (prepend 3 (prepend 4 (prepend 5 null))))))
+(:= l2 (list 1 2 3 4 5))
+
+(print "l1 =" l1)
+(print "l2 =" l2)
+(print "Same lists?" (== l1 l2))
+
 (for-each
     (fn (value) (print (* value value)))
-    (list 1 2 3 4 5))
+    l1)

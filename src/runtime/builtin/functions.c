@@ -167,11 +167,12 @@ RuntimeObject *List_Tail(RuntimeObjectsSlice args) {
 }
 
 RuntimeObject *List_Prepend(RuntimeObjectsSlice args) {
-    if (2 != args.Size || RUNTIME_TYPE_LIST != args.Items[0]->Type) {
+    if (2 != args.Size
+        || (RUNTIME_TYPE_LIST != args.Items[1]->Type && RUNTIME_TYPE_NULL != args.Items[1]->Type)) {
         return RuntimeObject_Undefined();
     }
 
-    return RuntimeObject_NewList(args.Items[1], args.Items[0]);
+    return RuntimeObject_NewList(args.Items[0], args.Items[1]);
 }
 
 void DefineBuiltinFunctions(Scope scope[static 1]) {
