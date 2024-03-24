@@ -12,11 +12,13 @@
 #include "runtime/scope.h"
 
 typedef enum RuntimeType {
+    RUNTIME_TYPE_NULL,
     RUNTIME_TYPE_UNDEFINED,
     RUNTIME_TYPE_INT,
     RUNTIME_TYPE_STRING,
     RUNTIME_TYPE_NATIVE_FUNCTION,
     RUNTIME_TYPE_FUNCTION,
+    RUNTIME_TYPE_LIST,
 } RuntimeType;
 
 char const *RuntimeType_Name(RuntimeType);
@@ -39,6 +41,11 @@ typedef struct RuntimeFunction {
     Scope CapturedVariables;
 } RuntimeFunction;
 
+typedef struct RuntimeList {
+    RuntimeObject *Head;
+    RuntimeObject *Tail;
+} RuntimeList;
+
 struct RuntimeObject {
     RuntimeType Type;
     size_t ReferencesCount;
@@ -48,10 +55,13 @@ struct RuntimeObject {
         RuntimeString AsString;
         RuntimeNativeFunction AsNativeFunction;
         RuntimeFunction AsFunction;
+        RuntimeList AsList;
     };
 };
 
 extern int64_t RuntimeObject_DanglingPointers;
+
+RuntimeObject *RuntimeObject_Null();
 
 RuntimeObject *RuntimeObject_Undefined();
 
@@ -62,6 +72,8 @@ RuntimeObject *RuntimeObject_NewString(RuntimeString value);
 RuntimeObject *RuntimeObject_NewNativeFunction(RuntimeNativeFunction functionPtr);
 
 RuntimeObject *RuntimeObject_NewFunction(ArgumentNames, FunctionBody, Scope);
+
+RuntimeObject *RuntimeObject_NewList(RuntimeObject *head, RuntimeObject *tail);
 
 RuntimeObject *RuntimeObject_ReferenceCreated(RuntimeObject object[static 1]);
 

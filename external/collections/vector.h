@@ -110,7 +110,7 @@ struct {                    \
     long long _sz_slice = _vec_slice.Size;              \
     long long _start = (Start);                         \
     if (_start < 0) _start = 0;                         \
-    if (_start >= _sz_slice) _start = _sz_slice - 1;    \
+    if (_start > _sz_slice) _start = _sz_slice;         \
     long long _end = (End);                             \
     if (_end < 0) _end = 0;                             \
     if (_end > _sz_slice) _end = _sz_slice;             \
