@@ -27,18 +27,18 @@ static void eval_push_result(Object_Allocator *a, Object **result, Object *value
 
 static bool try_begin_eval(
         Object_Allocator *a,
-        Stack *stack,
+        Stack *s,
         Object *env,
         Object *expr,
         Object **values_list
 ) {
     guard_is_not_null(a);
-    guard_is_not_null(stack);
+    guard_is_not_null(s);
     guard_is_not_null(env);
     guard_is_not_null(expr);
 
 #ifdef EVAL_TRACE
-    printf("[depth = %zu] evaluating %s\n", stack->count, object_repr(a, expr));
+    printf("[depth = %zu] evaluating %s\n", s->count, object_repr(a, expr));
 #endif
 
     switch (expr->type) {
@@ -75,7 +75,7 @@ static bool try_begin_eval(
                     }
 
                     auto const no_overflow = stack_try_push(
-                            stack,
+                            s,
                             frame_new(FRAME_IF, expr, env, values_list, object_as_cons(expr).rest)
                     );
                     if (false == no_overflow) {
@@ -87,7 +87,7 @@ static bool try_begin_eval(
 
                 if (0 == strcmp("do", atom_name)) {
                     auto const no_overflow = stack_try_push(
-                            stack,
+                            s,
                             frame_new(FRAME_DO, expr, env, values_list, object_as_cons(expr).rest)
                     );
                     if (false == no_overflow) {
@@ -107,7 +107,7 @@ static bool try_begin_eval(
                     }
 
                     auto const no_overflow = stack_try_push(
-                            stack,
+                            s,
                             frame_new(FRAME_DEFINE, expr, env, values_list, object_as_cons(expr).rest)
                     );
                     if (false == no_overflow) {
@@ -198,7 +198,7 @@ static bool try_begin_eval(
                     object_list_reverse(&exprs_list);
 
                     auto const no_overflow = stack_try_push(
-                            stack,
+                            s,
                             frame_new(FRAME_DO, expr, env, values_list, exprs_list)
                     );
                     if (false == no_overflow) {
@@ -213,7 +213,7 @@ static bool try_begin_eval(
                 }
             }
             auto const no_overflow = stack_try_push(
-                    stack,
+                    s,
                     frame_new(FRAME_CALL, expr, env, values_list, expr)
             );
             if (false == no_overflow) {
@@ -230,18 +230,18 @@ static bool try_begin_eval(
     guard_unreachable();
 }
 
-static bool try_step(Object_Allocator *a, Stack *stack) {
+static bool try_step(Object_Allocator *a, Stack *s) {
     guard_is_not_null(a);
-    guard_is_not_null(stack);
-    guard_is_greater(stack->count, 0);
+    guard_is_not_null(s);
+    guard_is_greater(s->count, 0);
 
-    auto const frame = stack_top(stack);
+    auto const frame = stack_top(s);
     switch (frame->type) {
         case FRAME_CALL: {
             if (object_nil() != frame->unevaluated) {
                 auto const next = object_as_cons(frame->unevaluated).first;
                 frame->unevaluated = object_as_cons(frame->unevaluated).rest;
-                return try_begin_eval(a, stack, frame->env, next, &frame->evaluated);
+                return try_begin_eval(a, s, frame->env, next, &frame->evaluated);
             }
 
             object_list_reverse(&frame->evaluated);
@@ -255,7 +255,7 @@ static bool try_step(Object_Allocator *a, Stack *stack) {
                     return false;
                 }
                 eval_push_result(a, frame->result, value);
-                stack_pop(stack);
+                stack_pop(s);
                 return true;
             }
 
@@ -278,22 +278,22 @@ static bool try_step(Object_Allocator *a, Stack *stack) {
                 args = object_as_cons(args).rest;
             }
 
-            stack_pop(stack);
+            stack_pop(s);
             auto const next = object_cons(a, object_atom(a, "do"), fn->as_closure.body);
-            return try_begin_eval(a, stack, arg_bindings, next, frame->result);
+            return try_begin_eval(a, s, arg_bindings, next, frame->result);
         }
         case FRAME_IF: {
             if (object_nil() == frame->evaluated) {
                 auto const next = object_as_cons(frame->unevaluated).first;
                 frame->unevaluated = object_as_cons(frame->unevaluated).rest;
-                return try_begin_eval(a, stack, frame->env, next, &frame->evaluated);
+                return try_begin_eval(a, s, frame->env, next, &frame->evaluated);
             }
 
             auto const cond_value = object_as_cons(frame->evaluated).first;
 
-            stack_pop(stack);
+            stack_pop(s);
             if (object_nil() != cond_value) {
-                return try_begin_eval(a, stack, frame->env, object_as_cons(frame->unevaluated).first, frame->result);
+                return try_begin_eval(a, s, frame->env, object_as_cons(frame->unevaluated).first, frame->result);
             }
 
             frame->unevaluated = object_as_cons(frame->unevaluated).rest; // skip `then`
@@ -302,32 +302,32 @@ static bool try_step(Object_Allocator *a, Stack *stack) {
                 return true;
             }
 
-            return try_begin_eval(a, stack, frame->env, object_as_cons(frame->unevaluated).first, frame->result);
+            return try_begin_eval(a, s, frame->env, object_as_cons(frame->unevaluated).first, frame->result);
         }
         case FRAME_DO: {
             if (object_nil() == frame->unevaluated) {
                 eval_push_result(a, frame->result, object_nil());
-                stack_pop(stack);
+                stack_pop(s);
                 return true;
             }
 
             if (object_nil() == object_as_cons(frame->unevaluated).rest) {
-                stack_pop(stack);
-                return try_begin_eval(a, stack, frame->env, frame->unevaluated->as_cons.first, frame->result);
+                stack_pop(s);
+                return try_begin_eval(a, s, frame->env, frame->unevaluated->as_cons.first, frame->result);
             }
 
             auto const next = object_as_cons(frame->unevaluated).first;
             frame->unevaluated = object_as_cons(frame->unevaluated).rest;
-            return try_begin_eval(a, stack, frame->env, next, nullptr);
+            return try_begin_eval(a, s, frame->env, next, nullptr);
         }
         case FRAME_DEFINE: {
             if (object_nil() == frame->evaluated) {
-                return try_begin_eval(a, stack, frame->env, object_list_nth(frame->unevaluated, 1), &frame->evaluated);
+                return try_begin_eval(a, s, frame->env, object_list_nth(frame->unevaluated, 1), &frame->evaluated);
             }
 
             env_define(a, frame->env, object_as_cons(frame->unevaluated).first, object_as_cons(frame->evaluated).first);
             eval_push_result(a, frame->result, object_as_cons(frame->evaluated).first);
-            stack_pop(stack);
+            stack_pop(s);
             return true;
         }
     }
@@ -336,39 +336,39 @@ static bool try_step(Object_Allocator *a, Stack *stack) {
 }
 
 bool try_eval(
-        Object_Allocator *allocator,
-        Stack *stack,
+        Object_Allocator *a,
+        Stack *s,
         Object *env,
-        Object *expression,
+        Object *expr,
         Object **value
 ) {
-    guard_is_not_null(allocator);
-    guard_is_not_null(stack);
+    guard_is_not_null(a);
+    guard_is_not_null(s);
     guard_is_not_null(env);
-    guard_is_not_null(expression);
+    guard_is_not_null(expr);
     guard_is_not_null(value);
 
     Object *result = object_nil();
-    if (false == try_begin_eval(allocator, stack, env, expression, &result)) {
+    if (false == try_begin_eval(a, s, env, expr, &result)) {
         return false;
     }
 
-    while (stack->count > 0) {
-        if (try_step(allocator, stack)) {
+    while (s->count > 0) {
+        if (try_step(a, s)) {
             continue;
         }
 
         printf("Traceback (most recent call last):\n");
-        while (stack->count > 0) {
+        while (s->count > 0) {
             printf("    ");
-            object_repr_print(stdout, stack_top(stack)->expr);
+            object_repr_print(stdout, stack_top(s)->expr);
             printf("\n");
-            stack_pop(stack);
+            stack_pop(s);
         }
         printf("Some calls may be missing due to tail call optimization.\n");
         return false;
     }
-    guard_is_equal(stack->count, 0);
+    guard_is_equal(s->count, 0);
 
     *value = object_as_cons(result).first;
     return true;
