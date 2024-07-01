@@ -25,4 +25,4 @@ typedef struct {
     int bad_chr;
 } SyntaxError;
 
-void syntax_error_print(FILE *file, SyntaxError error);
+void syntax_error_print(SyntaxError error);

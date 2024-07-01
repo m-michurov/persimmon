@@ -165,3 +165,12 @@ char *object_repr(Arena *a, Object *object) {
     sb_object_repr(sb, object);
     return sb_str(sb);
 }
+
+void object_repr_print(FILE *file, Object *object) {
+    guard_is_not_null(file);
+    guard_is_not_null(object);
+
+    auto a = &(Arena) {0};
+    fprintf(file, "%s", object_repr(a, object));
+    arena_free(a);
+}

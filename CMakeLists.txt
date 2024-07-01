@@ -23,6 +23,8 @@ add_executable(arena
         strings.c
         object_env.c
         reader.c
+        eval_errors.c
+        eval_errors.h
 )
 
 target_compile_options(arena PRIVATE

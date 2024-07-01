@@ -7,23 +7,17 @@
 #include "object_accessors.h"
 #include "guards.h"
 #include "object_env.h"
+#include "eval_errors.h"
 
-static bool prim_eq(Object_Allocator *a, Object *args, Object **value, Object **error) {
+static bool prim_eq(Object_Allocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
     Object *lhs, *rhs;
     if (false == object_list_try_unpack_2(&lhs, &rhs, args)) {
-        *error = object_list(
-                a,
-                object_atom(a, "InvalidCallError"),
-                object_atom(a, "prim_eq?"),
-                object_list(a, object_atom(a, "expected-args"), object_int(a, 2)),
-                object_list(a, object_atom(a, "got-args"), object_int(a, object_list_count(args)))
-        );
+        print_args_error("prim_eq?", object_list_count(args), 2);
         return false;
     }
 
@@ -31,12 +25,11 @@ static bool prim_eq(Object_Allocator *a, Object *args, Object **value, Object **
     return true;
 }
 
-static bool prim_print(Object_Allocator *a, Object *args, Object **value, Object **error) {
+static bool prim_print(Object_Allocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
     auto arena = &(Arena) {0};
 
@@ -58,23 +51,16 @@ static bool prim_print(Object_Allocator *a, Object *args, Object **value, Object
     return true;
 }
 
-static bool prim_plus(Object_Allocator *a, Object *args, Object **value, Object **error) {
+static bool prim_plus(Object_Allocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
     auto acc = object_int(a, 0);
     object_list_for(arg, args) {
         if (TYPE_INT != arg->type) {
-            *error = object_list(
-                    a,
-                    object_atom(a, "TypeError"),
-                    object_atom(a, "+"),
-                    object_list(a, object_atom(a, "expected"), object_atom(a, object_type_str(TYPE_INT))),
-                    object_list(a, object_atom(a, "got"), object_atom(a, object_type_str(arg->type)))
-            );
+            print_type_error(arg->type, TYPE_INT);
             return false;
         }
 
@@ -85,12 +71,11 @@ static bool prim_plus(Object_Allocator *a, Object *args, Object **value, Object 
     return true;
 }
 
-static bool prim_minus(Object_Allocator *a, Object *args, Object **value, Object **error) {
+static bool prim_minus(Object_Allocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
     if (object_nil() == args) {
         *value = object_int(a, 0);
@@ -100,13 +85,7 @@ static bool prim_minus(Object_Allocator *a, Object *args, Object **value, Object
     auto acc = object_nil();
     object_list_for(arg, args) {
         if (TYPE_INT != arg->type) {
-            *error = object_list(
-                    a,
-                    object_atom(a, "TypeError"),
-                    object_atom(a, "-"),
-                    object_list(a, object_atom(a, "expected"), object_atom(a, object_type_str(TYPE_INT))),
-                    object_list(a, object_atom(a, "got"), object_atom(a, object_type_str(arg->type)))
-            );
+            print_type_error(arg->type, TYPE_INT);
             return false;
         }
 
@@ -119,23 +98,16 @@ static bool prim_minus(Object_Allocator *a, Object *args, Object **value, Object
     return true;
 }
 
-static bool prim_mul(Object_Allocator *a, Object *args, Object **value, Object **error) {
+static bool prim_mul(Object_Allocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
     auto acc = object_int(a, 1);
     object_list_for(arg, args) {
         if (TYPE_INT != arg->type) {
-            *error = object_list(
-                    a,
-                    object_atom(a, "TypeError"),
-                    object_atom(a, "*"),
-                    object_list(a, object_atom(a, "expected"), object_atom(a, object_type_str(TYPE_INT))),
-                    object_list(a, object_atom(a, "got"), object_atom(a, object_type_str(arg->type)))
-            );
+            print_type_error(arg->type, TYPE_INT);
             return false;
         }
 
@@ -146,12 +118,11 @@ static bool prim_mul(Object_Allocator *a, Object *args, Object **value, Object *
     return true;
 }
 
-static bool prim_div(Object_Allocator *a, Object *args, Object **value, Object **error) {
+static bool prim_div(Object_Allocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
     if (object_nil() == args) {
         *value = object_int(a, 1);
@@ -161,22 +132,12 @@ static bool prim_div(Object_Allocator *a, Object *args, Object **value, Object *
     auto acc = object_nil();
     object_list_for(arg, args) {
         if (TYPE_INT != arg->type) {
-            *error = object_list(
-                    a,
-                    object_atom(a, "TypeError"),
-                    object_atom(a, "/"),
-                    object_list(a, object_atom(a, "expected"), object_atom(a, object_type_str(TYPE_INT))),
-                    object_list(a, object_atom(a, "got"), object_atom(a, object_type_str(arg->type)))
-            );
+            print_type_error(arg->type, TYPE_INT);
             return false;
         }
 
         if (object_nil() != acc && 0 == arg->as_int) {
-            *error = object_list(
-                    a,
-                    object_atom(a, "ZeroDivisionError"),
-                    object_atom(a, "division by zero")
-            );
+            print_zero_division_error();
             return false;
         }
 
@@ -189,44 +150,31 @@ static bool prim_div(Object_Allocator *a, Object *args, Object **value, Object *
     return true;
 }
 
-static bool prim_list_list(Object_Allocator *a, Object *args, Object **value, Object **error) {
+static bool prim_list_list(Object_Allocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
     *value = args;
     return true;
 }
 
-static bool prim_list_first(Object_Allocator *a, Object *args, Object **value, Object **error) {
+static bool prim_list_first(Object_Allocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
     auto const len = object_list_count(args);
     if (1 != len) {
-        *error = object_list(
-                a,
-                object_atom(a, "InvalidCallError"),
-                object_atom(a, "first"),
-                object_list(a, object_atom(a, "expected-args"), object_int(a, 1)),
-                object_list(a, object_atom(a, "got-args"), object_int(a, len))
-        );
+        print_args_error("first", len, 1);
         return false;
     }
 
     auto const list = object_as_cons(args).first;
     if (TYPE_CONS != list->type) {
-        *error = object_list(
-                a,
-                object_atom(a, "TypeError"),
-                object_list(a, object_atom(a, "expected"), object_atom(a, object_type_str(TYPE_CONS))),
-                object_list(a, object_atom(a, "got"), object_atom(a, object_type_str(list->type)))
-        );
+        print_type_error(list->type, TYPE_CONS);
         return false;
     }
 
@@ -234,33 +182,21 @@ static bool prim_list_first(Object_Allocator *a, Object *args, Object **value, O
     return true;
 }
 
-static bool prim_list_rest(Object_Allocator *a, Object *args, Object **value, Object **error) {
+static bool prim_list_rest(Object_Allocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
     auto const len = object_list_count(args);
     if (1 != len) {
-        *error = object_list(
-                a,
-                object_atom(a, "InvalidCallError"),
-                object_atom(a, "rest"),
-                object_list(a, object_atom(a, "expected-args"), object_int(a, 1)),
-                object_list(a, object_atom(a, "got-args"), object_int(a, len))
-        );
+        print_args_error("rest", len, 1);
         return false;
     }
 
     auto const list = object_as_cons(args).first;
     if (TYPE_CONS != list->type) {
-        *error = object_list(
-                a,
-                object_atom(a, "TypeError"),
-                object_list(a, object_atom(a, "expected"), object_atom(a, object_type_str(TYPE_CONS))),
-                object_list(a, object_atom(a, "got"), object_atom(a, object_type_str(list->type)))
-        );
+        print_type_error(list->type, TYPE_CONS);
         return false;
     }
 
@@ -268,37 +204,20 @@ static bool prim_list_rest(Object_Allocator *a, Object *args, Object **value, Ob
     return true;
 }
 
-static bool prim_list_prepend(Object_Allocator *a, Object *args, Object **value, Object **error) {
+static bool prim_list_prepend(Object_Allocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
     Object *element, *list;
     if (false == object_list_try_unpack_2(&element, &list, args)) {
-        *error = object_list(
-                a,
-                object_atom(a, "InvalidCallError"),
-                object_atom(a, "prepend"),
-                object_list(a, object_atom(a, "expected-args"), object_int(a, 2)),
-                object_list(a, object_atom(a, "got-args"), object_int(a, object_list_count(args)))
-        );
+        print_args_error("prepend", object_list_count(args), 2);
         return false;
     }
 
     if (list->type != TYPE_NIL && list->type != TYPE_CONS) {
-        *error = object_list(
-                a,
-                object_atom(a, "TypeError"),
-                object_list(
-                        a,
-                        object_atom(a, "expected"),
-                        object_atom(a, object_type_str(TYPE_CONS)),
-                        object_atom(a, object_type_str(TYPE_NIL))
-                ),
-                object_list(a, object_atom(a, "got"), object_atom(a, object_type_str(list->type)))
-        );
+        print_type_error(list->type, TYPE_CONS, TYPE_NIL);
         return false;
     }
 
@@ -306,14 +225,12 @@ static bool prim_list_prepend(Object_Allocator *a, Object *args, Object **value,
     return true;
 }
 
-static bool prim_exit(Object_Allocator *a, Object *args, Object **value, Object **error) {
+static bool prim_exit(Object_Allocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
-    *error = object_list(a, object_atom(a, "Exit"));
     return false;
 }
 

@@ -11,6 +11,7 @@ typedef enum {
 
 typedef struct {
     Frame_Type type;
+    Object *expr;
     Object *env;
     Object **result;
     Object *unevaluated;
@@ -18,7 +19,7 @@ typedef struct {
     Object *error;
 } Frame;
 
-Frame frame_new(Frame_Type type, Object *env, Object **result, Object *unevaluated);
+Frame frame_new(Frame_Type type, Object *expr, Object *env, Object **result, Object *unevaluated);
 
 typedef struct {
     size_t count;

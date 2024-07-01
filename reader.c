@@ -10,22 +10,27 @@
 #include "slice.h"
 #include "strings.h"
 
-void reader_print_error(ReaderError error, FILE *file) {
-    guard_is_not_null(file);
+void reader_print_error(
+        SyntaxError error,
+        char const *file_name,
+        char const *text
+) {
+    guard_is_not_null(file_name);
+    guard_is_not_null(text);
 
-    printf("  File \"%s\", line %zu\n", error.file_name, error.base.pos.lineno);
-    printf("    %s", error.text);
+    printf("  File \"%s\", line %zu\n", file_name, error.pos.lineno);
+    printf("    %s", text);
 
     printf("    ");
-    for (size_t i = 0; i < error.base.pos.col; i++) {
+    for (size_t i = 0; i < error.pos.col; i++) {
         printf(" ");
     }
-    for (size_t i = 0; i < error.base.pos.end_col - error.base.pos.col + 1; i++) {
+    for (size_t i = 0; i < error.pos.end_col - error.pos.col + 1; i++) {
         printf("^");
     }
     printf("\n");
 
-    syntax_error_print(file, error.base);
+    syntax_error_print(error);
 }
 
 typedef struct {
@@ -108,7 +113,7 @@ static bool try_parse_line(
 #define PROMPT_NEW      ">>>"
 #define PROMPT_CONTINUE "..."
 
-static bool reader_try_prompt_(Arena *a, Arena *scratch, Reader *r, Objects *exprs, ReaderError *error) {
+static bool reader_try_prompt_(Arena *a, Arena *scratch, Reader *r, Objects *exprs) {
     guard_is_not_null(r);
     guard_is_not_null(exprs);
 
@@ -130,68 +135,57 @@ static bool reader_try_prompt_(Arena *a, Arena *scratch, Reader *r, Objects *exp
             continue;
         }
 
-        SyntaxError syntax_error;
-        if (try_parse_line(a, r->t, r->p, line, exprs, &syntax_error)) {
+        SyntaxError error;
+        if (try_parse_line(a, r->t, r->p, line, exprs, &error)) {
             continue;
         }
 
-        *error = (ReaderError) {
-                .base = syntax_error,
-                .file_name = r->file_name,
-                .text = string_copy(a, slice_at(lines, syntax_error.pos.lineno - 1)->data)
-        };
+        reader_print_error(error, r->file_name, slice_at(lines, error.pos.lineno - 1)->data);
         return false;
     }
 
     return true;
 }
 
-bool reader_try_prompt(Arena *a, Reader *r, Objects *exprs, ReaderError *error) {
+bool reader_try_prompt(Arena *a, Reader *r, Objects *exprs) {
     auto scratch = (Arena) {0};
-    auto const result = reader_try_prompt_(a, &scratch, r, exprs, error);
+    auto const result = reader_try_prompt_(a, &scratch, r, exprs);
     arena_free(&scratch);
     return result;
 }
 
-static bool reader_try_read_all_(Arena *a, Arena *scratch, Reader *r, Objects *exprs, ReaderError *error) {
+static bool reader_try_read_all_(Arena *a, Arena *scratch, Reader *r, Objects *exprs) {
     guard_is_not_null(r);
 
     reader_reset(r);
 
     slice_clear(exprs);
 
-    SyntaxError syntax_error;
     auto lines = (Lines) {0};
 
     auto line = (Line) {0};
     while (line_try_read(scratch, r->line_reader, &line)) {
         arena_append(scratch, &lines, line);
 
-        if (false == try_parse_line(a, r->t, r->p, line, exprs, &syntax_error)) {
-            *error = (ReaderError) {
-                    .base = syntax_error,
-                    .file_name = r->file_name,
-                    .text = string_copy(a, slice_at(lines, syntax_error.pos.lineno - 1)->data)
-            };
+        SyntaxError error;
+        if (false == try_parse_line(a, r->t, r->p, line, exprs, &error)) {
+            reader_print_error(error, r->file_name, slice_at(lines, error.pos.lineno - 1)->data);
             return false;
         }
     }
 
-    if (false == parser_try_accept(r->p, (Token) {.type = TOKEN_EOF}, &syntax_error)) {
-        *error = (ReaderError) {
-                .base = syntax_error,
-                .file_name = r->file_name,
-                .text = string_copy(a, slice_at(lines, syntax_error.pos.lineno - 1)->data)
-        };
+    SyntaxError error;
+    if (false == parser_try_accept(r->p, (Token) {.type = TOKEN_EOF}, &error)) {
+        reader_print_error(error, r->file_name, slice_at(lines, error.pos.lineno - 1)->data);
         return false;
     }
 
     return true;
 }
 
-bool reader_try_read_all(Arena *a, Reader *r, Objects *exprs, ReaderError *error) {
+bool reader_try_read_all(Arena *a, Reader *r, Objects *exprs) {
     auto scratch = (Arena) {0};
-    auto const result = reader_try_read_all_(a, &scratch, r, exprs, error);
+    auto const result = reader_try_read_all_(a, &scratch, r, exprs);
     arena_free(&scratch);
     return result;
 }

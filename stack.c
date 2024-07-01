@@ -8,13 +8,14 @@ Stack *stack_new(Arena *a, size_t max_depth) {
     return s;
 }
 
-Frame frame_new(Frame_Type type, Object *env, Object **result, Object *unevaluated) {
+Frame frame_new(Frame_Type type, Object *expr, Object *env, Object **result, Object *unevaluated) {
     guard_is_not_null(env);
     guard_assert(nullptr == result || nullptr != *result);
     guard_is_not_null(unevaluated);
 
     return (Frame) {
             .type = type,
+            .expr = expr,
             .env = env,
             .result = result,
             .unevaluated = unevaluated,

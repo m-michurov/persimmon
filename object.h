@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "arena.h"
 #include "exchange.h"
@@ -33,7 +34,7 @@ typedef struct {
 
 struct Object_Allocator;
 
-typedef bool (*Object_Primitive)(struct Object_Allocator *, Object *args, Object **value, Object **error);
+typedef bool (*Object_Primitive)(struct Object_Allocator *, Object *args, Object **value);
 
 typedef struct Object_Closure {
     Object *env;
@@ -61,3 +62,5 @@ Object *object_nil();
 bool object_equals(Object *a, Object *b);
 
 char *object_repr(Arena *a, Object *object);
+
+void object_repr_print(FILE *file, Object *object);

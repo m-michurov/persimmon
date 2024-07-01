@@ -39,10 +39,8 @@ char const *syntax_error_code_desc(SyntaxError_Code error_type) {
     guard_unreachable();
 }
 
-void syntax_error_print(FILE *file, SyntaxError error) {
-    guard_is_not_null(file);
-
-    fprintf(file, "SyntaxError: %s", syntax_error_code_desc(error.code));
+void syntax_error_print(SyntaxError error) {
+    printf( "SyntaxError: %s", syntax_error_code_desc(error.code));
     if (SYNTAX_ERROR_INVALID_CHARACTER != error.code) {
         printf("\n");
         return;

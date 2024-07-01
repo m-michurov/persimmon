@@ -11,6 +11,7 @@
 #include "stack.h"
 #include "reader.h"
 #include "slice.h"
+#include "eval_errors.h"
 
 //#define EVAL_TRACE
 
@@ -29,14 +30,12 @@ static bool try_begin_eval(
         Stack *stack,
         Object *env,
         Object *expr,
-        Object **values_list,
-        Object **error
+        Object **values_list
 ) {
     guard_is_not_null(a);
     guard_is_not_null(stack);
     guard_is_not_null(env);
     guard_is_not_null(expr);
-    guard_is_not_null(error);
 
 #ifdef EVAL_TRACE
     printf("[depth = %zu] evaluating %s\n", stack->count, object_repr(a, expr));
@@ -54,7 +53,7 @@ static bool try_begin_eval(
         case TYPE_ATOM: {
             Object *value;
             if (false == env_try_find(env, expr, &value)) {
-                *error = object_list(a, object_atom(a, "NameError"), expr);
+                print_name_error(object_as_atom(expr));
                 return false;
             }
 
@@ -68,21 +67,19 @@ static bool try_begin_eval(
                 if (0 == strcmp("if", atom_name)) {
                     auto const len = object_list_count(expr->as_cons.rest);
                     if (2 != len && 3 != len) {
-                        *error = object_list(
-                                a,
-                                object_atom(a, "IfSyntaxError"),
-                                object_list(a, object_atom(a, "expected-args"), object_int(a, 2), object_int(a, 3)),
-                                object_list(a, object_atom(a, "got-args"), object_int(a, len))
-                        );
+                        printf("SpecialFormError: if takes 2 or 3 arguments but %zu were given\n", len);
+                        printf("Usage:\n");
+                        printf("    (if cond then)\n");
+                        printf("    (if cond then else)\n");
                         return false;
                     }
 
                     auto const no_overflow = stack_try_push(
                             stack,
-                            frame_new(FRAME_IF, env, values_list, object_as_cons(expr).rest)
+                            frame_new(FRAME_IF, expr, env, values_list, object_as_cons(expr).rest)
                     );
                     if (false == no_overflow) {
-                        *error = object_list(a, object_atom(a, "StackOverflowError"));
+                        print_stack_overflow_error();
                         return false;
                     }
                     return true;
@@ -91,22 +88,30 @@ static bool try_begin_eval(
                 if (0 == strcmp("do", atom_name)) {
                     auto const no_overflow = stack_try_push(
                             stack,
-                            frame_new(FRAME_DO, env, values_list, object_as_cons(expr).rest)
+                            frame_new(FRAME_DO, expr, env, values_list, object_as_cons(expr).rest)
                     );
                     if (false == no_overflow) {
-                        *error = object_list(a, object_atom(a, "StackOverflowError"));
+                        print_stack_overflow_error();
                         return false;
                     }
                     return true;
                 }
 
                 if (0 == strcmp("define", atom_name)) {
+                    auto const len = object_list_count(expr->as_cons.rest);
+                    if (2 != len) {
+                        printf("SpecialFormError: define takes 2 arguments but %zu were given\n", len);
+                        printf("Usage:\n");
+                        printf("    (define name value)\n");
+                        return false;
+                    }
+
                     auto const no_overflow = stack_try_push(
                             stack,
-                            frame_new(FRAME_DEFINE, env, values_list, object_as_cons(expr).rest)
+                            frame_new(FRAME_DEFINE, expr, env, values_list, object_as_cons(expr).rest)
                     );
                     if (false == no_overflow) {
-                        *error = object_list(a, object_atom(a, "StackOverflowError"));
+                        print_stack_overflow_error();
                         return false;
                     }
                     return true;
@@ -115,28 +120,30 @@ static bool try_begin_eval(
                 if (0 == strcmp("fn", atom_name)) {
                     auto const len = object_list_count(expr->as_cons.rest);
                     if (len < 2) {
-                        *error = object_list(
-                                a,
-                                object_atom(a, "FnSyntaxError"),
-                                object_list(a, object_atom(a, "expected-args"), object_int(a, 2), object_atom(a, "+")),
-                                object_list(a, object_atom(a, "got-args"), object_int(a, len))
-                        );
+                        printf("SpecialFormError: fn takes at least 2 arguments but %zu were given\n", len);
+                        printf("Usage:\n");
+                        printf("    (fn (args*) x & more)\n");
                         return false;
                     }
 
                     auto const args = object_list_nth(expr, 1);
+                    if (TYPE_CONS != args->type && TYPE_NIL != args->type) {
+                        printf("SpecialFormError: invalid fn syntax\n");
+                        printf("Usage:\n");
+                        printf("    (fn (args*) x & more)\n");
+                        return false;
+                    }
+
                     object_list_for(it, args) {
                         if (TYPE_ATOM == it->type) {
                             continue;
                         }
-                        *error = object_list(
-                                a,
-                                object_atom(a, "TypeError"),
-                                object_list(a, object_atom(a, "in"), expr),
-                                it,
-                                object_list(a, object_atom(a, "expected"), object_atom(a, object_type_str(TYPE_ATOM))),
-                                object_list(a, object_atom(a, "got"), object_atom(a, object_type_str(it->type)))
+                        printf(
+                                "SpecialFormError: fn's args* must consist of atoms (got %s)\n",
+                                object_type_str(it->type)
                         );
+                        printf("Usage:\n");
+                        printf("    (fn (args*) x & more)\n");
                         return false;
                     }
 
@@ -148,44 +155,26 @@ static bool try_begin_eval(
                 if (0 == strcmp("import", atom_name)) {
                     auto const len = object_list_count(expr->as_cons.rest);
                     if (len != 1) {
-                        *error = object_list(
-                                a,
-                                object_atom(a, "ImportSyntaxError"),
-                                object_list(a, object_atom(a, "expected-args"), object_int(a, 1)),
-                                object_list(a, object_atom(a, "got-args"), object_int(a, len))
-                        );
+                        printf("SpecialFormError: import takes 1 argument but %zu were given\n", len);
+                        printf("Usage:\n");
+                        printf("    (import path)\n");
                         return false;
                     }
 
                     auto const file_name = object_list_nth(expr, 1);
                     if (TYPE_STRING != file_name->type) {
-                        *error = object_list(
-                                a,
-                                object_atom(a, "TypeError"),
-                                object_atom(a, "import"),
-                                object_list(
-                                        a,
-                                        object_atom(a, "expected"),
-                                        object_atom(a, object_type_str(TYPE_STRING))
-                                ),
-                                object_list(
-                                        a,
-                                        object_atom(a, "got"),
-                                        object_atom(a, object_type_str(file_name->type))
-                                )
+                        printf(
+                                "SpecialFormError: import's path argument must be a string (got %s)\n",
+                                object_type_str(file_name->type)
                         );
+                        printf("Usage:\n");
+                        printf("    (import path)\n");
                         return false;
                     }
 
                     auto const handle = fopen(file_name->as_string, "rb");
                     if (nullptr == handle) {
-                        auto const saved_errno = errno;
-                        *error = object_list(
-                                a,
-                                object_atom(a, "IOError"),
-                                file_name,
-                                object_string(a, strerror(saved_errno))
-                        );
+                        printf("ImportError: %s - %s\n", file_name->as_string, strerror(errno));
                         return false;
                     }
 
@@ -196,14 +185,7 @@ static bool try_begin_eval(
                             a
                     );
                     auto exprs = (Objects) {0};
-                    ReaderError reader_error;
-                    if (false == reader_try_read_all(arena, r, &exprs, &reader_error)) {
-                        *error = object_list(
-                                a,
-                                object_atom(a, "ImportSyntaxError"),
-                                object_list(a, object_atom(a, "line"), object_int(a, reader_error.base.pos.lineno)),
-                                object_atom(a, syntax_error_code_desc(reader_error.base.code))
-                        );
+                    if (false == reader_try_read_all(arena, r, &exprs)) {
                         arena_free(arena);
                         fclose(handle);
                         return false;
@@ -217,10 +199,10 @@ static bool try_begin_eval(
 
                     auto const no_overflow = stack_try_push(
                             stack,
-                            frame_new(FRAME_DO, env, values_list, exprs_list)
+                            frame_new(FRAME_DO, expr, env, values_list, exprs_list)
                     );
                     if (false == no_overflow) {
-                        *error = object_list(a, object_atom(a, "StackOverflowError"));
+                        print_stack_overflow_error();
                         arena_free(arena);
                         fclose(handle);
                         return false;
@@ -232,10 +214,10 @@ static bool try_begin_eval(
             }
             auto const no_overflow = stack_try_push(
                     stack,
-                    frame_new(FRAME_CALL, env, values_list, expr)
+                    frame_new(FRAME_CALL, expr, env, values_list, expr)
             );
             if (false == no_overflow) {
-                *error = object_list(a, object_atom(a, "StackOverflowError"));
+                print_stack_overflow_error();
                 return false;
             }
             return true;
@@ -248,11 +230,10 @@ static bool try_begin_eval(
     guard_unreachable();
 }
 
-static bool try_step(Object_Allocator *a, Stack *stack, Object **error) {
+static bool try_step(Object_Allocator *a, Stack *stack) {
     guard_is_not_null(a);
     guard_is_not_null(stack);
     guard_is_greater(stack->count, 0);
-    guard_is_not_null(error);
 
     auto const frame = stack_top(stack);
     switch (frame->type) {
@@ -260,7 +241,7 @@ static bool try_step(Object_Allocator *a, Stack *stack, Object **error) {
             if (object_nil() != frame->unevaluated) {
                 auto const next = object_as_cons(frame->unevaluated).first;
                 frame->unevaluated = object_as_cons(frame->unevaluated).rest;
-                return try_begin_eval(a, stack, frame->env, next, &frame->evaluated, error);
+                return try_begin_eval(a, stack, frame->env, next, &frame->evaluated);
             }
 
             object_list_reverse(&frame->evaluated);
@@ -270,7 +251,7 @@ static bool try_step(Object_Allocator *a, Stack *stack, Object **error) {
             auto args = object_as_cons(frame->evaluated).rest;
             if (TYPE_PRIMITIVE == fn->type) {
                 Object *value;
-                if (false == fn->as_primitive(a, args, &value, error)) {
+                if (false == fn->as_primitive(a, args, &value)) {
                     return false;
                 }
                 eval_push_result(a, frame->result, value);
@@ -279,26 +260,14 @@ static bool try_step(Object_Allocator *a, Stack *stack, Object **error) {
             }
 
             if (TYPE_CLOSURE != fn->type) {
-                *error = object_list(
-                        a,
-                        object_atom(a, "TypeError"),
-                        fn,
-                        object_list(a, object_atom(a, "expected"), object_atom(a, object_type_str(TYPE_CLOSURE))),
-                        object_list(a, object_atom(a, "got"), object_atom(a, object_type_str(fn->type)))
-                );
+                print_type_error(fn->type, TYPE_CLOSURE);
                 return false;
             }
             auto const formal_args = fn->as_closure.args;
             auto const actual_argc = object_list_count(args);
             auto const formal_argc = object_list_count(formal_args);
             if (actual_argc != formal_argc) {
-                *error = object_list(
-                        a,
-                        object_atom(a, "TypeError"),
-                        fn,
-                        object_list(a, object_atom(a, "expected-args"), object_int(a, formal_argc)),
-                        object_list(a, object_atom(a, "got-args"), object_int(a, actual_argc))
-                );
+                print_args_error("<closure>", actual_argc, formal_argc);
                 return false;
             }
 
@@ -311,21 +280,20 @@ static bool try_step(Object_Allocator *a, Stack *stack, Object **error) {
 
             stack_pop(stack);
             auto const next = object_cons(a, object_atom(a, "do"), fn->as_closure.body);
-            return try_begin_eval(a, stack, arg_bindings, next, frame->result, error);
+            return try_begin_eval(a, stack, arg_bindings, next, frame->result);
         }
         case FRAME_IF: {
             if (object_nil() == frame->evaluated) {
                 auto const next = object_as_cons(frame->unevaluated).first;
                 frame->unevaluated = object_as_cons(frame->unevaluated).rest;
-                return try_begin_eval(a, stack, frame->env, next, &frame->evaluated, error);
+                return try_begin_eval(a, stack, frame->env, next, &frame->evaluated);
             }
 
             auto const cond_value = object_as_cons(frame->evaluated).first;
 
             stack_pop(stack);
             if (object_nil() != cond_value) {
-                return try_begin_eval(a, stack, frame->env, object_as_cons(frame->unevaluated).first, frame->result,
-                                      error);
+                return try_begin_eval(a, stack, frame->env, object_as_cons(frame->unevaluated).first, frame->result);
             }
 
             frame->unevaluated = object_as_cons(frame->unevaluated).rest; // skip `then`
@@ -334,7 +302,7 @@ static bool try_step(Object_Allocator *a, Stack *stack, Object **error) {
                 return true;
             }
 
-            return try_begin_eval(a, stack, frame->env, object_as_cons(frame->unevaluated).first, frame->result, error);
+            return try_begin_eval(a, stack, frame->env, object_as_cons(frame->unevaluated).first, frame->result);
         }
         case FRAME_DO: {
             if (object_nil() == frame->unevaluated) {
@@ -345,17 +313,16 @@ static bool try_step(Object_Allocator *a, Stack *stack, Object **error) {
 
             if (object_nil() == object_as_cons(frame->unevaluated).rest) {
                 stack_pop(stack);
-                return try_begin_eval(a, stack, frame->env, frame->unevaluated->as_cons.first, frame->result, error);
+                return try_begin_eval(a, stack, frame->env, frame->unevaluated->as_cons.first, frame->result);
             }
 
             auto const next = object_as_cons(frame->unevaluated).first;
             frame->unevaluated = object_as_cons(frame->unevaluated).rest;
-            return try_begin_eval(a, stack, frame->env, next, nullptr, error);
+            return try_begin_eval(a, stack, frame->env, next, nullptr);
         }
         case FRAME_DEFINE: {
             if (object_nil() == frame->evaluated) {
-                return try_begin_eval(a, stack, frame->env, object_list_nth(frame->unevaluated, 1), &frame->evaluated,
-                                      error);
+                return try_begin_eval(a, stack, frame->env, object_list_nth(frame->unevaluated, 1), &frame->evaluated);
             }
 
             env_define(a, frame->env, object_as_cons(frame->unevaluated).first, object_as_cons(frame->evaluated).first);
@@ -373,28 +340,32 @@ bool try_eval(
         Stack *stack,
         Object *env,
         Object *expression,
-        Object **value,
-        Object **error
+        Object **value
 ) {
     guard_is_not_null(allocator);
     guard_is_not_null(stack);
     guard_is_not_null(env);
     guard_is_not_null(expression);
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
-    *error = object_nil();
     Object *result = object_nil();
-    if (false == try_begin_eval(allocator, stack, env, expression, &result, error)) {
+    if (false == try_begin_eval(allocator, stack, env, expression, &result)) {
         return false;
     }
 
     while (stack->count > 0) {
-        if (try_step(allocator, stack, error)) {
+        if (try_step(allocator, stack)) {
             continue;
         }
 
-        while (stack->count > 0) { stack_pop(stack); }
+        printf("Traceback (most recent call last):\n");
+        while (stack->count > 0) {
+            printf("    ");
+            object_repr_print(stdout, stack_top(stack)->expr);
+            printf("\n");
+            stack_pop(stack);
+        }
+        printf("Some calls may be missing due to tail call optimization.\n");
         return false;
     }
     guard_is_equal(stack->count, 0);

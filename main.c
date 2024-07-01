@@ -5,8 +5,6 @@
 #include "object_env.h"
 #include "primitives.h"
 #include "stack.h"
-#include "object_lists.h"
-#include "object_accessors.h"
 #include "object_arena_allocator.h"
 #include "slice.h"
 #include "eval.h"
@@ -34,53 +32,10 @@ static Object *env_default(Object_Allocator *a) {
     return env;
 }
 
-static void print_runtime_error_item(Arena *a, Object *item, FILE *file) {
-    guard_is_not_null(a);
-    guard_is_not_null(item);
-
-    if (TYPE_CONS != item->type) {
-        fprintf(file, "%s", object_repr(a, item));
-        return;
-    }
-
-    fprintf(file, "%s", object_repr(a, object_list_nth(item, 0)));
-    object_list_for(inner, object_list_skip(item, 1)) {
-        fprintf(file, " %s", object_repr(a, inner));
-    }
-}
-
-static void runtime_error_print(Arena *a, Object *error, FILE *file) {
-    guard_is_not_null(a);
-    guard_is_not_null(error);
-
-    if (TYPE_CONS != error->type) {
-        fprintf(OUTPUT_STREAM, "RuntimeError: %s\n", object_repr(a, error));
-        return;
-    }
-
-    auto error_type = object_as_cons(error).first;
-    fprintf(file, "%s", object_as_atom(error_type));
-
-    if (object_nil() == object_as_cons(error).rest) {
-        fprintf(file, "\n");
-        return;
-    }
-
-    fprintf(file, ": ");
-    print_runtime_error_item(a, object_list_nth(error, 1), file);
-    object_list_for(it, object_list_skip(error, 2)) {
-        fprintf(file, ", ");
-        print_runtime_error_item(a, it, file);
-    }
-    fprintf(file, "\n");
-}
-
 static bool try_eval_input(Arena *a, Reader *r, Object_Allocator *allocator, Stack *stack, Object *env) {
     auto exprs = (Objects) {0};
 
-    ReaderError reader_error;
-    if (false == reader_try_prompt(a, r, &exprs, &reader_error)) {
-        reader_print_error(reader_error, OUTPUT_STREAM);
+    if (false == reader_try_prompt(a, r, &exprs)) {
         return true;
     }
 
@@ -89,13 +44,11 @@ static bool try_eval_input(Arena *a, Reader *r, Object_Allocator *allocator, Sta
     }
 
     slice_for(it, exprs) {
-        Object *value, *runtime_error;
-        if (try_eval(allocator, stack, env, *it, &value, &runtime_error)) {
+        Object *value;
+        if (try_eval(allocator, stack, env, *it, &value)) {
             fprintf(OUTPUT_STREAM, "%s\n", object_repr(a, value));
             continue;
         }
-
-        runtime_error_print(a, runtime_error, OUTPUT_STREAM);
     }
 
     return true;
@@ -117,9 +70,7 @@ static void run_repl(Arena *a, Reader *r, Object_Allocator *allocator, Stack *st
 static bool try_eval_file(Arena *a, Reader *r, Object_Allocator *allocator, Stack *stack, Object *env) {
     auto exprs = (Objects) {0};
 
-    ReaderError reader_error;
-    if (false == reader_try_read_all(a, r, &exprs, &reader_error)) {
-        reader_print_error(reader_error, OUTPUT_STREAM);
+    if (false == reader_try_read_all(a, r, &exprs)) {
         return false;
     }
 
@@ -128,12 +79,10 @@ static bool try_eval_file(Arena *a, Reader *r, Object_Allocator *allocator, Stac
     }
 
     slice_for(it, exprs) {
-        Object *value, *runtime_error;
-        if (try_eval(allocator, stack, env, *it, &value, &runtime_error)) {
+        Object *value;
+        if (try_eval(allocator, stack, env, *it, &value)) {
             continue;
         }
-
-        runtime_error_print(a, runtime_error, OUTPUT_STREAM);
         return false;
     }
 

@@ -9,6 +9,5 @@ bool try_eval(
         Stack *stack,
         Object *env,
         Object *expression,
-        Object **value,
-        Object **error
+        Object **value
 );
