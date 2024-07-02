@@ -9,7 +9,7 @@
 #include "object_env.h"
 #include "eval_errors.h"
 
-static bool prim_eq(Object_Allocator *a, Object *args, Object **value) {
+static bool prim_eq(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -25,7 +25,7 @@ static bool prim_eq(Object_Allocator *a, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_print(Object_Allocator *a, Object *args, Object **value) {
+static bool prim_print(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -51,7 +51,7 @@ static bool prim_print(Object_Allocator *a, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_plus(Object_Allocator *a, Object *args, Object **value) {
+static bool prim_plus(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -71,7 +71,7 @@ static bool prim_plus(Object_Allocator *a, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_minus(Object_Allocator *a, Object *args, Object **value) {
+static bool prim_minus(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -98,7 +98,7 @@ static bool prim_minus(Object_Allocator *a, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_mul(Object_Allocator *a, Object *args, Object **value) {
+static bool prim_mul(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -118,7 +118,7 @@ static bool prim_mul(Object_Allocator *a, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_div(Object_Allocator *a, Object *args, Object **value) {
+static bool prim_div(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -150,7 +150,7 @@ static bool prim_div(Object_Allocator *a, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_list_list(Object_Allocator *a, Object *args, Object **value) {
+static bool prim_list_list(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -160,7 +160,7 @@ static bool prim_list_list(Object_Allocator *a, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_list_first(Object_Allocator *a, Object *args, Object **value) {
+static bool prim_list_first(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -182,7 +182,7 @@ static bool prim_list_first(Object_Allocator *a, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_list_rest(Object_Allocator *a, Object *args, Object **value) {
+static bool prim_list_rest(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -204,7 +204,7 @@ static bool prim_list_rest(Object_Allocator *a, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_list_prepend(Object_Allocator *a, Object *args, Object **value) {
+static bool prim_list_prepend(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -225,7 +225,7 @@ static bool prim_list_prepend(Object_Allocator *a, Object *args, Object **value)
     return true;
 }
 
-static bool prim_exit(Object_Allocator *a, Object *args, Object **value) {
+static bool prim_exit(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -234,7 +234,7 @@ static bool prim_exit(Object_Allocator *a, Object *args, Object **value) {
     return false;
 }
 
-void define_primitives(Object_Allocator *a, Object *env) {
+void define_primitives(ObjectAllocator *a, Object *env) {
     env_define(a, env, object_atom(a, "print"), object_primitive(a, prim_print));
     env_define(a, env, object_atom(a, "+"), object_primitive(a, prim_plus));
     env_define(a, env, object_atom(a, "-"), object_primitive(a, prim_minus));

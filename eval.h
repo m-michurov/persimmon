@@ -5,7 +5,7 @@
 #include "stack.h"
 
 bool try_eval(
-        Object_Allocator *a,
+        ObjectAllocator *a,
         Stack *s,
         Object *env,
         Object *expr,

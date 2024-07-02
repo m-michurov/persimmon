@@ -7,43 +7,30 @@
 #include "object_constructors.h"
 #include "slice.h"
 
-typedef struct {
-    Object *expr;
-    Position begin_pos;
-} ExpressionStack_Item;
-
-typedef struct {
-    ExpressionStack_Item *data;
-    size_t count;
-    size_t capacity;
-} ExpressionStack;
-
 struct Parser {
-    Arena *a;
-    Object_Allocator *allocator;
-    ExpressionStack exprs;
+    ObjectAllocator *a;
+    Parser_Stack *stack;
     bool has_expr;
     Object *expr;
 };
 
-Parser *parser_new(Arena *a, Object_Allocator *allocator) {
+Parser *parser_new(Arena *a, ObjectAllocator *allocator, Parser_Stack *stack) {
     guard_is_not_null(a);
-    guard_is_not_null(allocator);
+    guard_is_not_null(stack);
 
     return arena_emplace(a, ((Parser) {
-            .a = a,
-            .allocator = allocator,
-            .exprs = (ExpressionStack) {0}
+            .a = allocator,
+            .stack = stack
     }));
 }
 
 void parser_reset(Parser *p) {
-    p->exprs.count = 0;
+    slice_clear(p->stack);
     p->has_expr = false;
 }
 
 bool parser_is_inside_expression(Parser const *p) {
-    return p->has_expr || p->exprs.count > 0;
+    return p->has_expr || false == slice_empty(*p->stack);
 }
 
 bool parser_try_accept(Parser *p, Token token, SyntaxError *error) {
@@ -52,58 +39,64 @@ bool parser_try_accept(Parser *p, Token token, SyntaxError *error) {
 
     switch (token.type) {
         case TOKEN_EOF: {
-            if (slice_empty(p->exprs)) {
+            if (slice_empty(*p->stack)) {
                 return true;
             }
 
             *error = (SyntaxError) {
                     .code = SYNTAX_ERROR_NO_MATCHING_CLOSE_PAREN,
-                    .pos = slice_last(p->exprs)->begin_pos
+                    .pos = slice_last(*p->stack)->begin
             };
             return false;
         }
         case TOKEN_INT: {
-            auto const expr = object_int(p->allocator, token.as_int);
-            if (slice_empty(p->exprs)) {
+            auto const expr = object_int(p->a, token.as_int);
+            if (slice_empty(*p->stack)) {
                 p->expr = expr;
                 p->has_expr = true;
                 return true;
             }
 
-            slice_last(p->exprs)->expr = object_cons(p->allocator, expr, slice_last(p->exprs)->expr);
+            slice_last(*p->stack)->last = object_cons(p->a, expr, slice_last(*p->stack)->last);
             return true;
         }
         case TOKEN_STRING: {
-            auto const expr = object_string(p->allocator, token.as_string);
-            if (slice_empty(p->exprs)) {
+            auto const expr = object_string(p->a, token.as_string);
+            if (slice_empty(*p->stack)) {
                 p->expr = expr;
                 p->has_expr = true;
                 return true;
             }
 
-            slice_last(p->exprs)->expr = object_cons(p->allocator, expr, slice_last(p->exprs)->expr);
+            slice_last(*p->stack)->last = object_cons(p->a, expr, slice_last(*p->stack)->last);
             return true;
         }
         case TOKEN_ATOM: {
-            auto const expr = object_atom(p->allocator, token.as_atom);
-            if (slice_empty(p->exprs)) {
+            auto const expr = object_atom(p->a, token.as_atom);
+            if (slice_empty(*p->stack)) {
                 p->expr = expr;
                 p->has_expr = true;
                 return true;
             }
 
-            slice_last(p->exprs)->expr = object_cons(p->allocator, expr, slice_last(p->exprs)->expr);
+            slice_last(*p->stack)->last = object_cons(p->a, expr, slice_last(*p->stack)->last);
             return true;
         }
         case TOKEN_OPEN_PAREN: {
-            arena_append(p->a, &p->exprs, ((ExpressionStack_Item) {
-                    .expr = object_nil(),
-                    .begin_pos = token.pos
-            }));
+            if (false == slice_try_append(p->stack, ((Parser_PartialExpression) {
+                    .last = object_nil(),
+                    .begin = token.pos
+            }))) {
+                *error = (SyntaxError) {
+                        .code = SYNTAX_ERROR_NESTING_TOO_DEEP,
+                        .pos = token.pos
+                };
+                return false;
+            }
             return true;
         }
         case TOKEN_CLOSE_PAREN: {
-            if (slice_empty(p->exprs)) {
+            if (slice_empty(*p->stack)) {
                 *error = (SyntaxError) {
                         .code = SYNTAX_ERROR_UNEXPECTED_CLOSE_PAREN,
                         .pos = token.pos,
@@ -111,18 +104,18 @@ bool parser_try_accept(Parser *p, Token token, SyntaxError *error) {
                 return false;
             }
 
-            if (1 == p->exprs.count) {
-                p->expr = slice_last(p->exprs)->expr;
-                slice_try_pop(&p->exprs, nullptr);
+            if (1 == p->stack->count) {
+                p->expr = slice_last(*p->stack)->last;
+                slice_try_pop(p->stack, nullptr);
                 object_list_reverse(&p->expr);
                 p->has_expr = true;
                 return true;
             }
 
-            auto expr = slice_last(p->exprs)->expr;
-            slice_try_pop(&p->exprs, nullptr);
+            auto expr = slice_last(*p->stack)->last;
+            slice_try_pop(p->stack, nullptr);
             object_list_reverse(&expr);
-            slice_last(p->exprs)->expr = object_cons(p->allocator, expr, slice_last(p->exprs)->expr);
+            slice_last(*p->stack)->last = object_cons(p->a, expr, slice_last(*p->stack)->last);
             return true;
         }
     }

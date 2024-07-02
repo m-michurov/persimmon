@@ -6,7 +6,7 @@
 #include "object_accessors.h"
 #include "guards.h"
 
-Object *object_list_(Object_Allocator *a, ...) {
+Object *object_list_(ObjectAllocator *a, ...) {
     guard_is_not_null(a);
 
     auto head = object_nil();

@@ -15,16 +15,16 @@
 
 #define slice_clear(Slice) do { (Slice)->count = 0; } while (false)
 
-#define slice_try_append(Slice, Item)                           \
-({                                                              \
-    auto const _slice = (Slice);                                \
-    guard_is_not_null(_slice);                                  \
-    auto _ok = false;                                           \
-    if (_slice->count < _slice->capacity) {                     \
-        _slice->data[_slice->count++] = (Item);                 \
-        _ok = true;                                             \
-    }                                                           \
-    _ok;                                                        \
+#define slice_try_append(Slice, Item)                                                           \
+({                                                                                              \
+    auto const _slice = (Slice);                                                                \
+    guard_is_not_null(_slice);                                                                  \
+    auto _ok = false;                                                                           \
+    if (_slice->count + 1 <= _slice->capacity) {                                                \
+        _slice->data[_slice->count++] = (Item);                                                 \
+        _ok = true;                                                                             \
+    }                                                                                           \
+    _ok;                                                                                        \
 })
 
 #define slice_try_pop(Slice, Item)                      \

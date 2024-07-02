@@ -46,7 +46,7 @@ struct Reader {
     Parser *p;
 };
 
-Reader *reader_open(Arena *a, NamedFile file, Object_Allocator *allocator) {
+Reader *reader_open(Arena *a, NamedFile file, ObjectAllocator *allocator) {
     guard_is_not_null(a);
     guard_is_not_null(file.handle);
     guard_is_not_null(allocator);
@@ -55,7 +55,10 @@ Reader *reader_open(Arena *a, NamedFile file, Object_Allocator *allocator) {
             .file_name = file.name,
             .line_reader = line_reader_open(a, file.handle),
             .t = tokenizer_new(a),
-            .p = parser_new(a, allocator)
+            .p = parser_new(a, allocator, arena_emplace(a, ((Parser_Stack) {
+                    .data = arena_new_array(a, Parser_PartialExpression, 100),
+                    .capacity = 100
+            })))
     }));
 }
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdlib.h>
+#include <stdint.h>
 
 typedef struct Arena_Region Arena_Region;
 
@@ -10,7 +10,7 @@ typedef struct {
 
 typedef struct {
     size_t regions;
-    size_t memory_used_bytes;
+    size_t system_memory_used_bytes;
     size_t allocated_bytes;
     size_t wasted_bytes;
 } Arena_Statistics;

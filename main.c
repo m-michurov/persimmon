@@ -5,7 +5,6 @@
 #include "object_env.h"
 #include "primitives.h"
 #include "stack.h"
-#include "object_arena_allocator.h"
 #include "slice.h"
 #include "eval.h"
 
@@ -26,13 +25,13 @@ static bool try_shift_args(int *argc, char ***argv, char **arg) {
     return true;
 }
 
-static Object *env_default(Object_Allocator *a) {
+static Object *env_default(ObjectAllocator *a) {
     auto env = env_new(a, object_nil());
     define_primitives(a, env);
     return env;
 }
 
-static bool try_eval_input(Arena *a, Reader *r, Object_Allocator *allocator, Stack *stack, Object *env) {
+static bool try_eval_input(Arena *a, Reader *r, ObjectAllocator *allocator, Stack *stack, Object *env) {
     auto exprs = (Objects) {0};
 
     if (false == reader_try_prompt(a, r, &exprs)) {
@@ -54,7 +53,7 @@ static bool try_eval_input(Arena *a, Reader *r, Object_Allocator *allocator, Sta
     return true;
 }
 
-static void run_repl(Arena *a, Reader *r, Object_Allocator *allocator, Stack *stack, Object *env) {
+static void run_repl(Arena *a, Reader *r, ObjectAllocator *allocator, Stack *stack, Object *env) {
     fprintf(OUTPUT_STREAM, "env: %s\n", object_repr(a, env));
 
     auto stream_is_open = true;
@@ -64,10 +63,10 @@ static void run_repl(Arena *a, Reader *r, Object_Allocator *allocator, Stack *st
         arena_free(scratch);
     }
 
-    object_allocator_free(&allocator);
+    allocator_free(&allocator);
 }
 
-static bool try_eval_file(Arena *a, Reader *r, Object_Allocator *allocator, Stack *stack, Object *env) {
+static bool try_eval_file(Arena *a, Reader *r, ObjectAllocator *allocator, Stack *stack, Object *env) {
     auto exprs = (Objects) {0};
 
     if (false == reader_try_read_all(a, r, &exprs)) {
@@ -94,7 +93,7 @@ int main(int argc, char **argv) {
 
     auto a = &(Arena) {0};
     auto stack = stack_new(a, MAX_STACK_DEPTH);
-    auto allocator = object_arena_allocator_new(a);
+    auto allocator = allocator_new();
     auto env = env_default(allocator);
 
     char *file_name;
@@ -104,7 +103,7 @@ int main(int argc, char **argv) {
         if (nullptr == file_name) {
             fprintf(OUTPUT_STREAM, "Could not open \"%s\": %s\n", file_name, strerror(errno));
 
-            object_allocator_free(&allocator);
+            allocator_free(&allocator);
             arena_free(a);
             return EXIT_FAILURE;
         }
@@ -117,7 +116,7 @@ int main(int argc, char **argv) {
         run_repl(a, r, allocator, stack, env);
     }
 
-    object_allocator_free(&allocator);
+    allocator_free(&allocator);
     arena_free(a);
     return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }

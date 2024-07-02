@@ -27,14 +27,14 @@ Object *object_init_primitive(Object *obj, Object_Primitive fn);
 
 Object *object_init_closure(Object *obj, Object *env, Object *args, Object *body);
 
-Object *object_int(Object_Allocator *a, int64_t value);
+Object *object_int(ObjectAllocator *a, int64_t value);
 
-Object *object_string(Object_Allocator *a, char const *s);
+Object *object_string(ObjectAllocator *a, char const *s);
 
-Object *object_atom(Object_Allocator *a, char const *s);
+Object *object_atom(ObjectAllocator *a, char const *s);
 
-Object *object_cons(Object_Allocator *a, Object *first, Object *rest);
+Object *object_cons(ObjectAllocator *a, Object *first, Object *rest);
 
-Object *object_primitive(Object_Allocator *a, Object_Primitive fn);
+Object *object_primitive(ObjectAllocator *a, Object_Primitive fn);
 
-Object *object_closure(Object_Allocator *a, Object *env, Object *args, Object *body);
+Object *object_closure(ObjectAllocator *a, Object *env, Object *args, Object *body);

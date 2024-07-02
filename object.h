@@ -13,8 +13,7 @@ typedef enum {
     TYPE_CONS,
     TYPE_PRIMITIVE,
     TYPE_CLOSURE,
-    TYPE_NIL,
-    TYPE_MOVED
+    TYPE_NIL
 } Object_Type;
 
 char const *object_type_str(Object_Type type);
@@ -32,9 +31,9 @@ typedef struct {
     Object *rest;
 } Object_Cons;
 
-struct Object_Allocator;
+struct ObjectAllocator;
 
-typedef bool (*Object_Primitive)(struct Object_Allocator *, Object *args, Object **value);
+typedef bool (*Object_Primitive)(struct ObjectAllocator *, Object *args, Object **value);
 
 typedef struct Object_Closure {
     Object *env;
@@ -42,9 +41,16 @@ typedef struct Object_Closure {
     Object *body;
 } Object_Closure;
 
+typedef enum {
+    OBJECT_WHITE,
+    OBJECT_GRAY,
+    OBJECT_BLACK
+} Object_Color;
+
 struct Object {
     Object_Type type;
-    [[maybe_unused]] size_t size;
+    Object_Color color;
+    Object *next;
 
     union {
         int64_t as_int;
@@ -53,7 +59,6 @@ struct Object {
         Object_Cons as_cons;
         Object_Primitive as_primitive;
         Object_Closure as_closure;
-        Object *as_moved;
     };
 };
 

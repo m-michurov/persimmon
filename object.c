@@ -36,9 +36,6 @@ char const *object_type_str(Object_Type type) {
         case TYPE_NIL: {
             return "nil";
         }
-        case TYPE_MOVED: {
-            guard_unreachable();
-        }
     }
 
     guard_unreachable();
@@ -75,9 +72,6 @@ bool object_equals(Object *a, Object *b) { // NOLINT(*-no-recursion)
         }
         case TYPE_NIL: {
             return true;
-        }
-        case TYPE_MOVED: {
-            guard_unreachable();
         }
     }
 
@@ -148,9 +142,6 @@ static void sb_object_repr(StringBuilder *sb, Object *object) { // NOLINT(*-no-r
         case TYPE_CLOSURE: {
             sb_sprintf(sb, "<%s>", object_type_str(object->type));
             return;
-        }
-        case TYPE_MOVED: {
-            guard_unreachable();
         }
     }
 

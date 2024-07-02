@@ -2,18 +2,10 @@
 
 #include "object.h"
 
-typedef struct Object_Allocator Object_Allocator;
+typedef struct ObjectAllocator ObjectAllocator;
 
-typedef struct {
-    void (*free)(Object_Allocator *);
+ObjectAllocator *allocator_new(void);
 
-    Object *(*allocate)(Object_Allocator *, size_t size);
-} Object_Allocator_VMT;
+void allocator_free(ObjectAllocator **a);
 
-struct Object_Allocator {
-    Object_Allocator_VMT const *methods;
-};
-
-void object_allocator_free(Object_Allocator **a);
-
-Object *object_allocate(Object_Allocator *a, size_t size);
+bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj);

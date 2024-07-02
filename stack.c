@@ -3,9 +3,10 @@
 #include "guards.h"
 
 Stack *stack_new(Arena *a, size_t max_depth) {
-    auto const s = (Stack *) arena_allocate(a, _Alignof(Stack), sizeof(Stack) + max_depth * sizeof(Frame));
-    *s = (Stack) {.capacity = max_depth};
-    return s;
+    return arena_emplace(a, ((Stack) {
+        .frames = arena_new_array(a, Frame, max_depth),
+        .capacity = max_depth
+    }));
 }
 
 Frame frame_new(Frame_Type type, Object *expr, Object *env, Object **result, Object *unevaluated) {

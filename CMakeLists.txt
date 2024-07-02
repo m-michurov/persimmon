@@ -17,7 +17,6 @@ add_executable(arena
         stack.c
         object_constructors.c
         object_allocator.c
-        object_arena_allocator.c
         primitives.c
         io.c
         strings.c

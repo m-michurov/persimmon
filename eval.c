@@ -15,7 +15,7 @@
 
 //#define EVAL_TRACE
 
-static void eval_push_result(Object_Allocator *a, Object **result, Object *value) {
+static void eval_push_result(ObjectAllocator *a, Object **result, Object *value) {
     if (nullptr == result) {
         return;
     }
@@ -26,7 +26,7 @@ static void eval_push_result(Object_Allocator *a, Object **result, Object *value
 }
 
 static bool try_begin_eval(
-        Object_Allocator *a,
+        ObjectAllocator *a,
         Stack *s,
         Object *env,
         Object *expr,
@@ -222,15 +222,12 @@ static bool try_begin_eval(
             }
             return true;
         }
-        case TYPE_MOVED: {
-            guard_unreachable();
-        }
     }
 
     guard_unreachable();
 }
 
-static bool try_step(Object_Allocator *a, Stack *s) {
+static bool try_step(ObjectAllocator *a, Stack *s) {
     guard_is_not_null(a);
     guard_is_not_null(s);
     guard_is_greater(s->count, 0);
@@ -336,7 +333,7 @@ static bool try_step(Object_Allocator *a, Stack *s) {
 }
 
 bool try_eval(
-        Object_Allocator *a,
+        ObjectAllocator *a,
         Stack *s,
         Object *env,
         Object *expr,

@@ -5,14 +5,14 @@
 #include "object_constructors.h"
 #include "object_accessors.h"
 
-Object *env_new(Object_Allocator *a, Object *base_env) {
+Object *env_new(ObjectAllocator *a, Object *base_env) {
     guard_is_not_null(a);
     guard_is_not_null(base_env);
 
     return object_cons(a, object_nil(), base_env);
 }
 
-void env_define(Object_Allocator *a, Object *env, Object *name, Object *value) {
+void env_define(ObjectAllocator *a, Object *env, Object *name, Object *value) {
     guard_is_not_null(a);
     guard_is_not_null(env);
     guard_is_not_null(name);

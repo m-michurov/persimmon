@@ -3,7 +3,7 @@
 #include "object.h"
 #include "object_allocator.h"
 
-Object *object_list_(Object_Allocator *a, ...);
+Object *object_list_(ObjectAllocator *a, ...);
 
 #define object_list(Object_Allocator_, ...) object_list_((Object_Allocator_), __VA_ARGS__, nullptr)
 

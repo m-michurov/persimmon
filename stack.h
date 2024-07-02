@@ -21,10 +21,11 @@ typedef struct {
 
 Frame frame_new(Frame_Type type, Object *expr, Object *env, Object **result, Object *unevaluated);
 
+// TODO make opaque
 typedef struct {
+    Frame *frames;
     size_t count;
     size_t capacity;
-    Frame frames[];
 } Stack;
 
 Stack *stack_new(Arena *a, size_t max_depth);
