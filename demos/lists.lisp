@@ -18,3 +18,9 @@
             (map- (prepend (f (first col)) acc) (rest col))
             (reverse acc))))
     (map- (list) col)))
+
+(define apply (fn (f col)
+    (if col
+        (do
+            (f (first col))
+            (for f (rest col))))))

@@ -1,3 +1,3 @@
-(import "demos/range.lisp")
+(import "demos/lists.lisp")
 
 (print (map (fn (x) (list x (* x x))) (range 15)))
