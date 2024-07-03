@@ -3,8 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "arena.h"
-#include "exchange.h"
+#include "string_builder.h"
 
 typedef enum {
     TYPE_INT,
@@ -66,6 +65,6 @@ Object *object_nil();
 
 bool object_equals(Object *a, Object *b);
 
-char *object_repr(Arena *a, Object *object);
+void object_repr_sb(Object *object, StringBuilder *sb);
 
-void object_repr_print(FILE *file, Object *object);
+void object_repr_print(Object *object, FILE *file);

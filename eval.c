@@ -178,15 +178,12 @@ static bool try_begin_eval(
                         return false;
                     }
 
-                    auto arena = &(Arena) {0};
-                    auto r = reader_open(
-                            arena,
+                    auto r = reader_new(
                             (NamedFile) {.handle = handle, .name = file_name->as_string},
                             a
                     );
                     auto exprs = (Objects) {0};
-                    if (false == reader_try_read_all(arena, r, &exprs)) {
-                        arena_free(arena);
+                    if (false == reader_try_read_all(r, &exprs)) {
                         fclose(handle);
                         return false;
                     }
@@ -203,11 +200,9 @@ static bool try_begin_eval(
                     );
                     if (false == no_overflow) {
                         print_stack_overflow_error();
-                        arena_free(arena);
                         fclose(handle);
                         return false;
                     }
-                    arena_free(arena);
                     fclose(handle);
                     return true;
                 }
@@ -358,7 +353,7 @@ bool try_eval(
         printf("Traceback (most recent call last):\n");
         while (s->count > 0) {
             printf("    ");
-            object_repr_print(stdout, stack_top(s)->expr);
+            object_repr_print(stack_top(s)->expr, stdout);
             printf("\n");
             stack_pop(s);
         }

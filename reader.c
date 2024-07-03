@@ -2,15 +2,23 @@
 
 #include <ctype.h>
 
-#include "arena_append.h"
 #include "guards.h"
-#include "io.h"
-#include "tokenizer.h"
+#include "line_reader.h"
+#include "scanner.h"
 #include "parser.h"
 #include "slice.h"
+#include "dynamic_array.h"
 #include "strings.h"
+#include "exchange.h"
+#include "arena_append.h"
 
-void reader_print_error(
+static void pad(size_t count) {
+    for (size_t i = 0; i < count; i++) {
+        printf(" ");
+    }
+}
+
+static void reader_print_error(
         SyntaxError error,
         char const *file_name,
         char const *text
@@ -18,10 +26,18 @@ void reader_print_error(
     guard_is_not_null(file_name);
     guard_is_not_null(text);
 
-    printf("  File \"%s\", line %zu\n", file_name, error.pos.lineno);
-    printf("    %s", text);
+    syntax_error_print(error);
 
-    printf("    ");
+    auto const line_number_chars = snprintf(nullptr, 0, "%zu", error.pos.lineno);
+    pad(line_number_chars);
+    printf(" --> %s\n", file_name);
+    pad(line_number_chars + 2);
+    printf("|\n");
+    pad(1);
+    printf("%zu | %s", error.pos.lineno, text);
+    pad(line_number_chars + 2);
+    printf("| ");
+
     for (size_t i = 0; i < error.pos.col; i++) {
         printf(" ");
     }
@@ -30,7 +46,6 @@ void reader_print_error(
     }
     printf("\n");
 
-    syntax_error_print(error);
 }
 
 typedef struct {
@@ -42,41 +57,54 @@ typedef struct {
 struct Reader {
     char const *file_name;
     LineReader *line_reader;
-    Tokenizer *t;
+    Arena lines_arena;
+    Lines lines;
+    Scanner *s;
     Parser *p;
 };
 
-Reader *reader_open(Arena *a, NamedFile file, ObjectAllocator *allocator) {
-    guard_is_not_null(a);
+Reader *reader_new(NamedFile file, ObjectAllocator *a) {
     guard_is_not_null(file.handle);
-    guard_is_not_null(allocator);
+    guard_is_not_null(a);
 
-    return arena_emplace(a, ((Reader) {
+    auto const r = (Reader *) guard_succeeds(calloc, (1, sizeof(Reader)));
+    * r = (Reader) {
             .file_name = file.name,
-            .line_reader = line_reader_open(a, file.handle),
-            .t = tokenizer_new(a),
-            .p = parser_new(a, allocator, arena_emplace(a, ((Parser_Stack) {
-                    .data = arena_new_array(a, Parser_PartialExpression, 100),
-                    .capacity = 100
-            })))
-    }));
+            .line_reader = line_reader_new(file.handle),
+            .s = scanner_new(),
+            .p = parser_new(a)
+    };
+    return r;
+}
+
+void reader_free(Reader **r) {
+    guard_is_not_null(r);
+    guard_is_not_null(*r);
+
+    line_reader_free(&(*r)->line_reader);
+    arena_free(&(*r)->lines_arena);
+    slice_clear(&(*r)->lines);
+    scanner_free(&(*r)->s);
+    parser_free(&(*r)->p);
+
+    free(*r);
+    *r = nullptr;
 }
 
 static void reader_reset(Reader *r) {
     line_reader_reset(r->line_reader);
-    tokenizer_reset(r->t);
+    slice_clear(&r->lines);
+    scanner_reset(r->s);
     parser_reset(r->p);
 }
 
 static bool try_parse_line(
-        Arena *a,
-        Tokenizer *t,
+        Scanner *t,
         Parser *p,
         Line line,
         Objects *exprs,
         SyntaxError *error
 ) {
-    guard_is_not_null(a);
     guard_is_not_null(t);
     guard_is_not_null(p);
     guard_is_not_null(exprs);
@@ -89,11 +117,11 @@ static bool try_parse_line(
                 .end_col = pos.end_col + 1
         }));
 
-        if (false == tokenizer_try_accept(t, char_pos, *it, error)) {
+        if (false == scanner_try_accept(t, char_pos, *it, error)) {
             return false;
         }
 
-        auto token = tokenizer_token(t);
+        auto token = scanner_peek(t);
         if (nullptr == token) {
             continue;
         }
@@ -107,7 +135,7 @@ static bool try_parse_line(
             continue;
         }
 
-        arena_append(a, exprs, expr); // NOLINT(*-sizeof-expression)
+        da_append(exprs, expr); // NOLINT(*-sizeof-expression)
     }
 
     return true;
@@ -116,7 +144,7 @@ static bool try_parse_line(
 #define PROMPT_NEW      ">>>"
 #define PROMPT_CONTINUE "..."
 
-static bool reader_try_prompt_(Arena *a, Arena *scratch, Reader *r, Objects *exprs) {
+bool reader_try_prompt(Reader *r, Objects *exprs) {
     guard_is_not_null(r);
     guard_is_not_null(exprs);
 
@@ -125,70 +153,52 @@ static bool reader_try_prompt_(Arena *a, Arena *scratch, Reader *r, Objects *exp
     slice_clear(exprs);
 
     auto line = (Line) {0};
-    auto lines = (Lines) {0};
     while (slice_empty(line) || parser_is_inside_expression(r->p)) {
         printf("%s ", (line.lineno > 0 ? PROMPT_CONTINUE : PROMPT_NEW));
 
-        if (false == line_try_read(scratch, r->line_reader, &line)) {
+        if (false == line_try_read(r->line_reader, &r->lines_arena, &line)) {
             return true;
         }
-        arena_append(scratch, &lines, line);
+        arena_append(&r->lines_arena, &r->lines, line);
 
         if (string_is_blank(line.data)) {
             continue;
         }
 
         SyntaxError error;
-        if (try_parse_line(a, r->t, r->p, line, exprs, &error)) {
+        if (try_parse_line(r->s, r->p, line, exprs, &error)) {
             continue;
         }
 
-        reader_print_error(error, r->file_name, slice_at(lines, error.pos.lineno - 1)->data);
+        reader_print_error(error, r->file_name, slice_at(r->lines, error.pos.lineno - 1)->data);
         return false;
     }
 
     return true;
 }
 
-bool reader_try_prompt(Arena *a, Reader *r, Objects *exprs) {
-    auto scratch = (Arena) {0};
-    auto const result = reader_try_prompt_(a, &scratch, r, exprs);
-    arena_free(&scratch);
-    return result;
-}
-
-static bool reader_try_read_all_(Arena *a, Arena *scratch, Reader *r, Objects *exprs) {
+bool reader_try_read_all(Reader *r, Objects *exprs) {
     guard_is_not_null(r);
 
     reader_reset(r);
-
     slice_clear(exprs);
 
-    auto lines = (Lines) {0};
-
     auto line = (Line) {0};
-    while (line_try_read(scratch, r->line_reader, &line)) {
-        arena_append(scratch, &lines, line);
+    while (line_try_read(r->line_reader, &r->lines_arena, &line)) {
+        arena_append(&r->lines_arena, &r->lines, line);
 
         SyntaxError error;
-        if (false == try_parse_line(a, r->t, r->p, line, exprs, &error)) {
-            reader_print_error(error, r->file_name, slice_at(lines, error.pos.lineno - 1)->data);
+        if (false == try_parse_line(r->s, r->p, line, exprs, &error)) {
+            reader_print_error(error, r->file_name, slice_at(r->lines, error.pos.lineno - 1)->data);
             return false;
         }
     }
 
     SyntaxError error;
     if (false == parser_try_accept(r->p, (Token) {.type = TOKEN_EOF}, &error)) {
-        reader_print_error(error, r->file_name, slice_at(lines, error.pos.lineno - 1)->data);
+        reader_print_error(error, r->file_name, slice_at(r->lines, error.pos.lineno - 1)->data);
         return false;
     }
 
     return true;
-}
-
-bool reader_try_read_all(Arena *a, Reader *r, Objects *exprs) {
-    auto scratch = (Arena) {0};
-    auto const result = reader_try_read_all_(a, &scratch, r, exprs);
-    arena_free(&scratch);
-    return result;
 }

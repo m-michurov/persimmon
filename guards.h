@@ -98,4 +98,15 @@ do {                                    \
     );                                  \
 } while (false)
 
+#define guard_succeeds(Callee, ArgsList)                        \
+({                                                              \
+    errno = 0;                                                  \
+    auto const _r = Callee ArgsList;                            \
+    guard_assert(                                               \
+        0 == errno,                                             \
+        #Callee "(" #ArgsList ") failed: %s", strerror(errno)   \
+    );                                                          \
+    _r;                                                         \
+})
+
 #define guard_unreachable() guard_assert(false, "this code must never be reached")

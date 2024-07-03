@@ -6,7 +6,7 @@ set(CMAKE_C_STANDARD 23)
 add_executable(arena
         main.c
         arena.c
-        tokenizer.c
+        scanner.c
         object.c
         string_builder.c
         eval.c
@@ -18,7 +18,7 @@ add_executable(arena
         object_constructors.c
         object_allocator.c
         primitives.c
-        io.c
+        line_reader.c
         strings.c
         object_env.c
         reader.c

@@ -1,15 +1,12 @@
 #include "object.h"
 
-#include <stdint.h>
 #include <string.h>
 #include <inttypes.h>
 #include <ctype.h>
-#include <stdarg.h>
 
 #include "string_builder.h"
 #include "strings.h"
 #include "guards.h"
-#include "object_lists.h"
 
 static auto NIL = (Object) {.type = TYPE_NIL};
 
@@ -78,7 +75,10 @@ bool object_equals(Object *a, Object *b) { // NOLINT(*-no-recursion)
     guard_unreachable();
 }
 
-static void sb_object_repr(StringBuilder *sb, Object *object) { // NOLINT(*-no-recursion)
+void object_repr_sb(Object *object, StringBuilder *sb) { // NOLINT(*-no-recursion)
+    guard_is_not_null(sb);
+    guard_is_not_null(object);
+
     switch (object->type) {
         case TYPE_INT: {
             sb_sprintf(sb, "%" PRId64, object->as_int);
@@ -111,7 +111,7 @@ static void sb_object_repr(StringBuilder *sb, Object *object) { // NOLINT(*-no-r
         }
         case TYPE_CONS: {
             sb_append_char(sb, '(');
-            sb_object_repr(sb, object->as_cons.first);
+            object_repr_sb(object->as_cons.first, sb);
             auto it = object->as_cons.rest;
             while (true) {
                 if (object_nil() == it) {
@@ -121,13 +121,13 @@ static void sb_object_repr(StringBuilder *sb, Object *object) { // NOLINT(*-no-r
                 sb_append_char(sb, ' ');
 
                 if (TYPE_CONS == it->type) {
-                    sb_object_repr(sb, it->as_cons.first);
+                    object_repr_sb(it->as_cons.first, sb);
                     it = it->as_cons.rest;
                     continue;
                 }
 
                 sb_append(sb, ". ");
-                sb_object_repr(sb, it);
+                object_repr_sb(it, sb);
                 break;
             }
             sb_append_char(sb, ')');
@@ -148,20 +148,75 @@ static void sb_object_repr(StringBuilder *sb, Object *object) { // NOLINT(*-no-r
     guard_unreachable();
 }
 
-char *object_repr(Arena *a, Object *object) {
-    guard_is_not_null(a);
-    guard_is_not_null(object);
-
-    auto sb = sb_new(a);
-    sb_object_repr(sb, object);
-    return sb_str(sb);
-}
-
-void object_repr_print(FILE *file, Object *object) {
+void object_repr_print(Object *object, FILE *file) { // NOLINT(*-no-recursion)
     guard_is_not_null(file);
     guard_is_not_null(object);
 
-    auto a = &(Arena) {0};
-    fprintf(file, "%s", object_repr(a, object));
-    arena_free(a);
+    switch (object->type) {
+        case TYPE_INT: {
+            fprintf(file, "%" PRId64, object->as_int);
+            return;
+        }
+        case TYPE_STRING: {
+            fprintf(file, "\"");
+
+            string_for(it, object->as_string) {
+                char const *escape_sequence;
+                if (string_try_repr_escape_seq(*it, &escape_sequence)) {
+                    fprintf(file, "%s", escape_sequence);
+                    continue;
+                }
+
+                if (isprint(*it)) {
+                    fprintf(file, "%c", *it);
+                    continue;
+                }
+
+                fprintf(file, "\\0x%02hhX", *it);
+            }
+
+            fprintf(file, "\"");
+            return;
+        }
+        case TYPE_ATOM: {
+            fprintf(file, "%s", object->as_atom);
+            return;
+        }
+        case TYPE_CONS: {
+            fprintf(file, "(");
+            object_repr_print(object->as_cons.first, file);
+            auto it = object->as_cons.rest;
+            while (true) {
+                if (object_nil() == it) {
+                    break;
+                }
+
+                fprintf(file, " ");
+
+                if (TYPE_CONS == it->type) {
+                    object_repr_print(it->as_cons.first, file);
+                    it = it->as_cons.rest;
+                    continue;
+                }
+
+                fprintf(file, ". ");
+                object_repr_print(it, file);
+                break;
+            }
+            fprintf(file, ")");
+
+            return;
+        }
+        case TYPE_NIL: {
+            fprintf(file, "()");
+            return;
+        }
+        case TYPE_PRIMITIVE:
+        case TYPE_CLOSURE: {
+            fprintf(file, "<%s>", object_type_str(object->type));
+            return;
+        }
+    }
+
+    guard_unreachable();
 }

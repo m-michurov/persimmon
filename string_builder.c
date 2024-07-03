@@ -7,14 +7,22 @@
 #include "guards.h"
 
 struct StringBuilder {
-    Arena *a;
     char *str;
     size_t length;
     size_t capacity;
 };
 
-StringBuilder *sb_new(Arena *a) {
-    return arena_emplace(a, ((StringBuilder) {.a = a}));
+StringBuilder *sb_new(void) {
+    return guard_succeeds(calloc, (1, sizeof(StringBuilder)));
+}
+
+void sb_free(StringBuilder **sb) {
+    guard_is_not_null(sb);
+    guard_is_not_null(*sb);
+
+    free((*sb)->str);
+    free(*sb);
+    *sb = nullptr;
 }
 
 char *sb_str_(StringBuilder *sb) {
@@ -34,8 +42,10 @@ void sb_clear(StringBuilder *sb) {
     sb->length = 0;
 }
 
-char *sb_copy_str(Arena *a, StringBuilder const *sb) {
-    return arena_copy_all(a, sb->str, sb->length + 1);
+char *sb_copy_str(StringBuilder const *sb) {
+    guard_is_not_null(sb);
+
+    return guard_succeeds(strdup, (sb->str));
 }
 
 void sb_sprintf(StringBuilder *sb, char const *format, ...) {
@@ -50,13 +60,13 @@ void sb_sprintf(StringBuilder *sb, char const *format, ...) {
 
     auto const min_capacity = sb->length + to_be_written + 1;
     if (min_capacity > sb->capacity) {
-        sb->str = arena_copy(sb->a, sb->str, sb->capacity, min_capacity);
+        sb->str = guard_succeeds(realloc, (sb->str, min_capacity));
         sb->capacity = min_capacity;
     }
 
     auto const dst = sb->str + sb->length;
     auto const available = sb->capacity - sb->length;
-    memset(dst, 0xFF, available);
+    memset(dst, 0, available);
 
     va_start(args, format);
     auto const written = vsnprintf(dst, available, format, args);

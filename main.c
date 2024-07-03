@@ -31,10 +31,10 @@ static Object *env_default(ObjectAllocator *a) {
     return env;
 }
 
-static bool try_eval_input(Arena *a, Reader *r, ObjectAllocator *allocator, Stack *stack, Object *env) {
+static bool try_eval_input(Reader *r, ObjectAllocator *allocator, Stack *stack, Object *env) {
     auto exprs = (Objects) {0};
 
-    if (false == reader_try_prompt(a, r, &exprs)) {
+    if (false == reader_try_prompt(r, &exprs)) {
         return true;
     }
 
@@ -45,7 +45,8 @@ static bool try_eval_input(Arena *a, Reader *r, ObjectAllocator *allocator, Stac
     slice_for(it, exprs) {
         Object *value;
         if (try_eval(allocator, stack, env, *it, &value)) {
-            fprintf(OUTPUT_STREAM, "%s\n", object_repr(a, value));
+            object_repr_print(value, stdout);
+            printf("\n");
             continue;
         }
     }
@@ -53,23 +54,23 @@ static bool try_eval_input(Arena *a, Reader *r, ObjectAllocator *allocator, Stac
     return true;
 }
 
-static void run_repl(Arena *a, Reader *r, ObjectAllocator *allocator, Stack *stack, Object *env) {
-    fprintf(OUTPUT_STREAM, "env: %s\n", object_repr(a, env));
+static void run_repl(Reader *r, ObjectAllocator *allocator, Stack *stack, Object *env) {
+    printf("env: ");
+    object_repr_print(env, stdout);
+    printf("\n");
 
     auto stream_is_open = true;
     while (stream_is_open) {
-        auto scratch = &(Arena) {0};
-        stream_is_open = try_eval_input(scratch, r, allocator, stack, env);
-        arena_free(scratch);
+        stream_is_open = try_eval_input(r, allocator, stack, env);
     }
 
     allocator_free(&allocator);
 }
 
-static bool try_eval_file(Arena *a, Reader *r, ObjectAllocator *allocator, Stack *stack, Object *env) {
+static bool try_eval_file(Reader *r, ObjectAllocator *allocator, Stack *stack, Object *env) {
     auto exprs = (Objects) {0};
 
-    if (false == reader_try_read_all(a, r, &exprs)) {
+    if (false == reader_try_read_all(r, &exprs)) {
         return false;
     }
 
@@ -108,12 +109,14 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        auto const r = reader_open(a, (NamedFile) {.name = file_name, .handle=handle}, allocator);
-        ok = try_eval_file(a, r, allocator, stack, env);
+        auto r = reader_new((NamedFile) {.name = file_name, .handle=handle}, allocator);
+        ok = try_eval_file(r, allocator, stack, env);
         fclose(handle);
+        reader_free(&r);
     } else {
-        auto const r = reader_open(a, (NamedFile) {.name = "<stdin>", .handle = stdin}, allocator);
-        run_repl(a, r, allocator, stack, env);
+        auto r = reader_new((NamedFile) {.name = "<stdin>", .handle = stdin}, allocator);
+        run_repl(r, allocator, stack, env);
+        reader_free(&r);
     }
 
     allocator_free(&allocator);

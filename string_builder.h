@@ -6,7 +6,9 @@
 
 typedef struct StringBuilder StringBuilder;
 
-StringBuilder *sb_new(Arena *a);
+StringBuilder *sb_new(void);
+
+void sb_free(StringBuilder **sb);
 
 char *sb_str_(StringBuilder *sb);
 
@@ -21,7 +23,7 @@ size_t sb_length(StringBuilder const *sb);
 
 void sb_clear(StringBuilder *sb);
 
-char *sb_copy_str(Arena *a, StringBuilder const *sb);
+char *sb_copy_str(StringBuilder const *sb);
 
 void sb_sprintf(StringBuilder *sb, char const *format, ...);
 

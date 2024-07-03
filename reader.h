@@ -14,8 +14,10 @@ typedef struct {
     FILE *handle;
 } NamedFile;
 
-Reader *reader_open(Arena *a, NamedFile file, ObjectAllocator *allocator);
+Reader *reader_new(NamedFile file, ObjectAllocator *a);
 
-bool reader_try_prompt(Arena *a, Reader *r, Objects *exprs);
+void reader_free(Reader **r);
 
-bool reader_try_read_all(Arena *a, Reader *r, Objects *exprs);
+bool reader_try_prompt(Reader *r, Objects *exprs);
+
+bool reader_try_read_all(Reader *r, Objects *exprs);

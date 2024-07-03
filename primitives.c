@@ -31,21 +31,11 @@ static bool prim_print(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
 
-    auto arena = &(Arena) {0};
-
-    if (TYPE_CONS != args->type) {
-        printf("%s\n", object_repr(arena, args));
-
-        *value = object_nil();
-        return true;
-    }
-
     object_list_for(it, args) {
-        printf("%s ", object_repr(arena, it));
+        object_repr_print(it, stdout);
+        printf(" ");
     }
     printf("\n");
-
-    arena_free(arena);
 
     *value = object_nil();
     return true;

@@ -27,12 +27,14 @@ typedef struct {
     };
 } Token;
 
-typedef struct Tokenizer Tokenizer;
+typedef struct Scanner Scanner;
 
-Tokenizer *tokenizer_new(Arena *a);
+Scanner *scanner_new(void);
 
-void tokenizer_reset(Tokenizer *t);
+void scanner_free(Scanner **s);
 
-bool tokenizer_try_accept(Tokenizer *t, Position pos, int c, SyntaxError *error);
+void scanner_reset(Scanner *s);
 
-Token const *tokenizer_token(Tokenizer const *t);
+bool scanner_try_accept(Scanner *s, Position pos, int c, SyntaxError *error);
+
+Token const *scanner_peek(Scanner const *s);

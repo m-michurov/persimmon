@@ -16,9 +16,10 @@ do {                                                                            
     guard_is_not_null(_slice);                                                                  \
     if (_slice->count + 1 > _slice->capacity) {                                                 \
         auto const _new_capacity = 1 + _slice->capacity * 3 / 2;                                \
-        errno = 0;                                                                              \
-        auto const _new_data = realloc(_slice->data, sizeof(*_slice->data) * _new_capacity);    \
-        guard_errno_is_not_set();                                                               \
+        auto const _new_data = guard_succeeds(                                                  \
+            realloc,                                                                            \
+            (_slice->data, sizeof(*_slice->data) * _new_capacity)                               \
+        );                                                                                      \
         _slice->data = _new_data;                                                               \
         _slice->capacity = _new_capacity;                                                       \
     }                                                                                           \

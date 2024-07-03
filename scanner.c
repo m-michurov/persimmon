@@ -1,4 +1,4 @@
-#include "tokenizer.h"
+#include "scanner.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -10,41 +10,6 @@
 #include "string_builder.h"
 #include "strings.h"
 
-[[maybe_unused]]
-
-static void token_copy(Token token, Arena *a, Token *copy) {
-    guard_is_not_null(a);
-    guard_is_not_null(copy);
-
-    switch (token.type) {
-        case TOKEN_EOF:
-        case TOKEN_INT:
-        case TOKEN_OPEN_PAREN:
-        case TOKEN_CLOSE_PAREN: {
-            *copy = token;
-            return;
-        }
-        case TOKEN_STRING: {
-            *copy = (Token) {
-                    .type = token.type,
-                    .pos = token.pos,
-                    .as_string = string_copy(a, token.as_string)
-            };
-            return;
-        }
-        case TOKEN_ATOM: {
-            *copy = (Token) {
-                    .type = token.type,
-                    .pos = token.pos,
-                    .as_atom = string_copy(a, token.as_atom)
-            };
-            return;
-        }
-    }
-
-    guard_unreachable();
-}
-
 typedef enum {
     TOKENIZER_WS,
     TOKENIZER_INT,
@@ -54,7 +19,7 @@ typedef enum {
     TOKENIZER_CLOSE_PAREN,
 } State;
 
-struct Tokenizer {
+struct Scanner {
     State state;
     StringBuilder *sb;
     bool escape_sequence;
@@ -97,14 +62,14 @@ static bool is_whitespace(int c) {
     return isspace(c) || ',' == c || EOF == c;
 }
 
-static void tokenizer_clear(Tokenizer *t) {
+static void tokenizer_clear(Scanner *t) {
     sb_clear(t->sb);
     t->escape_sequence = false;
 
     t->int_value = 0;
 }
 
-static void tokenizer_transition(Tokenizer *t, Position pos, State new_state) {
+static void tokenizer_transition(Scanner *t, Position pos, State new_state) {
     auto const state = exchange(t->state, new_state);
     auto const token_pos = exchange(t->token_pos, pos);
 
@@ -178,7 +143,7 @@ static bool try_add_digit(int64_t int_value, int64_t digit, int64_t *result) {
     return false == __builtin_add_overflow(shifted, signed_digit, result);
 }
 
-static bool tokenizer_any_accept(Tokenizer *t, Position pos, int c, SyntaxError *error) {
+static bool tokenizer_any_accept(Scanner *t, Position pos, int c, SyntaxError *error) {
     if (isdigit(c)) {
         tokenizer_transition(t, pos, TOKENIZER_INT);
         t->int_value = c - '0';
@@ -216,11 +181,11 @@ static bool tokenizer_any_accept(Tokenizer *t, Position pos, int c, SyntaxError 
             .pos = pos,
             .bad_chr = c
     };
-    tokenizer_reset(t);
+    scanner_reset(t);
     return false;
 }
 
-static bool tokenizer_int_accept(Tokenizer *t, Position pos, int c, SyntaxError *error) {
+static bool tokenizer_int_accept(Scanner *t, Position pos, int c, SyntaxError *error) {
     guard_is_equal(t->state, TOKENIZER_INT);
 
     if (isdigit(c)) {
@@ -231,7 +196,7 @@ static bool tokenizer_int_accept(Tokenizer *t, Position pos, int c, SyntaxError 
                     .pos = {.lineno = pos.lineno, t->token_pos.col, pos.end_col},
                     .bad_chr = c
             };
-            tokenizer_reset(t);
+            scanner_reset(t);
             return false;
         }
 
@@ -242,7 +207,7 @@ static bool tokenizer_int_accept(Tokenizer *t, Position pos, int c, SyntaxError 
                     .pos = {.lineno = pos.lineno, t->token_pos.col, pos.end_col},
                     .bad_chr = c
             };
-            tokenizer_reset(t);
+            scanner_reset(t);
             return false;
         }
 
@@ -269,11 +234,11 @@ static bool tokenizer_int_accept(Tokenizer *t, Position pos, int c, SyntaxError 
             .pos = {.lineno = pos.lineno, t->token_pos.col, pos.end_col},
             .bad_chr = c
     };
-    tokenizer_reset(t);
+    scanner_reset(t);
     return false;
 }
 
-static bool tokenizer_string_accept(Tokenizer *t, Position pos, int c, SyntaxError *error) {
+static bool tokenizer_string_accept(Scanner *t, Position pos, int c, SyntaxError *error) {
     guard_is_equal(t->state, TOKENIZER_STRING);
 
     if (t->escape_sequence) {
@@ -290,7 +255,7 @@ static bool tokenizer_string_accept(Tokenizer *t, Position pos, int c, SyntaxErr
                 .pos = {.lineno = pos.lineno, .col = pos.col - 1, .end_col = pos.end_col},
                 .bad_chr = c
         };
-        tokenizer_reset(t);
+        scanner_reset(t);
         return false;
     }
 
@@ -317,7 +282,7 @@ static bool tokenizer_string_accept(Tokenizer *t, Position pos, int c, SyntaxErr
                 .pos = pos,
                 .bad_chr = c
         };
-        tokenizer_reset(t);
+        scanner_reset(t);
         return false;
     }
 
@@ -326,11 +291,11 @@ static bool tokenizer_string_accept(Tokenizer *t, Position pos, int c, SyntaxErr
             .pos = pos,
             .bad_chr = c
     };
-    tokenizer_reset(t);
+    scanner_reset(t);
     return false;
 }
 
-static bool tokenizer_name_accept(Tokenizer *t, Position pos, int c, SyntaxError *error) {
+static bool tokenizer_name_accept(Scanner *t, Position pos, int c, SyntaxError *error) {
     guard_is_equal(t->state, TOKENIZER_ATOM);
 
     if (isdigit(c) && 1 == sb_length(t->sb)) {
@@ -341,7 +306,7 @@ static bool tokenizer_name_accept(Tokenizer *t, Position pos, int c, SyntaxError
                     .pos = {.lineno = pos.lineno, .col = t->token_pos.col, .end_col = pos.end_col},
                     .bad_chr = c
             };
-            tokenizer_reset(t);
+            scanner_reset(t);
             return false;
         }
 
@@ -385,58 +350,65 @@ static bool tokenizer_name_accept(Tokenizer *t, Position pos, int c, SyntaxError
             .pos = pos,
             .bad_chr = c
     };
-    tokenizer_reset(t);
+    scanner_reset(t);
     return false;
 }
 
-bool tokenizer_try_accept(Tokenizer *t, Position pos, int c, SyntaxError *error) {
-    guard_is_not_null(t);
+bool scanner_try_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
+    guard_is_not_null(s);
     guard_is_not_null(error);
     if (EOF != c) {
         guard_is_in_range(c, 0, UCHAR_MAX);
     }
 
-    t->has_token = false;
+    s->has_token = false;
 
-    switch (t->state) {
+    switch (s->state) {
         case TOKENIZER_OPEN_PAREN:
         case TOKENIZER_CLOSE_PAREN:
         case TOKENIZER_WS: {
-            return tokenizer_any_accept(t, pos, c, error);
+            return tokenizer_any_accept(s, pos, c, error);
         }
         case TOKENIZER_INT: {
-            return tokenizer_int_accept(t, pos, c, error);
+            return tokenizer_int_accept(s, pos, c, error);
         }
         case TOKENIZER_STRING: {
-            return tokenizer_string_accept(t, pos, c, error);
+            return tokenizer_string_accept(s, pos, c, error);
         }
         case TOKENIZER_ATOM: {
-            return tokenizer_name_accept(t, pos, c, error);
+            return tokenizer_name_accept(s, pos, c, error);
         }
     }
 
     guard_unreachable();
 }
 
-Tokenizer *tokenizer_new(Arena *a) {
-    guard_is_not_null(a);
-
-    auto t = arena_emplace(a, ((Tokenizer) {.sb = sb_new(a)}));
-    tokenizer_clear(t);
-    return t;
+Scanner *scanner_new(void) {
+    auto const s = (Scanner *) guard_succeeds(calloc, (1, sizeof(Scanner)));
+    *s = (Scanner) {.sb = sb_new()};
+    return s;
 }
 
-void tokenizer_reset(Tokenizer *t) {
-    tokenizer_clear(t);
-    t->state = TOKENIZER_WS;
+void scanner_free(Scanner **s) {
+    guard_is_not_null(s);
+    guard_is_not_null(*s);
+
+    sb_free(&(*s)->sb);
+    free(*s);
+    *s = nullptr;
 }
 
-Token const *tokenizer_token(Tokenizer const *t) {
-    guard_is_not_null(t);
+void scanner_reset(Scanner *s) {
+    tokenizer_clear(s);
+    s->state = TOKENIZER_WS;
+}
 
-    if (false == t->has_token) {
+Token const *scanner_peek(Scanner const *s) {
+    guard_is_not_null(s);
+
+    if (false == s->has_token) {
         return nullptr;
     }
 
-    return &t->token;
+    return &s->token;
 }

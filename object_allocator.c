@@ -5,6 +5,7 @@
 #include "parser.h"
 #include "slice.h"
 #include "dynamic_array.h"
+#include "exchange.h"
 
 struct ObjectAllocator {
     bool gc_is_running;
@@ -17,9 +18,7 @@ struct ObjectAllocator {
 };
 
 ObjectAllocator *allocator_new(void) {
-    errno = 0;
-    auto const allocator = (ObjectAllocator *) calloc(1, sizeof(ObjectAllocator));
-    guard_errno_is_not_set();
+    auto const allocator = (ObjectAllocator *) guard_succeeds(calloc, (1, sizeof(ObjectAllocator)));
     *allocator = (ObjectAllocator) {
             .soft_limit = 1024,
             .hard_limit = 1024 * 1024 * 1024
@@ -179,9 +178,7 @@ bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
         return false;
     }
 
-    errno = 0;
-    auto const new_obj = (Object *) calloc(size, sizeof(uint8_t));
-    guard_errno_is_not_set();
+    auto const new_obj = (Object *) guard_succeeds(calloc, (size, sizeof(uint8_t)));
     new_obj->next = exchange(a->objects, new_obj);
     a->heap_size += size;
     *obj = new_obj;

@@ -4,10 +4,6 @@
 
 #include "guards.h"
 
-char *string_copy(Arena *a, char const *str) {
-    return arena_copy_all(a, str, 1 + strlen(str));
-}
-
 bool string_is_blank(char const *str) {
     guard_is_not_null(str);
 

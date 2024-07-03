@@ -1,9 +1,5 @@
 #pragma once
 
-#include "arena.h"
-
-char *string_copy(Arena *a, char const *str);
-
 bool string_is_blank(char const *str);
 
 bool string_try_repr_escape_seq(char value, char const **escape_seq);

@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #include "position.h"
-#include "io.h"
+#include "line_reader.h"
 
 typedef enum {
     SYNTAX_ERROR_INTEGER_INVALID,

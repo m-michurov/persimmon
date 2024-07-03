@@ -4,7 +4,7 @@
 
 #include "arena.h"
 #include "arena_append.h"
-#include "tokenizer.h"
+#include "scanner.h"
 #include "object.h"
 #include "object_allocator.h"
 #include "object_constructors.h"

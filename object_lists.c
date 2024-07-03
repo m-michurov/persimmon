@@ -5,6 +5,7 @@
 #include "object_constructors.h"
 #include "object_accessors.h"
 #include "guards.h"
+#include "exchange.h"
 
 Object *object_list_(ObjectAllocator *a, ...) {
     guard_is_not_null(a);
