@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.28)
-project(arena C)
+project(persimmon C)
 
 set(CMAKE_C_STANDARD 23)
 
-add_executable(arena
+add_executable(persimmon
         main.c
         arena.c
         scanner.c
@@ -26,7 +26,7 @@ add_executable(arena
         eval_errors.h
 )
 
-target_compile_options(arena PRIVATE
+target_compile_options(persimmon PRIVATE
         -Wall
         -Werror
         -Wextra
