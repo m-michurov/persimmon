@@ -23,7 +23,7 @@ typedef struct {
 
 static EscapeSequence const ESCAPE_SEQUENCES[] = {
         {.value = '\n', .repr = "\\n"},
-        {.value = '\r', .repr = "\\r"},
+        {.value = '\r', .repr = "\\region"},
         {.value = '\t', .repr = "\\t"},
         {.value = '\\', .repr = "\\\\"},
         {.value = '"', .repr = "\\\""},

@@ -9,7 +9,7 @@
 #include "eval.h"
 
 #define OUTPUT_STREAM stdout
-#define MAX_STACK_DEPTH 10
+#define MAX_STACK_DEPTH 384
 
 static bool try_shift_args(int *argc, char ***argv, char **arg) {
     if (*argc <= 0) {
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
     try_shift_args(&argc, &argv, nullptr);
 
     auto a = &(Arena) {0};
-    auto stack = stack_new(a, MAX_STACK_DEPTH);
+    auto stack = stack_new(MAX_STACK_DEPTH);
     auto allocator = allocator_new();
     auto env = env_default(allocator);
 

@@ -5,7 +5,7 @@
 typedef struct Arena_Region Arena_Region;
 
 typedef struct {
-    Arena_Region *first, *last;
+    Arena_Region *first;
 } Arena;
 
 typedef struct {

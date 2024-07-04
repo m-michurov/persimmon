@@ -24,10 +24,13 @@ add_executable(persimmon
         reader.c
         eval_errors.c
         eval_errors.h
+        pointers.c
+        pointers.h
 )
 
 target_compile_options(persimmon PRIVATE
         -Wall
         -Werror
         -Wextra
+        -Wno-pointer-arith
 )

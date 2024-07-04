@@ -225,7 +225,6 @@ static bool try_begin_eval(
 static bool try_step(ObjectAllocator *a, Stack *s) {
     guard_is_not_null(a);
     guard_is_not_null(s);
-    guard_is_greater(s->count, 0);
 
     auto const frame = stack_top(s);
     switch (frame->type) {
@@ -345,13 +344,13 @@ bool try_eval(
         return false;
     }
 
-    while (s->count > 0) {
+    while (false == stack_is_empty(s)) {
         if (try_step(a, s)) {
             continue;
         }
 
         printf("Traceback (most recent call last):\n");
-        while (s->count > 0) {
+        while (false == stack_is_empty(s)) {
             printf("    ");
             object_repr_print(stack_top(s)->expr, stdout);
             printf("\n");
@@ -360,7 +359,7 @@ bool try_eval(
         printf("Some calls may be missing due to tail call optimization.\n");
         return false;
     }
-    guard_is_equal(s->count, 0);
+    guard_is_true(stack_is_empty(s));
 
     *value = object_as_cons(result).first;
     return true;

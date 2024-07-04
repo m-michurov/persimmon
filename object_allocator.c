@@ -6,6 +6,7 @@
 #include "slice.h"
 #include "dynamic_array.h"
 #include "exchange.h"
+#include "math.h"
 
 struct ObjectAllocator {
     bool gc_is_running;
@@ -155,8 +156,6 @@ static void collect_garbage(ObjectAllocator *a) {
     sweep(a);
     a->gc_is_running = false;
 }
-
-#define min(A, B) ({ typeof(A) const _a = (A); typeof(A) const _b = (B); _a < _b ? _a : _b; })
 
 static void adjust_soft_limit(ObjectAllocator *a, size_t size) {
     guard_is_not_null(a);
