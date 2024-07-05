@@ -3,9 +3,10 @@
 #include "object.h"
 #include "object_allocator.h"
 
-Object *object_list_(ObjectAllocator *a, ...);
+bool object_try_make_list_(ObjectAllocator *a, Object **list, ...);
 
-#define object_list(Object_Allocator_, ...) object_list_((Object_Allocator_), __VA_ARGS__, nullptr)
+#define object_try_make_list(Object_Allocator_, List, ...) \
+    object_try_make_list_((Object_Allocator_), (List), __VA_ARGS__, nullptr)
 
 #define OBJECT__concat_(A, B) A ## B
 #define OBJECT__concat(A, B) OBJECT__concat_(A, B)

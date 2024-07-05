@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "guards.h"
+#include "object_allocator.h"
 
 void print_type_error_(Object_Type got, size_t expected_count, Object_Type *expected) {
     guard_is_greater(expected_count, 0);
@@ -33,4 +34,9 @@ void print_stack_overflow_error(void) {
 
 void print_zero_division_error(void) {
     printf("ZeroDivisionError: division by zero\n");
+}
+
+void print_out_of_memory_error(ObjectAllocator *a) {
+    printf("OutOfMemoryError: cannot allocate more dynamic memory\n");
+    allocator_print_statistics(a);
 }

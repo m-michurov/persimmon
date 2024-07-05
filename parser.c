@@ -4,7 +4,7 @@
 #include "guards.h"
 #include "object_lists.h"
 #include "object_allocator.h"
-#include "object_constructors.h"
+#include "object_constructors_unchecked.h"
 #include "slice.h"
 #include "dynamic_array.h"
 
@@ -45,6 +45,8 @@ bool parser_is_inside_expression(Parser const *p) {
     return p->has_expr || false == slice_empty(p->stack);
 }
 
+// FIXME use checked constructors
+// TODO find a way to report OOM
 bool parser_try_accept(Parser *p, Token token, SyntaxError *error) {
     guard_is_not_null(p);
     guard_is_not_null(error);

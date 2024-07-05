@@ -7,23 +7,27 @@
 #include "guards.h"
 #include "exchange.h"
 
-Object *object_list_(ObjectAllocator *a, ...) {
+bool object_try_make_list_(ObjectAllocator *a, Object **list, ...) {
     guard_is_not_null(a);
 
+    // FIXME make a root
     auto head = object_nil();
     va_list args;
-    va_start(args, a);
+    va_start(args, list);
     while (true) {
         auto const arg = va_arg(args, Object *);
         if (nullptr == arg) {
             break;
         }
 
-        head = object_cons(a, arg, head);
+        if (false == object_try_make_cons(a, arg, head, &head)) {
+            return false;
+        }
     }
 
     object_list_reverse(&head);
-    return head;
+    *list = head;
+    return true;
 }
 
 size_t object_list_count(Object *list) {

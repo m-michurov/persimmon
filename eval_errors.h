@@ -17,3 +17,5 @@ void print_name_error(char const *name);
 void print_stack_overflow_error(void);
 
 void print_zero_division_error(void);
+
+void print_out_of_memory_error(struct ObjectAllocator *a);

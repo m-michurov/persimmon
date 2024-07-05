@@ -4,10 +4,13 @@
 
 #include "object_lists.h"
 #include "object_constructors.h"
+#include "object_constructors_unchecked.h"
 #include "object_accessors.h"
 #include "guards.h"
 #include "object_env.h"
 #include "eval_errors.h"
+
+#define error(PrintErrorFn, Args) do { PrintErrorFn Args; return false; } while (false)
 
 static bool prim_eq(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(a);
@@ -17,12 +20,19 @@ static bool prim_eq(ObjectAllocator *a, Object *args, Object **value) {
 
     Object *lhs, *rhs;
     if (false == object_list_try_unpack_2(&lhs, &rhs, args)) {
-        print_args_error("prim_eq?", object_list_count(args), 2);
-        return false;
+        error(print_args_error, ("prim_eq?", object_list_count(args), 2));
     }
 
-    *value = object_equals(lhs, rhs) ? object_atom(a, "true") : object_nil();
-    return true;
+    if (false == object_equals(lhs, rhs)) {
+        *value = object_nil();
+        return true;
+    }
+
+    if (object_try_make_atom(a, "true", value)) {
+        return true;
+    }
+
+    error(print_out_of_memory_error, (a));
 }
 
 static bool prim_print(ObjectAllocator *a, Object *args, Object **value) {
@@ -47,18 +57,20 @@ static bool prim_plus(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
 
-    auto acc = object_int(a, 0);
+    int64_t acc = 0;
     object_list_for(arg, args) {
         if (TYPE_INT != arg->type) {
-            print_type_error(arg->type, TYPE_INT);
-            return false;
+            error(print_type_error, (arg->type, TYPE_INT));
         }
 
-        acc = object_int(a, acc->as_int + arg->as_int);
+        acc += arg->as_int;
     }
 
-    *value = acc;
-    return true;
+    if (object_try_make_int(a, acc, value)) {
+        return true;
+    }
+
+    error(print_out_of_memory_error, (a));
 }
 
 static bool prim_minus(ObjectAllocator *a, Object *args, Object **value) {
@@ -68,24 +80,32 @@ static bool prim_minus(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(value);
 
     if (object_nil() == args) {
-        *value = object_int(a, 0);
+        if (object_try_make_int(a, 0, value)) {
+            return true;
+        }
+
+        error(print_out_of_memory_error, (a));
+    }
+
+    auto const first = args->as_cons.first;
+    if (TYPE_INT != first->type) {
+        error(print_type_error, (first->type, TYPE_INT));
+    }
+
+    auto acc = first->as_int;
+    object_list_for(arg, args->as_cons.rest) {
+        if (TYPE_INT != arg->type) {
+            error(print_type_error, (arg->type, TYPE_INT));
+        }
+
+        acc -= arg->as_int;
+    }
+
+    if (object_try_make_int(a, acc, value)) {
         return true;
     }
 
-    auto acc = object_nil();
-    object_list_for(arg, args) {
-        if (TYPE_INT != arg->type) {
-            print_type_error(arg->type, TYPE_INT);
-            return false;
-        }
-
-        acc = object_nil() != acc
-              ? object_int(a, acc->as_int - arg->as_int)
-              : arg;
-    }
-
-    *value = acc;
-    return true;
+    error(print_out_of_memory_error, (a));
 }
 
 static bool prim_mul(ObjectAllocator *a, Object *args, Object **value) {
@@ -94,18 +114,20 @@ static bool prim_mul(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
 
-    auto acc = object_int(a, 1);
+    int64_t acc = 1;
     object_list_for(arg, args) {
         if (TYPE_INT != arg->type) {
-            print_type_error(arg->type, TYPE_INT);
-            return false;
+            error(print_type_error, (arg->type, TYPE_INT));
         }
 
-        acc = object_int(a, acc->as_int * arg->as_int);
+        acc *= arg->as_int;
     }
 
-    *value = acc;
-    return true;
+    if (object_try_make_int(a, acc, value)) {
+        return true;
+    }
+
+    error(print_out_of_memory_error, (a));
 }
 
 static bool prim_div(ObjectAllocator *a, Object *args, Object **value) {
@@ -115,29 +137,36 @@ static bool prim_div(ObjectAllocator *a, Object *args, Object **value) {
     guard_is_not_null(value);
 
     if (object_nil() == args) {
-        *value = object_int(a, 1);
+        if (object_try_make_int(a, 1, value)) {
+            return true;
+        }
+
+        error(print_out_of_memory_error, (a));
+    }
+
+    auto const first = args->as_cons.first;
+    if (TYPE_INT != first->type) {
+        error(print_type_error, (first->type, TYPE_INT));
+    }
+
+    auto acc = first->as_int;
+    object_list_for(arg, args->as_cons.rest) {
+        if (TYPE_INT != arg->type) {
+            error(print_type_error, (arg->type, TYPE_INT));
+        }
+
+        if (0 == arg->as_int) {
+            error(print_zero_division_error, ());
+        }
+
+        acc /= arg->as_int;
+    }
+
+    if (object_try_make_int(a, acc, value)) {
         return true;
     }
 
-    auto acc = object_nil();
-    object_list_for(arg, args) {
-        if (TYPE_INT != arg->type) {
-            print_type_error(arg->type, TYPE_INT);
-            return false;
-        }
-
-        if (object_nil() != acc && 0 == arg->as_int) {
-            print_zero_division_error();
-            return false;
-        }
-
-        acc = object_nil() != acc
-              ? object_int(a, acc->as_int / arg->as_int)
-              : arg;
-    }
-
-    *value = acc;
-    return true;
+    error(print_out_of_memory_error, (a));
 }
 
 static bool prim_list_list(ObjectAllocator *a, Object *args, Object **value) {
@@ -158,14 +187,12 @@ static bool prim_list_first(ObjectAllocator *a, Object *args, Object **value) {
 
     auto const len = object_list_count(args);
     if (1 != len) {
-        print_args_error("first", len, 1);
-        return false;
+        error(print_args_error, ("first", len, 1));
     }
 
     auto const list = object_as_cons(args).first;
     if (TYPE_CONS != list->type) {
-        print_type_error(list->type, TYPE_CONS);
-        return false;
+        error(print_type_error, (list->type, TYPE_CONS));
     }
 
     *value = object_as_cons(list).first;
@@ -180,14 +207,12 @@ static bool prim_list_rest(ObjectAllocator *a, Object *args, Object **value) {
 
     auto const len = object_list_count(args);
     if (1 != len) {
-        print_args_error("rest", len, 1);
-        return false;
+        error(print_args_error, ("rest", len, 1));
     }
 
     auto const list = object_as_cons(args).first;
     if (TYPE_CONS != list->type) {
-        print_type_error(list->type, TYPE_CONS);
-        return false;
+        error(print_type_error, (list->type, TYPE_CONS));
     }
 
     *value = object_as_cons(list).rest;
@@ -202,39 +227,30 @@ static bool prim_list_prepend(ObjectAllocator *a, Object *args, Object **value) 
 
     Object *element, *list;
     if (false == object_list_try_unpack_2(&element, &list, args)) {
-        print_args_error("prepend", object_list_count(args), 2);
-        return false;
+        error(print_args_error, ("prepend", object_list_count(args), 1));
     }
 
     if (list->type != TYPE_NIL && list->type != TYPE_CONS) {
-        print_type_error(list->type, TYPE_CONS, TYPE_NIL);
-        return false;
+        error(print_type_error, (list->type, TYPE_CONS));
     }
 
-    *value = object_cons(a, element, list);
-    return true;
-}
+    if (object_try_make_cons(a, element, list, value)) {
+        return true;
+    }
 
-static bool prim_exit(ObjectAllocator *a, Object *args, Object **value) {
-    guard_is_not_null(a);
-    guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
-    guard_is_not_null(value);
-
-    return false;
+    error(print_out_of_memory_error, (a));
 }
 
 void define_primitives(ObjectAllocator *a, Object *env) {
-    env_define(a, env, object_atom(a, "print"), object_primitive(a, prim_print));
-    env_define(a, env, object_atom(a, "+"), object_primitive(a, prim_plus));
-    env_define(a, env, object_atom(a, "-"), object_primitive(a, prim_minus));
-    env_define(a, env, object_atom(a, "*"), object_primitive(a, prim_mul));
-    env_define(a, env, object_atom(a, "/"), object_primitive(a, prim_div));
-    env_define(a, env, object_atom(a, "list"), object_primitive(a, prim_list_list));
-    env_define(a, env, object_atom(a, "first"), object_primitive(a, prim_list_first));
-    env_define(a, env, object_atom(a, "rest"), object_primitive(a, prim_list_rest));
-    env_define(a, env, object_atom(a, "prepend"), object_primitive(a, prim_list_prepend));
-    env_define(a, env, object_atom(a, "eq?"), object_primitive(a, prim_eq));
-    env_define(a, env, object_atom(a, "exit"), object_primitive(a, prim_exit));
+    env_try_define(a, env, object_atom(a, "print"), object_primitive(a, prim_print));
+    env_try_define(a, env, object_atom(a, "+"), object_primitive(a, prim_plus));
+    env_try_define(a, env, object_atom(a, "-"), object_primitive(a, prim_minus));
+    env_try_define(a, env, object_atom(a, "*"), object_primitive(a, prim_mul));
+    env_try_define(a, env, object_atom(a, "/"), object_primitive(a, prim_div));
+    env_try_define(a, env, object_atom(a, "list"), object_primitive(a, prim_list_list));
+    env_try_define(a, env, object_atom(a, "first"), object_primitive(a, prim_list_first));
+    env_try_define(a, env, object_atom(a, "rest"), object_primitive(a, prim_list_rest));
+    env_try_define(a, env, object_atom(a, "prepend"), object_primitive(a, prim_list_prepend));
+    env_try_define(a, env, object_atom(a, "eq?"), object_primitive(a, prim_eq));
 }
 

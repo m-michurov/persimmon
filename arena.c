@@ -55,10 +55,10 @@ static void arena_append_region(Arena *a, size_t capacity_bytes) {
     if (false == region_try_create(capacity_bytes, &r)) {
         auto const stats = arena_statistics(a);
         fprintf(stderr, "Arena info:\n");
-        fprintf(stderr, "          Regions: %zu\n", stats.regions);
-        fprintf(stderr, "Total memory used: %zu bytes\n", stats.system_memory_used_bytes);
-        fprintf(stderr, "        Allocated: %zu bytes\n", stats.allocated_bytes);
-        fprintf(stderr, "           Wasted: %zu bytes\n", stats.wasted_bytes);
+        fprintf(stderr, "            Regions: %zu\n", stats.regions);
+        fprintf(stderr, "  Total memory used: %zu bytes\n", stats.system_memory_used_bytes);
+        fprintf(stderr, "          Allocated: %zu bytes\n", stats.allocated_bytes);
+        fprintf(stderr, "             Wasted: %zu bytes\n", stats.wasted_bytes);
         exit(EXIT_FAILURE);
     }
 

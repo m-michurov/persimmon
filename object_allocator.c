@@ -193,7 +193,6 @@ bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
     }
 
     if (a->heap_size + size >= a->hard_limit) {
-        guard_unreachable();
         return false;
     }
 
@@ -203,4 +202,16 @@ bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
     *obj = new_obj;
 
     return true;
+}
+
+void allocator_print_statistics(ObjectAllocator const *a) {
+    size_t objects = 0;
+    for (auto it = a->objects; nullptr != it; it = it->next) {
+        objects++;
+    }
+
+    printf("Heap usage:\n");
+    printf("          Objects: %zu\n", objects);
+    printf("        Heap size: %zu bytes\n", a->heap_size);
+    printf("  Heap size limit: %zu bytes\n", a->hard_limit);
 }

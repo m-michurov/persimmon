@@ -1,35 +1,36 @@
 #include "object_constructors.h"
+#include "object_constructors_unchecked.h"
 
 #include <string.h>
 #include <stddef.h>
 
 #include "guards.h"
 
-size_t object_min_size_int(void) {
+static size_t size_int(void) {
     return offsetof(Object, as_int) + sizeof(int64_t);
 }
 
-size_t object_min_size_string(size_t len) {
+static size_t size_string(size_t len) {
     return offsetof(Object, as_string) + len + 1;
 }
 
-size_t object_min_size_atom(size_t len) {
+static size_t size_atom(size_t len) {
     return offsetof(Object, as_atom) + len + 1;
 }
 
-size_t object_min_size_cons(void) {
+static size_t size_cons(void) {
     return offsetof(Object, as_cons) + sizeof(Object_Cons);
 }
 
-size_t object_min_size_primitive(void) {
+static size_t size_primitive(void) {
     return offsetof(Object, as_primitive) + sizeof(Object_Primitive);
 }
 
-size_t object_min_size_closure(void) {
+static size_t size_closure(void) {
     return offsetof(Object, as_closure) + sizeof(Object_Closure);
 }
 
-Object *object_init_int(Object *obj, int64_t value) {
+static Object *init_int(Object *obj, int64_t value) {
     guard_is_not_null(obj);
 
     obj->type = TYPE_INT;
@@ -38,7 +39,7 @@ Object *object_init_int(Object *obj, int64_t value) {
     return obj;
 }
 
-Object *object_init_string(Object *obj, char const *s, size_t len) {
+static Object *init_string(Object *obj, char const *s, size_t len) {
     guard_is_not_null(obj);
     guard_is_not_null(s);
 
@@ -48,7 +49,7 @@ Object *object_init_string(Object *obj, char const *s, size_t len) {
     return obj;
 }
 
-Object *object_init_atom(Object *obj, char const *s, size_t len) {
+static Object *init_atom(Object *obj, char const *s, size_t len) {
     guard_is_not_null(obj);
     guard_is_not_null(s);
 
@@ -58,7 +59,7 @@ Object *object_init_atom(Object *obj, char const *s, size_t len) {
     return obj;
 }
 
-Object *object_init_cons(Object *obj, Object *first, Object *rest) {
+static Object *init_cons(Object *obj, Object *first, Object *rest) {
     guard_is_not_null(obj);
     guard_is_not_null(first);
     guard_is_not_null(rest);
@@ -70,7 +71,7 @@ Object *object_init_cons(Object *obj, Object *first, Object *rest) {
     return obj;
 }
 
-Object *object_init_primitive(Object *obj, Object_Primitive fn) {
+static Object *init_primitive(Object *obj, Object_Primitive fn) {
     guard_is_not_null(obj);
 
     obj->type = TYPE_PRIMITIVE;
@@ -79,7 +80,7 @@ Object *object_init_primitive(Object *obj, Object_Primitive fn) {
     return obj;
 }
 
-Object *object_init_closure(Object *obj, Object *env, Object *args, Object *body) {
+static Object *init_closure(Object *obj, Object *env, Object *args, Object *body) {
     guard_is_not_null(obj);
     guard_is_not_null(env);
     guard_is_not_null(args);
@@ -99,9 +100,20 @@ Object *object_int(ObjectAllocator *a, int64_t value) {
     guard_is_not_null(a);
 
     Object *obj;
-    return allocator_try_allocate(a, object_min_size_int(), &obj)
-           ? object_init_int(obj, value)
-           : nullptr;
+    guard_is_true(allocator_try_allocate(a, size_int(), &obj));
+    return init_int(obj, value);
+}
+
+bool object_try_make_int(ObjectAllocator *a, int64_t value, Object **obj) {
+    guard_is_not_null(a);
+    guard_is_not_null(obj);
+
+    if (false == allocator_try_allocate(a, size_int(), obj)) {
+        return false;
+    }
+
+    init_int(*obj, value);
+    return true;
 }
 
 Object *object_string(ObjectAllocator *a, char const *s) {
@@ -110,9 +122,22 @@ Object *object_string(ObjectAllocator *a, char const *s) {
 
     auto const len = strlen(s);
     Object *obj;
-    return allocator_try_allocate(a, object_min_size_string(len), &obj)
-           ? object_init_string(obj, s, len)
-           : nullptr;
+    guard_is_true(allocator_try_allocate(a, size_string(len), &obj));
+    return init_string(obj, s, len);
+}
+
+bool object_try_make_string(ObjectAllocator *a, char const *s, Object **obj) {
+    guard_is_not_null(a);
+    guard_is_not_null(s);
+    guard_is_not_null(obj);
+
+    auto const len = strlen(s);
+    if (false == allocator_try_allocate(a, size_string(len), obj)) {
+        return false;
+    }
+
+    init_string(*obj, s, len);
+    return true;
 }
 
 Object *object_atom(ObjectAllocator *a, char const *s) {
@@ -121,27 +146,66 @@ Object *object_atom(ObjectAllocator *a, char const *s) {
 
     auto const len = strlen(s);
     Object *obj;
-    return allocator_try_allocate(a, object_min_size_atom(len), &obj)
-           ? object_init_atom(obj, s, len)
-           : nullptr;
+    guard_is_true(allocator_try_allocate(a, size_atom(len), &obj));
+    return init_atom(obj, s, len);
+}
+
+bool object_try_make_atom(ObjectAllocator *a, char const *s, Object **obj) {
+    guard_is_not_null(a);
+    guard_is_not_null(s);
+    guard_is_not_null(obj);
+
+    auto const len = strlen(s);
+    if (false == allocator_try_allocate(a, size_atom(len), obj)) {
+        return false;
+    }
+
+    init_atom(*obj, s, len);
+    return true;
 }
 
 Object *object_cons(ObjectAllocator *a, Object *first, Object *rest) {
     guard_is_not_null(a);
+    guard_is_not_null(first);
+    guard_is_not_null(rest);
 
     Object *obj;
-    return allocator_try_allocate(a, object_min_size_cons(), &obj)
-           ? object_init_cons(obj, first, rest)
-           : nullptr;
+    guard_is_true(allocator_try_allocate(a, size_cons(), &obj));
+    return init_cons(obj, first, rest);
+}
+
+bool object_try_make_cons(ObjectAllocator *a, Object *first, Object *rest, Object **obj) {
+    guard_is_not_null(a);
+    guard_is_not_null(first);
+    guard_is_not_null(rest);
+    guard_is_not_null(obj);
+
+    if (false == allocator_try_allocate(a, size_cons(), obj)) {
+        return false;
+    }
+
+    init_cons(*obj, first, rest);
+    return true;
 }
 
 Object *object_primitive(ObjectAllocator *a, Object_Primitive fn) {
     guard_is_not_null(a);
 
     Object *obj;
-    return allocator_try_allocate(a, object_min_size_primitive(), &obj)
-           ? object_init_primitive(obj, fn)
-           : nullptr;
+    guard_is_true(allocator_try_allocate(a, size_primitive(), &obj));
+    return init_primitive(obj, fn);
+}
+
+bool object_try_make_primitive(ObjectAllocator *a, Object_Primitive fn, Object **obj) {
+    guard_is_not_null(a);
+    guard_is_not_null(obj);
+
+    if (false == allocator_try_allocate(a, size_primitive(), obj)) {
+        return false;
+    }
+
+    init_primitive(*obj, fn);
+    return true;
 }
 
 Object *object_closure(ObjectAllocator *a, Object *env, Object *args, Object *body) {
@@ -151,7 +215,21 @@ Object *object_closure(ObjectAllocator *a, Object *env, Object *args, Object *bo
     guard_is_not_null(body);
 
     Object *obj;
-    return allocator_try_allocate(a, object_min_size_closure(), &obj)
-           ? object_init_closure(obj, env, args, body)
-           : nullptr;
+    guard_is_true(allocator_try_allocate(a, size_closure(), &obj));
+    return init_closure(obj, env, args, body);
+}
+
+bool object_try_make_closure(ObjectAllocator *a, Object *env, Object *args, Object *body, Object **obj) {
+    guard_is_not_null(a);
+    guard_is_not_null(env);
+    guard_is_not_null(args);
+    guard_is_not_null(body);
+    guard_is_not_null(obj);
+
+    if (false == allocator_try_allocate(a, size_closure(), obj)) {
+        return false;
+    }
+
+    init_closure(*obj, env, args, body);
+    return true;
 }

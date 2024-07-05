@@ -5,21 +5,26 @@
 #include "object_constructors.h"
 #include "object_accessors.h"
 
-Object *env_new(ObjectAllocator *a, Object *base_env) {
+bool env_try_create(ObjectAllocator *a, Object *base_env, Object **env) {
     guard_is_not_null(a);
     guard_is_not_null(base_env);
 
-    return object_cons(a, object_nil(), base_env);
+    return object_try_make_cons(a, object_nil(), base_env, env);
 }
 
-void env_define(ObjectAllocator *a, Object *env, Object *name, Object *value) {
+bool env_try_define(ObjectAllocator *a, Object *env, Object *name, Object *value) {
     guard_is_not_null(a);
     guard_is_not_null(env);
     guard_is_not_null(name);
     guard_is_not_null(value);
     guard_is_equal(env->type, TYPE_CONS);
 
-    env->as_cons.first = object_cons(a, object_list(a, name, value), env->as_cons.first);
+    // FIXME make a root
+    Object *binding;
+    if (false == object_try_make_list(a, &binding, name, value)) {
+        return false;
+    }
+    return object_try_make_cons(a, binding, env->as_cons.first, &env->as_cons.first);
 }
 
 bool env_try_find(Object *env, Object *name, Object **value) {

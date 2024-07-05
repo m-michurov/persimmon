@@ -13,17 +13,23 @@
 #include "slice.h"
 #include "eval_errors.h"
 #include "dynamic_array.h"
+#include "strings.h"
 
 //#define EVAL_TRACE
 
-static void eval_push_result(ObjectAllocator *a, Object **result, Object *value) {
+static bool try_push_result(ObjectAllocator *a, Object **result, Object *value) {
     if (nullptr == result) {
-        return;
+        return true;
     }
     guard_is_not_null(*result);
     guard_is_not_null(value);
 
-    *result = object_cons(a, value, *result);
+    if (object_try_make_cons(a, value, *result, result)) {
+        return true;
+    }
+
+    print_out_of_memory_error(a);
+    return false;
 }
 
 static bool try_begin_eval(
@@ -49,8 +55,7 @@ static bool try_begin_eval(
         case TYPE_CLOSURE:
         case TYPE_PRIMITIVE:
         case TYPE_NIL: {
-            eval_push_result(a, values_list, expr);
-            return true;
+            return try_push_result(a, values_list, expr);
         }
         case TYPE_ATOM: {
             Object *value;
@@ -59,8 +64,7 @@ static bool try_begin_eval(
                 return false;
             }
 
-            eval_push_result(a, values_list, value);
-            return true;
+            return try_push_result(a, values_list, value);
         }
         case TYPE_CONS: {
             if (TYPE_ATOM == expr->as_cons.first->type) {
@@ -150,8 +154,14 @@ static bool try_begin_eval(
                     }
 
                     auto const body = object_list_skip(expr, 2);
-                    eval_push_result(a, values_list, object_closure(a, env, args, body));
-                    return true;
+
+                    Object *closure;
+                    if (object_try_make_closure(a, env, args, body, &closure)) {
+                        return try_push_result(a, values_list, closure);
+                    }
+
+                    print_out_of_memory_error(a);
+                    return false;
                 }
 
                 if (0 == strcmp("import", atom_name)) {
@@ -186,10 +196,16 @@ static bool try_begin_eval(
                         fclose(handle);
                         return false;
                     }
+                    fclose(handle);
 
                     auto exprs_list = object_nil();
                     slice_for(it, exprs) {
-                        exprs_list = object_cons(a, *it, exprs_list);
+                        if (object_try_make_cons(a, *it, exprs_list, &exprs_list)) {
+                            continue;
+                        }
+
+                        print_out_of_memory_error(a);
+                        return false;
                     }
                     object_list_reverse(&exprs_list);
 
@@ -199,10 +215,8 @@ static bool try_begin_eval(
                     );
                     if (false == no_overflow) {
                         print_stack_overflow_error();
-                        fclose(handle);
                         return false;
                     }
-                    fclose(handle);
                     return true;
                 }
             }
@@ -246,9 +260,9 @@ static bool try_step(VirtualMachine *vm) {
                 if (false == fn->as_primitive(a, args, &value)) {
                     return false;
                 }
-                eval_push_result(a, frame->results_list, value);
+                auto const ok = try_push_result(a, frame->results_list, value);
                 stack_pop(s);
-                return true;
+                return ok;
             }
 
             if (TYPE_CLOSURE != fn->type) {
@@ -263,16 +277,40 @@ static bool try_step(VirtualMachine *vm) {
                 return false;
             }
 
-            auto const arg_bindings = env_new(a, fn->as_closure.env); // NOLINT(*-sizeof-expression)
+            Object *arg_bindings;
+            if (false == env_try_create(a, fn->as_closure.env, &arg_bindings)) {
+                print_out_of_memory_error(a);
+                return false;
+            }
             object_list_for(formal, formal_args) {
                 auto const actual = object_as_cons(args).first;
-                env_define(a, arg_bindings, formal, actual);
+                env_try_define(a, arg_bindings, formal, actual);
                 args = object_as_cons(args).rest;
             }
 
+            Object *do_atom;
+            if (false == object_try_make_atom(a, "do", &do_atom)) {
+                print_out_of_memory_error(a);
+                return false;
+            }
+
+            Object *body;
+            if (false == object_try_make_cons(a, do_atom, fn->as_closure.body, &body)) {
+                print_out_of_memory_error(a);
+                return false;
+            }
+
             stack_pop(s);
-            auto const next = object_cons(a, object_atom(a, "do"), fn->as_closure.body);
-            return try_begin_eval(vm, arg_bindings, next, frame->results_list);
+            auto const no_overflow = stack_try_push_frame(
+                    s,
+                    frame_make(FRAME_DO, body, arg_bindings, frame->results_list, body->as_cons.rest)
+            );
+            if (false == no_overflow) {
+                print_stack_overflow_error();
+                return false;
+            }
+
+            return true;
         }
         case FRAME_IF: {
             if (object_nil() == frame->evaluated) {
@@ -290,17 +328,16 @@ static bool try_step(VirtualMachine *vm) {
 
             frame->unevaluated = object_as_cons(frame->unevaluated).rest; // skip `then`
             if (object_nil() == frame->unevaluated) {
-                eval_push_result(a, frame->results_list, object_nil());
-                return true;
+                return try_push_result(a, frame->results_list, object_nil());
             }
 
             return try_begin_eval(vm, frame->env, object_as_cons(frame->unevaluated).first, frame->results_list);
         }
         case FRAME_DO: {
             if (object_nil() == frame->unevaluated) {
-                eval_push_result(a, frame->results_list, object_nil());
+                auto const ok = try_push_result(a, frame->results_list, object_nil());
                 stack_pop(s);
-                return true;
+                return ok;
             }
 
             if (object_nil() == object_as_cons(frame->unevaluated).rest) {
@@ -317,10 +354,11 @@ static bool try_step(VirtualMachine *vm) {
                 return try_begin_eval(vm, frame->env, object_list_nth(frame->unevaluated, 1), &frame->evaluated);
             }
 
-            env_define(a, frame->env, object_as_cons(frame->unevaluated).first, object_as_cons(frame->evaluated).first);
-            eval_push_result(a, frame->results_list, object_as_cons(frame->evaluated).first);
+            env_try_define(a, frame->env, object_as_cons(frame->unevaluated).first,
+                           object_as_cons(frame->evaluated).first);
+            auto const ok = try_push_result(a, frame->results_list, object_as_cons(frame->evaluated).first);
             stack_pop(s);
-            return true;
+            return ok;
         }
     }
 
@@ -355,6 +393,43 @@ bool try_eval(
             printf("    ");
             object_repr_print(stack_top(vm_stack(vm))->expr, stdout);
             printf("\n");
+            printf("      Environment:\n");
+            printf("      {\n");
+            object_list_for(it, object_as_cons(stack_top(vm_stack(vm))->env).first) {
+                Object *obj_name, *obj_value;
+                guard_is_true(object_list_try_unpack_2(&obj_name, &obj_value, it));
+                printf("        ");
+                object_repr_print(obj_name, stdout);
+                printf(": ");
+                if (TYPE_CONS == obj_value->type) {
+                    size_t i = 1;
+
+                    printf("(");
+                    object_repr_print(obj_value->as_cons.first, stdout);
+                    object_list_for(elem, obj_value->as_cons.rest) {
+                        i++;
+                        printf(", ");
+                        object_repr_print(elem, stdout);
+                        if (i > 5) { break; }
+                    }
+                    printf(", ...)");
+                } else if (TYPE_STRING == obj_value->type) {
+                    size_t i = 0;
+
+                    printf("\"");
+                    string_for(c, obj_value->as_atom) {
+                        i++;
+                        printf("%c", *c);
+                        if (i > 10) { break; }
+                    }
+
+                    printf("\"");
+                } else {
+                    object_repr_print(obj_value, stdout);
+                }
+                printf("\n");
+            }
+            printf("      }\n");
             stack_pop(vm_stack(vm));
         }
         printf("Some calls may be missing due to tail call optimization.\n");

@@ -3,8 +3,8 @@
 #include "object.h"
 #include "object_allocator.h"
 
-Object *env_new(ObjectAllocator *a, Object *base_env);
+bool env_try_create(ObjectAllocator *a, Object *base_env, Object **env);
 
-void env_define(ObjectAllocator *a, Object *env, Object *name, Object *value);
+bool env_try_define(ObjectAllocator *a, Object *env, Object *name, Object *value);
 
 bool env_try_find(Object *env, Object *name, Object **value);

@@ -25,7 +25,8 @@ static bool try_shift_args(int *argc, char ***argv, char **arg) {
 }
 
 static Object *env_default(ObjectAllocator *a) {
-    auto env = env_new(a, object_nil());
+    Object *env;
+    guard_is_true(env_try_create(a, object_nil(), &env));
     define_primitives(a, env);
     return env;
 }
@@ -97,7 +98,7 @@ int main(int argc, char **argv) {
 
     auto vm = vm_new((VirtualMachine_Config) {
             .allocator_config = {
-                    .hard_limit = 1024 * 1024 * 1024,
+                    .hard_limit = 1024 * 1024,
                     .soft_limit_initial = 1024,
                     .soft_limit_grow_factor = 1.25
             },
