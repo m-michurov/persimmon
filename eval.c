@@ -74,9 +74,9 @@ static bool try_begin_eval(
                         return false;
                     }
 
-                    auto const no_overflow = stack_try_push(
+                    auto const no_overflow = stack_try_push_frame(
                             s,
-                            frame_new(FRAME_IF, expr, env, values_list, object_as_cons(expr).rest)
+                            frame_make(FRAME_IF, expr, env, values_list, object_as_cons(expr).rest)
                     );
                     if (false == no_overflow) {
                         print_stack_overflow_error();
@@ -86,9 +86,9 @@ static bool try_begin_eval(
                 }
 
                 if (0 == strcmp("do", atom_name)) {
-                    auto const no_overflow = stack_try_push(
+                    auto const no_overflow = stack_try_push_frame(
                             s,
-                            frame_new(FRAME_DO, expr, env, values_list, object_as_cons(expr).rest)
+                            frame_make(FRAME_DO, expr, env, values_list, object_as_cons(expr).rest)
                     );
                     if (false == no_overflow) {
                         print_stack_overflow_error();
@@ -106,9 +106,9 @@ static bool try_begin_eval(
                         return false;
                     }
 
-                    auto const no_overflow = stack_try_push(
+                    auto const no_overflow = stack_try_push_frame(
                             s,
-                            frame_new(FRAME_DEFINE, expr, env, values_list, object_as_cons(expr).rest)
+                            frame_make(FRAME_DEFINE, expr, env, values_list, object_as_cons(expr).rest)
                     );
                     if (false == no_overflow) {
                         print_stack_overflow_error();
@@ -194,9 +194,9 @@ static bool try_begin_eval(
                     }
                     object_list_reverse(&exprs_list);
 
-                    auto const no_overflow = stack_try_push(
+                    auto const no_overflow = stack_try_push_frame(
                             s,
-                            frame_new(FRAME_DO, expr, env, values_list, exprs_list)
+                            frame_make(FRAME_DO, expr, env, values_list, exprs_list)
                     );
                     if (false == no_overflow) {
                         print_stack_overflow_error();
@@ -207,9 +207,9 @@ static bool try_begin_eval(
                     return true;
                 }
             }
-            auto const no_overflow = stack_try_push(
+            auto const no_overflow = stack_try_push_frame(
                     s,
-                    frame_new(FRAME_CALL, expr, env, values_list, expr)
+                    frame_make(FRAME_CALL, expr, env, values_list, expr)
             );
             if (false == no_overflow) {
                 print_stack_overflow_error();
@@ -245,7 +245,7 @@ static bool try_step(ObjectAllocator *a, Stack *s) {
                 if (false == fn->as_primitive(a, args, &value)) {
                     return false;
                 }
-                eval_push_result(a, frame->result, value);
+                eval_push_result(a, frame->results_list, value);
                 stack_pop(s);
                 return true;
             }
@@ -271,7 +271,7 @@ static bool try_step(ObjectAllocator *a, Stack *s) {
 
             stack_pop(s);
             auto const next = object_cons(a, object_atom(a, "do"), fn->as_closure.body);
-            return try_begin_eval(a, s, arg_bindings, next, frame->result);
+            return try_begin_eval(a, s, arg_bindings, next, frame->results_list);
         }
         case FRAME_IF: {
             if (object_nil() == frame->evaluated) {
@@ -284,27 +284,27 @@ static bool try_step(ObjectAllocator *a, Stack *s) {
 
             stack_pop(s);
             if (object_nil() != cond_value) {
-                return try_begin_eval(a, s, frame->env, object_as_cons(frame->unevaluated).first, frame->result);
+                return try_begin_eval(a, s, frame->env, object_as_cons(frame->unevaluated).first, frame->results_list);
             }
 
             frame->unevaluated = object_as_cons(frame->unevaluated).rest; // skip `then`
             if (object_nil() == frame->unevaluated) {
-                eval_push_result(a, frame->result, object_nil());
+                eval_push_result(a, frame->results_list, object_nil());
                 return true;
             }
 
-            return try_begin_eval(a, s, frame->env, object_as_cons(frame->unevaluated).first, frame->result);
+            return try_begin_eval(a, s, frame->env, object_as_cons(frame->unevaluated).first, frame->results_list);
         }
         case FRAME_DO: {
             if (object_nil() == frame->unevaluated) {
-                eval_push_result(a, frame->result, object_nil());
+                eval_push_result(a, frame->results_list, object_nil());
                 stack_pop(s);
                 return true;
             }
 
             if (object_nil() == object_as_cons(frame->unevaluated).rest) {
                 stack_pop(s);
-                return try_begin_eval(a, s, frame->env, frame->unevaluated->as_cons.first, frame->result);
+                return try_begin_eval(a, s, frame->env, frame->unevaluated->as_cons.first, frame->results_list);
             }
 
             auto const next = object_as_cons(frame->unevaluated).first;
@@ -317,7 +317,7 @@ static bool try_step(ObjectAllocator *a, Stack *s) {
             }
 
             env_define(a, frame->env, object_as_cons(frame->unevaluated).first, object_as_cons(frame->evaluated).first);
-            eval_push_result(a, frame->result, object_as_cons(frame->evaluated).first);
+            eval_push_result(a, frame->results_list, object_as_cons(frame->evaluated).first);
             stack_pop(s);
             return true;
         }

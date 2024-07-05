@@ -7,22 +7,24 @@ typedef enum {
     FRAME_IF,
     FRAME_DO,
     FRAME_DEFINE
-} Frame_Type;
+} Stack_FrameType;
 
-typedef struct Frame Frame;
-struct Frame {
-    void *prev;
-    void *locals_end;
-    Frame_Type type;
+typedef struct {
+    Stack_FrameType type;
     Object *expr;
     Object *env;
-    Object **result;
+    Object **results_list;
     Object *unevaluated;
     Object *evaluated;
-    Object *locals[];
-};
+} Stack_Frame;
 
-Frame frame_new(Frame_Type type, Object *expr, Object *env, Object **result, Object *unevaluated);
+Stack_Frame frame_make(
+        Stack_FrameType type,
+        Object *expr,
+        Object *env,
+        Object **results_list,
+        Object *unevaluated
+);
 
 typedef struct Stack Stack;
 
@@ -30,8 +32,10 @@ Stack *stack_new(size_t size_bytes);
 
 bool stack_is_empty(Stack const *s);
 
-Frame *stack_top(Stack *s);
+Stack_Frame *stack_top(Stack *s);
 
 void stack_pop(Stack *s);
 
-bool stack_try_push(Stack *s, Frame frame);
+bool stack_try_push_frame(Stack *s, Stack_Frame frame);
+
+bool stack_try_create_local(Stack *s, Object ***obj);
