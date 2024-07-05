@@ -14,10 +14,18 @@ typedef struct {
     FILE *handle;
 } NamedFile;
 
-Reader *reader_new(NamedFile file, ObjectAllocator *a);
+Reader *reader_new(ObjectAllocator *a);
 
 void reader_free(Reader **r);
 
-bool reader_try_prompt(Reader *r, Objects *exprs);
+void reader_reset(Reader *r);
 
-bool reader_try_read_all(Reader *r, Objects *exprs);
+struct Parser_Stack;
+
+struct Parser_Stack const *reader_parser_stack(Reader const *r);
+
+Object *const *reader_parser_expr(Reader const *r);
+
+bool reader_try_prompt(Reader *r, NamedFile file, Objects *exprs);
+
+bool reader_try_read_all(Reader *r, NamedFile file, Objects *exprs);

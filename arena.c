@@ -95,7 +95,6 @@ void *arena_allocate(Arena *a, size_t alignment, size_t size) {
     return p;
 }
 
-// TODO check if src is equal to top of a region, try reusing that region
 void *arena_allocate_copy(Arena *a, void const *src, size_t src_size, size_t alignment, size_t total_size) {
     guard_is_not_null(a);
 

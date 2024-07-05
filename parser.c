@@ -37,8 +37,8 @@ void parser_reset(Parser *p) {
     p->has_expr = false;
 }
 
-Parser_Stack parser_stack(Parser const *p) {
-    return p->stack;
+Parser_Stack const *parser_stack(Parser const *p) {
+    return &p->stack;
 }
 
 bool parser_is_inside_expression(Parser const *p) {
@@ -124,6 +124,12 @@ bool parser_try_accept(Parser *p, Token token, SyntaxError *error) {
     }
 
     guard_unreachable();
+}
+
+Object *const *parser_expression(Parser const *p) {
+    guard_is_not_null(p);
+
+    return &p->expr;
 }
 
 bool parser_try_get_expression(Parser *p, Object **expression) {

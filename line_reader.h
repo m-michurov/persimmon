@@ -19,4 +19,6 @@ void line_reader_free(LineReader **r);
 
 void line_reader_reset(LineReader *r);
 
+void line_reader_reset_file(LineReader *r, FILE *file);
+
 bool line_try_read(LineReader *r, Arena *a, Line *line);

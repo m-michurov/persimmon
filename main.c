@@ -7,9 +7,8 @@
 #include "stack.h"
 #include "slice.h"
 #include "eval.h"
-
-#define OUTPUT_STREAM stdout
-#define MAX_STACK_DEPTH 384
+#include "virtual_machine.h"
+#include "dynamic_array.h"
 
 static bool try_shift_args(int *argc, char ***argv, char **arg) {
     if (*argc <= 0) {
@@ -31,20 +30,23 @@ static Object *env_default(ObjectAllocator *a) {
     return env;
 }
 
-static bool try_eval_input(Reader *r, ObjectAllocator *allocator, Stack *stack, Object *env) {
-    auto exprs = (Objects) {0};
+static bool try_eval_input(VirtualMachine *vm, Object *env) {
+    auto const named_stdin = (NamedFile) {.name = "<stdin>", .handle = stdin};
 
-    if (false == reader_try_prompt(r, &exprs)) {
+    slice_clear(vm_temporaries(vm));
+    da_append(vm_temporaries(vm), env);
+    if (false == reader_try_prompt(vm_reader(vm), named_stdin, vm_temporaries(vm))) {
         return true;
     }
 
+    auto const exprs = slice_take_from(Objects, *vm_temporaries(vm), 1);
     if (slice_empty(exprs)) {
         return false;
     }
 
     slice_for(it, exprs) {
         Object *value;
-        if (try_eval(allocator, stack, env, *it, &value)) {
+        if (try_eval(vm, env, *it, &value)) {
             object_repr_print(value, stdout);
             printf("\n");
             continue;
@@ -54,33 +56,30 @@ static bool try_eval_input(Reader *r, ObjectAllocator *allocator, Stack *stack, 
     return true;
 }
 
-static void run_repl(Reader *r, ObjectAllocator *allocator, Stack *stack, Object *env) {
+static void run_repl(VirtualMachine *vm, Object *env) {
     printf("env: ");
     object_repr_print(env, stdout);
     printf("\n");
 
     auto stream_is_open = true;
     while (stream_is_open) {
-        stream_is_open = try_eval_input(r, allocator, stack, env);
+        stream_is_open = try_eval_input(vm, env);
     }
-
-    allocator_free(&allocator);
 }
 
-static bool try_eval_file(Reader *r, ObjectAllocator *allocator, Stack *stack, Object *env) {
-    auto exprs = (Objects) {0};
-
-    if (false == reader_try_read_all(r, &exprs)) {
+static bool try_eval_file(VirtualMachine *vm, NamedFile file, Object *env) {
+    slice_clear(vm_temporaries(vm));
+    if (false == reader_try_read_all(vm_reader(vm), file, vm_temporaries(vm))) {
         return false;
     }
 
-    if (slice_empty(exprs)) {
+    if (slice_empty(*vm_temporaries(vm))) {
         return true;
     }
 
-    slice_for(it, exprs) {
+    slice_for(it, *vm_temporaries(vm)) {
         Object *value;
-        if (try_eval(allocator, stack, env, *it, &value)) {
+        if (try_eval(vm, env, *it, &value)) {
             continue;
         }
         return false;
@@ -92,34 +91,32 @@ static bool try_eval_file(Reader *r, ObjectAllocator *allocator, Stack *stack, O
 int main(int argc, char **argv) {
     try_shift_args(&argc, &argv, nullptr);
 
-    auto a = &(Arena) {0};
-    auto stack = stack_new(MAX_STACK_DEPTH);
-    auto allocator = allocator_new();
-    auto env = env_default(allocator);
+    auto vm = vm_new((VirtualMachine_Config) {
+            .allocator_config = {
+                    .hard_limit = 1024 * 1024 * 1024,
+                    .soft_limit_initial = 1024,
+                    .soft_limit_grow_factor = 1.25
+            },
+            .stack_size = 384
+    });
+    auto env = env_default(vm_allocator(vm));
 
     char *file_name;
     bool ok = true;
     if (try_shift_args(&argc, &argv, &file_name)) {
         auto handle = fopen(file_name, "rb");
         if (nullptr == file_name) {
-            fprintf(OUTPUT_STREAM, "Could not open \"%s\": %s\n", file_name, strerror(errno));
-
-            allocator_free(&allocator);
-            arena_free(a);
+            printf("Could not open \"%s\": %s\n", file_name, strerror(errno));
+            vm_free(&vm);
             return EXIT_FAILURE;
         }
 
-        auto r = reader_new((NamedFile) {.name = file_name, .handle=handle}, allocator);
-        ok = try_eval_file(r, allocator, stack, env);
+        ok = try_eval_file(vm, (NamedFile) {.name = file_name, .handle=handle}, env);
         fclose(handle);
-        reader_free(&r);
     } else {
-        auto r = reader_new((NamedFile) {.name = "<stdin>", .handle = stdin}, allocator);
-        run_repl(r, allocator, stack, env);
-        reader_free(&r);
+        run_repl(vm, env);
     }
 
-    allocator_free(&allocator);
-    arena_free(a);
+    vm_free(&vm);
     return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }

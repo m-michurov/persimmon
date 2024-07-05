@@ -23,9 +23,8 @@ add_executable(persimmon
         object_env.c
         reader.c
         eval_errors.c
-        eval_errors.h
         pointers.c
-        pointers.h
+        virtual_machine.c
 )
 
 target_compile_options(persimmon PRIVATE

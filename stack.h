@@ -30,11 +30,15 @@ typedef struct Stack Stack;
 
 Stack *stack_new(size_t size_bytes);
 
+void stack_free(Stack **s);
+
 bool stack_is_empty(Stack const *s);
 
 Stack_Frame *stack_top(Stack *s);
 
 void stack_pop(Stack *s);
+
+bool stack_try_get_prev(Stack *s, Stack_Frame *frame, Stack_Frame **prev);
 
 bool stack_try_push_frame(Stack *s, Stack_Frame frame);
 

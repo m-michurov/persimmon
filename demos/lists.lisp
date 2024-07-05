@@ -23,4 +23,4 @@
     (if col
         (do
             (f (first col))
-            (for f (rest col))))))
+            (apply f (rest col))))))

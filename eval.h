@@ -1,12 +1,10 @@
 #pragma once
 
 #include "object.h"
-#include "object_allocator.h"
-#include "stack.h"
+#include "virtual_machine.h"
 
 bool try_eval(
-        ObjectAllocator *a,
-        Stack *s,
+        VirtualMachine *vm,
         Object *env,
         Object *expr,
         Object **value

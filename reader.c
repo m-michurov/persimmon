@@ -55,22 +55,15 @@ typedef struct {
 } Lines;
 
 struct Reader {
-    char const *file_name;
-    LineReader *line_reader;
-    Arena lines_arena;
-    Lines lines;
     Scanner *s;
     Parser *p;
 };
 
-Reader *reader_new(NamedFile file, ObjectAllocator *a) {
-    guard_is_not_null(file.handle);
+Reader *reader_new(ObjectAllocator *a) {
     guard_is_not_null(a);
 
     auto const r = (Reader *) guard_succeeds(calloc, (1, sizeof(Reader)));
-    * r = (Reader) {
-            .file_name = file.name,
-            .line_reader = line_reader_new(file.handle),
+    *r = (Reader) {
             .s = scanner_new(),
             .p = parser_new(a)
     };
@@ -81,9 +74,6 @@ void reader_free(Reader **r) {
     guard_is_not_null(r);
     guard_is_not_null(*r);
 
-    line_reader_free(&(*r)->line_reader);
-    arena_free(&(*r)->lines_arena);
-    slice_clear(&(*r)->lines);
     scanner_free(&(*r)->s);
     parser_free(&(*r)->p);
 
@@ -91,11 +81,21 @@ void reader_free(Reader **r) {
     *r = nullptr;
 }
 
-static void reader_reset(Reader *r) {
-    line_reader_reset(r->line_reader);
-    slice_clear(&r->lines);
+void reader_reset(Reader *r) {
     scanner_reset(r->s);
     parser_reset(r->p);
+}
+
+struct Parser_Stack const *reader_parser_stack(Reader const *r) {
+    guard_is_not_null(r);
+
+    return parser_stack(r->p);
+}
+
+Object *const *reader_parser_expr(Reader const *r) {
+    guard_is_not_null(r);
+
+    return parser_expression(r->p);
 }
 
 static bool try_parse_line(
@@ -144,22 +144,27 @@ static bool try_parse_line(
 #define PROMPT_NEW      ">>>"
 #define PROMPT_CONTINUE "..."
 
-bool reader_try_prompt(Reader *r, Objects *exprs) {
+static bool try_prompt(
+        Reader *r,
+        LineReader *line_reader,
+        Arena *lines_arena,
+        char const *file_name,
+        Objects *exprs
+) {
     guard_is_not_null(r);
     guard_is_not_null(exprs);
 
     reader_reset(r);
 
-    slice_clear(exprs);
-
     auto line = (Line) {0};
-    while (slice_empty(line) || parser_is_inside_expression(r->p)) {
+    auto lines = (Lines) {0};
+    while (slice_empty(line) || string_is_blank(line.data) || parser_is_inside_expression(r->p)) {
         printf("%s ", (line.lineno > 0 ? PROMPT_CONTINUE : PROMPT_NEW));
 
-        if (false == line_try_read(r->line_reader, &r->lines_arena, &line)) {
+        if (false == line_try_read(line_reader, lines_arena, &line)) {
             return true;
         }
-        arena_append(&r->lines_arena, &r->lines, line);
+        arena_append(lines_arena, &lines, line);
 
         if (string_is_blank(line.data)) {
             continue;
@@ -170,35 +175,66 @@ bool reader_try_prompt(Reader *r, Objects *exprs) {
             continue;
         }
 
-        reader_print_error(error, r->file_name, slice_at(r->lines, error.pos.lineno - 1)->data);
+        reader_print_error(error, file_name, slice_at(lines, error.pos.lineno - 1)->data);
         return false;
     }
 
     return true;
 }
 
-bool reader_try_read_all(Reader *r, Objects *exprs) {
+static bool try_read_all(
+        Reader *r,
+        LineReader *line_reader,
+        Arena *lines_arena,
+        char const *file_name,
+        Objects *exprs
+) {
     guard_is_not_null(r);
 
     reader_reset(r);
-    slice_clear(exprs);
 
     auto line = (Line) {0};
-    while (line_try_read(r->line_reader, &r->lines_arena, &line)) {
-        arena_append(&r->lines_arena, &r->lines, line);
+    auto lines = (Lines) {0};
+    while (line_try_read(line_reader, lines_arena, &line)) {
+        arena_append(lines_arena, &lines, line);
 
         SyntaxError error;
         if (false == try_parse_line(r->s, r->p, line, exprs, &error)) {
-            reader_print_error(error, r->file_name, slice_at(r->lines, error.pos.lineno - 1)->data);
+            reader_print_error(error, file_name, slice_at(lines, error.pos.lineno - 1)->data);
             return false;
         }
     }
 
     SyntaxError error;
     if (false == parser_try_accept(r->p, (Token) {.type = TOKEN_EOF}, &error)) {
-        reader_print_error(error, r->file_name, slice_at(r->lines, error.pos.lineno - 1)->data);
+        reader_print_error(error, file_name, slice_at(lines, error.pos.lineno - 1)->data);
         return false;
     }
 
     return true;
+}
+
+static bool reader_call(
+        Reader *r,
+        NamedFile file,
+        Objects *exprs,
+        bool (*fn)(Reader *, LineReader *, Arena *, char const *, Objects *)
+) {
+    auto lines_arena = (Arena) {0};
+    auto line_reader = line_reader_new(file.handle);
+
+    auto const ok = fn(r, line_reader, &lines_arena, file.name, exprs);
+
+    arena_free(&lines_arena);
+    line_reader_free(&line_reader);
+
+    return ok;
+}
+
+bool reader_try_prompt(Reader *r, NamedFile file, Objects *exprs) {
+    return reader_call(r, file, exprs, try_prompt);
+}
+
+bool reader_try_read_all(Reader *r, NamedFile file, Objects *exprs) {
+    return reader_call(r, file, exprs, try_read_all);
 }

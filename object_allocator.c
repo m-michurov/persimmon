@@ -1,28 +1,31 @@
 #include "object_allocator.h"
 
 #include "guards.h"
-#include "stack.h"
 #include "parser.h"
 #include "slice.h"
 #include "dynamic_array.h"
 #include "exchange.h"
+#include "pointers.h"
 #include "math.h"
 
 struct ObjectAllocator {
-    bool gc_is_running;
     Object *objects;
-    Parser_Stack *parser_stack;
-    Stack *stack;
+
+    ObjectAllocator_Roots roots;
+
+    bool gc_is_running;
+    size_t heap_size;
     size_t hard_limit;
     size_t soft_limit;
-    size_t heap_size;
+    double grow_factor;
 };
 
-ObjectAllocator *allocator_new(void) {
+ObjectAllocator *allocator_new(ObjectAllocator_Config config) {
     auto const allocator = (ObjectAllocator *) guard_succeeds(calloc, (1, sizeof(ObjectAllocator)));
     *allocator = (ObjectAllocator) {
-            .soft_limit = 1024,
-            .hard_limit = 1024 * 1024 * 1024
+            .soft_limit = config.soft_limit_initial,
+            .hard_limit = config.hard_limit,
+            .grow_factor = config.soft_limit_grow_factor
     };
     return allocator;
 }
@@ -39,6 +42,15 @@ void allocator_free(ObjectAllocator **a) {
 
     free(*a);
     *a = nullptr;
+}
+
+void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots) {
+    guard_is_not_null(a);
+
+    a->roots.stack = pointer_first_nonnull(a->roots.stack, roots.stack);
+    a->roots.parser_stack = pointer_first_nonnull(a->roots.parser_stack, roots.parser_stack);
+    a->roots.temporaries = pointer_first_nonnull(a->roots.temporaries, roots.temporaries);
+    a->roots.parser_expr = pointer_first_nonnull(a->roots.parser_expr, roots.parser_expr);
 }
 
 static void mark_gray(Objects *gray, Object *obj) {
@@ -160,12 +172,20 @@ static void collect_garbage(ObjectAllocator *a) {
 static void adjust_soft_limit(ObjectAllocator *a, size_t size) {
     guard_is_not_null(a);
 
-    a->soft_limit = min(size + a->soft_limit * 4 / 3, a->hard_limit);
+    a->soft_limit = min(size + a->soft_limit * a->grow_factor, a->hard_limit);
+}
+
+static bool all_roots_set(ObjectAllocator const *a) {
+    return nullptr != a->roots.stack
+           && nullptr != a->roots.parser_stack
+           && nullptr != a->roots.parser_expr
+           && nullptr != a->roots.temporaries;
 }
 
 bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
     guard_is_not_null(a);
     guard_is_greater(size, 0);
+    guard_is_true(all_roots_set(a));
 
     if (a->heap_size + size >= a->soft_limit) {
         collect_garbage(a);

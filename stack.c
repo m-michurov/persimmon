@@ -24,6 +24,14 @@ Stack *stack_new(size_t size_bytes) {
     return s;
 }
 
+void stack_free(Stack **s) {
+    guard_is_not_null(s);
+    guard_is_not_null(*s);
+
+    free(*s);
+    *s = nullptr;
+}
+
 bool stack_is_empty(Stack const *s) {
     return nullptr == s->top;
 }
@@ -61,6 +69,17 @@ void stack_pop(Stack *s) {
     guard_is_not_null(s->top);
 
     s->top = s->top->prev;
+}
+
+bool stack_try_get_prev(Stack *s, Stack_Frame *frame, Stack_Frame **prev) {
+    auto const wrapped_frame = (WrappedFrame *) ((uint8_t *) frame - offsetof(WrappedFrame, frame));
+    guard_is_in_range(wrapped_frame, s->data, s->top - sizeof(WrappedFrame));
+
+    if (nullptr == wrapped_frame->prev) {
+        return false;
+    }
+    *prev = &wrapped_frame->prev->frame;
+    return true;
 }
 
 bool stack_try_push_frame(Stack *s, Stack_Frame frame) {

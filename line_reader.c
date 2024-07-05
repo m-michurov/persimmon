@@ -28,8 +28,18 @@ void line_reader_free(LineReader **r) {
 }
 
 void line_reader_reset(LineReader *r) {
+    guard_is_not_null(r);
+
     r->lineno = 1;
     sb_clear(r->sb);
+}
+
+void line_reader_reset_file(LineReader *r, FILE *file) {
+    guard_is_not_null(r);
+    guard_is_not_null(file);
+
+    line_reader_reset(r);
+    r->file = file;
 }
 
 bool line_try_read(LineReader *r, Arena *a, Line *line) {

@@ -10,7 +10,7 @@ typedef struct {
     Position begin;
 } Parser_Expression;
 
-typedef struct {
+typedef struct Parser_Stack {
     Parser_Expression *data;
     size_t count;
     size_t capacity;
@@ -24,12 +24,12 @@ void parser_free(Parser **p);
 
 void parser_reset(Parser *p);
 
-Parser_Stack parser_stack(Parser const *p);
-
-// TODO add a way to peek current expression
-
 bool parser_is_inside_expression(Parser const *p);
 
 bool parser_try_accept(Parser *p, Token token, SyntaxError *error);
 
 bool parser_try_get_expression(Parser *p, Object **expression);
+
+Parser_Stack const *parser_stack(Parser const *p);
+
+Object *const *parser_expression(Parser const *p);

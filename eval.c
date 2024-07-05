@@ -12,6 +12,7 @@
 #include "reader.h"
 #include "slice.h"
 #include "eval_errors.h"
+#include "dynamic_array.h"
 
 //#define EVAL_TRACE
 
@@ -26,20 +27,21 @@ static void eval_push_result(ObjectAllocator *a, Object **result, Object *value)
 }
 
 static bool try_begin_eval(
-        ObjectAllocator *a,
-        Stack *s,
+        VirtualMachine *vm,
         Object *env,
         Object *expr,
         Object **values_list
 ) {
-    guard_is_not_null(a);
-    guard_is_not_null(s);
+    guard_is_not_null(vm);
     guard_is_not_null(env);
     guard_is_not_null(expr);
 
 #ifdef EVAL_TRACE
-    printf("[depth = %zu] evaluating %s\n", s->count, object_repr(a, expr));
+    printf("[depth = %zu] evaluating %s\n", stack->count, object_repr(allocator, expr));
 #endif
+
+    auto const a = vm_allocator(vm);
+    auto const s = vm_stack(vm);
 
     switch (expr->type) {
         case TYPE_INT:
@@ -139,7 +141,7 @@ static bool try_begin_eval(
                             continue;
                         }
                         printf(
-                                "SpecialFormError: fn's args* must consist of atoms (got %s)\n",
+                                "SpecialFormError: fn'stack args* must consist of atoms (got %s)\n",
                                 object_type_str(it->type)
                         );
                         printf("Usage:\n");
@@ -164,7 +166,7 @@ static bool try_begin_eval(
                     auto const file_name = object_list_nth(expr, 1);
                     if (TYPE_STRING != file_name->type) {
                         printf(
-                                "SpecialFormError: import's path argument must be a string (got %s)\n",
+                                "SpecialFormError: import'stack path argument must be allocator string (got %s)\n",
                                 object_type_str(file_name->type)
                         );
                         printf("Usage:\n");
@@ -177,13 +179,10 @@ static bool try_begin_eval(
                         printf("ImportError: %s - %s\n", file_name->as_string, strerror(errno));
                         return false;
                     }
+                    auto const file = (NamedFile) {.name = file_name->as_string, .handle = handle};
 
-                    auto r = reader_new(
-                            (NamedFile) {.handle = handle, .name = file_name->as_string},
-                            a
-                    );
                     auto exprs = (Objects) {0};
-                    if (false == reader_try_read_all(r, &exprs)) {
+                    if (false == reader_try_read_all(vm_reader(vm), file, &exprs)) {
                         fclose(handle);
                         return false;
                     }
@@ -222,9 +221,11 @@ static bool try_begin_eval(
     guard_unreachable();
 }
 
-static bool try_step(ObjectAllocator *a, Stack *s) {
-    guard_is_not_null(a);
-    guard_is_not_null(s);
+static bool try_step(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    auto const s = vm_stack(vm);
+    auto const a = vm_allocator(vm);
 
     auto const frame = stack_top(s);
     switch (frame->type) {
@@ -232,7 +233,7 @@ static bool try_step(ObjectAllocator *a, Stack *s) {
             if (object_nil() != frame->unevaluated) {
                 auto const next = object_as_cons(frame->unevaluated).first;
                 frame->unevaluated = object_as_cons(frame->unevaluated).rest;
-                return try_begin_eval(a, s, frame->env, next, &frame->evaluated);
+                return try_begin_eval(vm, frame->env, next, &frame->evaluated);
             }
 
             object_list_reverse(&frame->evaluated);
@@ -271,20 +272,20 @@ static bool try_step(ObjectAllocator *a, Stack *s) {
 
             stack_pop(s);
             auto const next = object_cons(a, object_atom(a, "do"), fn->as_closure.body);
-            return try_begin_eval(a, s, arg_bindings, next, frame->results_list);
+            return try_begin_eval(vm, arg_bindings, next, frame->results_list);
         }
         case FRAME_IF: {
             if (object_nil() == frame->evaluated) {
                 auto const next = object_as_cons(frame->unevaluated).first;
                 frame->unevaluated = object_as_cons(frame->unevaluated).rest;
-                return try_begin_eval(a, s, frame->env, next, &frame->evaluated);
+                return try_begin_eval(vm, frame->env, next, &frame->evaluated);
             }
 
             auto const cond_value = object_as_cons(frame->evaluated).first;
 
             stack_pop(s);
             if (object_nil() != cond_value) {
-                return try_begin_eval(a, s, frame->env, object_as_cons(frame->unevaluated).first, frame->results_list);
+                return try_begin_eval(vm, frame->env, object_as_cons(frame->unevaluated).first, frame->results_list);
             }
 
             frame->unevaluated = object_as_cons(frame->unevaluated).rest; // skip `then`
@@ -293,7 +294,7 @@ static bool try_step(ObjectAllocator *a, Stack *s) {
                 return true;
             }
 
-            return try_begin_eval(a, s, frame->env, object_as_cons(frame->unevaluated).first, frame->results_list);
+            return try_begin_eval(vm, frame->env, object_as_cons(frame->unevaluated).first, frame->results_list);
         }
         case FRAME_DO: {
             if (object_nil() == frame->unevaluated) {
@@ -304,16 +305,16 @@ static bool try_step(ObjectAllocator *a, Stack *s) {
 
             if (object_nil() == object_as_cons(frame->unevaluated).rest) {
                 stack_pop(s);
-                return try_begin_eval(a, s, frame->env, frame->unevaluated->as_cons.first, frame->results_list);
+                return try_begin_eval(vm, frame->env, frame->unevaluated->as_cons.first, frame->results_list);
             }
 
             auto const next = object_as_cons(frame->unevaluated).first;
             frame->unevaluated = object_as_cons(frame->unevaluated).rest;
-            return try_begin_eval(a, s, frame->env, next, nullptr);
+            return try_begin_eval(vm, frame->env, next, nullptr);
         }
         case FRAME_DEFINE: {
             if (object_nil() == frame->evaluated) {
-                return try_begin_eval(a, s, frame->env, object_list_nth(frame->unevaluated, 1), &frame->evaluated);
+                return try_begin_eval(vm, frame->env, object_list_nth(frame->unevaluated, 1), &frame->evaluated);
             }
 
             env_define(a, frame->env, object_as_cons(frame->unevaluated).first, object_as_cons(frame->evaluated).first);
@@ -327,40 +328,40 @@ static bool try_step(ObjectAllocator *a, Stack *s) {
 }
 
 bool try_eval(
-        ObjectAllocator *a,
-        Stack *s,
+        VirtualMachine *vm,
         Object *env,
         Object *expr,
         Object **value
 ) {
-    guard_is_not_null(a);
-    guard_is_not_null(s);
+    guard_is_not_null(vm);
     guard_is_not_null(env);
     guard_is_not_null(expr);
     guard_is_not_null(value);
 
-    Object *result = object_nil();
-    if (false == try_begin_eval(a, s, env, expr, &result)) {
+    slice_clear(vm_temporaries(vm));
+    da_append(vm_temporaries(vm), object_nil());
+    auto result = slice_last(*vm_temporaries(vm));
+    if (false == try_begin_eval(vm, env, expr, result)) {
         return false;
     }
 
-    while (false == stack_is_empty(s)) {
-        if (try_step(a, s)) {
+    while (false == stack_is_empty(vm_stack(vm))) {
+        if (try_step(vm)) {
             continue;
         }
 
         printf("Traceback (most recent call last):\n");
-        while (false == stack_is_empty(s)) {
+        while (false == stack_is_empty(vm_stack(vm))) {
             printf("    ");
-            object_repr_print(stack_top(s)->expr, stdout);
+            object_repr_print(stack_top(vm_stack(vm))->expr, stdout);
             printf("\n");
-            stack_pop(s);
+            stack_pop(vm_stack(vm));
         }
         printf("Some calls may be missing due to tail call optimization.\n");
         return false;
     }
-    guard_is_true(stack_is_empty(s));
+    guard_is_true(stack_is_empty(vm_stack(vm)));
 
-    *value = object_as_cons(result).first;
+    *value = object_as_cons(*result).first;
     return true;
 }

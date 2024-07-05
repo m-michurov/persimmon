@@ -1,6 +1,7 @@
 #pragma once
 
 #include "guards.h"
+#include "math.h"
 
 #define slice_at(Slice, Index)                      \
 ({                                                  \
@@ -14,6 +15,22 @@
 })
 
 #define slice_clear(Slice) do { (Slice)->count = 0; } while (false)
+
+#define slice_take_from(T, Slice, StartIdx)             \
+({                                                      \
+    auto const _slice = (Slice);                        \
+    auto const _start = min((StartIdx), _slice.count);  \
+    (T) {                                               \
+        .data = _slice.data + _start,                   \
+        .count = _slice.count - _start                  \
+    };                                                  \
+})
+
+#define slice_trim(Slice, Count)                    \
+do {                                                \
+    auto const _slice = (Slice);                    \
+    _slice->count = min((Count), _slice->count);    \
+} while (false)
 
 #define slice_try_append(Slice, Item)                                                           \
 ({                                                                                              \
