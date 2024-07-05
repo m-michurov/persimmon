@@ -33,13 +33,14 @@ static Object *env_default(ObjectAllocator *a) {
 static bool try_eval_input(VirtualMachine *vm, Object *env) {
     auto const named_stdin = (NamedFile) {.name = "<stdin>", .handle = stdin};
 
-    slice_clear(vm_temporaries(vm));
     da_append(vm_temporaries(vm), env);
+    auto const exprs_begin = vm_temporaries(vm)->count;
+
     if (false == reader_try_prompt(vm_reader(vm), named_stdin, vm_temporaries(vm))) {
         return true;
     }
 
-    auto const exprs = slice_take_from(Objects, *vm_temporaries(vm), 1);
+    auto const exprs = slice_take_from(Objects, *vm_temporaries(vm), exprs_begin);
     if (slice_empty(exprs)) {
         return false;
     }
@@ -68,16 +69,19 @@ static void run_repl(VirtualMachine *vm, Object *env) {
 }
 
 static bool try_eval_file(VirtualMachine *vm, NamedFile file, Object *env) {
-    slice_clear(vm_temporaries(vm));
+    da_append(vm_temporaries(vm), env);
+    auto const exprs_begin = vm_temporaries(vm)->count;
+
     if (false == reader_try_read_all(vm_reader(vm), file, vm_temporaries(vm))) {
         return false;
     }
 
-    if (slice_empty(*vm_temporaries(vm))) {
-        return true;
+    auto const exprs = slice_take_from(Objects, *vm_temporaries(vm), exprs_begin);
+    if (slice_empty(exprs)) {
+        return false;
     }
 
-    slice_for(it, *vm_temporaries(vm)) {
+    slice_for(it, exprs) {
         Object *value;
         if (try_eval(vm, env, *it, &value)) {
             continue;
