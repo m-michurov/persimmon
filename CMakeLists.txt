@@ -4,27 +4,27 @@ project(persimmon C)
 set(CMAKE_C_STANDARD 23)
 
 add_executable(persimmon
-        main.c
-        arena.c
-        scanner.c
-        object.c
-        string_builder.c
-        eval.c
-        syntax_error.c
-        object_lists.c
-        parser.c
-        object_accessors.c
-        stack.c
-        object_constructors.c
-        object_allocator.c
-        primitives.c
-        line_reader.c
-        strings.c
-        object_env.c
-        reader.c
-        eval_errors.c
-        pointers.c
-        virtual_machine.c
+        src/main.c
+        src/utility/arena.c
+        src/vm/reader/scanner.c
+        src/object/object.c
+        src/utility/string_builder.c
+        src/vm/eval.c
+        src/vm/reader/syntax_error.c
+        src/object/lists.c
+        src/vm/reader/parser.c
+        src/object/accessors.c
+        src/vm/stack.c
+        src/object/constructors.c
+        src/object/allocator.c
+        src/vm/primitives.c
+        src/vm/reader/line_reader.c
+        src/utility/strings.c
+        src/object/env.c
+        src/vm/reader/reader.c
+        src/vm/eval_errors.c
+        src/utility/pointers.c
+        src/vm/virtual_machine.c
 )
 
 target_compile_options(persimmon PRIVATE
@@ -33,3 +33,5 @@ target_compile_options(persimmon PRIVATE
         -Wextra
         -Wno-pointer-arith
 )
+
+target_include_directories(persimmon PRIVATE src)
