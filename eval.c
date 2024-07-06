@@ -365,6 +365,45 @@ static bool try_step(VirtualMachine *vm) {
     guard_unreachable();
 }
 
+static void print_env(Object *env) {
+    printf("      Environment: {\n");
+    object_list_for(it, object_as_cons(env).first) {
+        Object *obj_name, *obj_value;
+        guard_is_true(object_list_try_unpack_2(&obj_name, &obj_value, it));
+        printf("        ");
+        object_repr_print(obj_name, stdout);
+        printf(": ");
+        if (TYPE_CONS == obj_value->type) {
+            size_t i = 1;
+
+            printf("(");
+            object_repr_print(obj_value->as_cons.first, stdout);
+            object_list_for(elem, obj_value->as_cons.rest) {
+                i++;
+                printf(", ");
+                object_repr_print(elem, stdout);
+                if (i > 5) { break; }
+            }
+            printf(", ...)");
+        } else if (TYPE_STRING == obj_value->type) {
+            size_t i = 0;
+
+            printf("\"");
+            string_for(c, obj_value->as_atom) {
+                i++;
+                printf("%c", *c);
+                if (i > 10) { break; }
+            }
+
+            printf("\"");
+        } else {
+            object_repr_print(obj_value, stdout);
+        }
+        printf("\n");
+    }
+    printf("      }\n");
+}
+
 bool try_eval(
         VirtualMachine *vm,
         Object *env,
@@ -393,43 +432,7 @@ bool try_eval(
             printf("    ");
             object_repr_print(stack_top(vm_stack(vm))->expr, stdout);
             printf("\n");
-            printf("      Environment:\n");
-            printf("      {\n");
-            object_list_for(it, object_as_cons(stack_top(vm_stack(vm))->env).first) {
-                Object *obj_name, *obj_value;
-                guard_is_true(object_list_try_unpack_2(&obj_name, &obj_value, it));
-                printf("        ");
-                object_repr_print(obj_name, stdout);
-                printf(": ");
-                if (TYPE_CONS == obj_value->type) {
-                    size_t i = 1;
-
-                    printf("(");
-                    object_repr_print(obj_value->as_cons.first, stdout);
-                    object_list_for(elem, obj_value->as_cons.rest) {
-                        i++;
-                        printf(", ");
-                        object_repr_print(elem, stdout);
-                        if (i > 5) { break; }
-                    }
-                    printf(", ...)");
-                } else if (TYPE_STRING == obj_value->type) {
-                    size_t i = 0;
-
-                    printf("\"");
-                    string_for(c, obj_value->as_atom) {
-                        i++;
-                        printf("%c", *c);
-                        if (i > 10) { break; }
-                    }
-
-                    printf("\"");
-                } else {
-                    object_repr_print(obj_value, stdout);
-                }
-                printf("\n");
-            }
-            printf("      }\n");
+            print_env(stack_top(vm_stack(vm))->env);
             stack_pop(vm_stack(vm));
         }
         printf("Some calls may be missing due to tail call optimization.\n");
