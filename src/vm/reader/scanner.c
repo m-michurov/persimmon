@@ -64,7 +64,6 @@ static bool is_whitespace(int c) {
 static void tokenizer_clear(Scanner *t) {
     sb_clear(t->sb);
     t->escape_sequence = false;
-
     t->int_value = 0;
 }
 
@@ -74,6 +73,7 @@ static void tokenizer_transition(Scanner *t, Position pos, State new_state) {
 
     switch (state) {
         case TOKENIZER_WS: {
+            t->has_token = false;
             tokenizer_clear(t);
             return;
         }
@@ -94,7 +94,7 @@ static void tokenizer_transition(Scanner *t, Position pos, State new_state) {
                     .pos = token_pos,
                     .as_string = sb_str(t->sb)
             };
-            tokenizer_clear(t);
+//            tokenizer_clear(t);
             return;
         }
         case TOKENIZER_ATOM: {
@@ -106,7 +106,7 @@ static void tokenizer_transition(Scanner *t, Position pos, State new_state) {
                     .pos = token_pos,
                     .as_atom = sb_str(t->sb)
             };
-            tokenizer_clear(t);
+//            tokenizer_clear(t);
             return;
         }
         case TOKENIZER_OPEN_PAREN: {
