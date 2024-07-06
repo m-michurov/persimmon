@@ -40,6 +40,7 @@ size_t sb_length(StringBuilder const *sb) {
 void sb_clear(StringBuilder *sb) {
     guard_is_not_null(sb);
     sb->length = 0;
+    memset(sb->str, 0, sb->capacity);
 }
 
 char *sb_copy_str(StringBuilder const *sb) {
