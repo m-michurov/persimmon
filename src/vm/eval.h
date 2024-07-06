@@ -7,5 +7,6 @@ bool try_eval(
         VirtualMachine *vm,
         Object *env,
         Object *expr,
-        Object **value
+        Object **value,
+        Object **error
 );

@@ -21,7 +21,8 @@ typedef struct {
     struct Stack const *stack;
     struct Parser_Stack const *parser_stack;
     Object *const *parser_expr;
-    Objects *temporaries;
+    Objects const *constants;
+    Objects const *temporaries;
 } ObjectAllocator_Roots;
 
 void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots);

@@ -13,9 +13,10 @@ typedef struct {
     Stack_FrameType type;
     Object *expr;
     Object *env;
-    Object **results_list;
     Object *unevaluated;
     Object *evaluated;
+    Object **results_list;
+    Object *error;
 } Stack_Frame;
 
 Stack_Frame frame_make(
@@ -43,3 +44,5 @@ bool stack_try_get_prev(Stack *s, Stack_Frame *frame, Stack_Frame **prev);
 bool stack_try_push_frame(Stack *s, Stack_Frame frame);
 
 bool stack_try_create_local(Stack *s, Object ***obj);
+
+void stack_print_traceback(Stack *s, FILE *file);

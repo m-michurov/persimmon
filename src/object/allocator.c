@@ -48,8 +48,9 @@ void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots) {
 
     a->roots.stack = pointer_first_nonnull(a->roots.stack, roots.stack);
     a->roots.parser_stack = pointer_first_nonnull(a->roots.parser_stack, roots.parser_stack);
-    a->roots.temporaries = pointer_first_nonnull(a->roots.temporaries, roots.temporaries);
     a->roots.parser_expr = pointer_first_nonnull(a->roots.parser_expr, roots.parser_expr);
+    a->roots.constants = pointer_first_nonnull(a->roots.constants, roots.constants);
+    a->roots.temporaries = pointer_first_nonnull(a->roots.temporaries, roots.temporaries);
 }
 
 static void mark_gray(Objects *gray, Object *obj) {
@@ -195,7 +196,7 @@ bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
         return false;
     }
 
-    auto const new_obj = (Object *) guard_succeeds(calloc, (size, sizeof(uint8_t)));
+    auto const new_obj = (Object *) guard_succeeds(calloc, (size, 1));
     new_obj->next = exchange(a->objects, new_obj);
     a->heap_size += size;
     *obj = new_obj;

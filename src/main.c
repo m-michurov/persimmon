@@ -46,12 +46,15 @@ static bool try_eval_input(VirtualMachine *vm, Object *env) {
     }
 
     slice_for(it, exprs) {
-        Object *value;
-        if (try_eval(vm, env, *it, &value)) {
+        Object *value, *error;
+        if (try_eval(vm, env, *it, &value, &error)) {
             object_repr_print(value, stdout);
             printf("\n");
             continue;
         }
+
+        stack_print_traceback(vm_stack(vm), stdout);
+        break;
     }
 
     return true;
@@ -82,10 +85,12 @@ static bool try_eval_file(VirtualMachine *vm, NamedFile file, Object *env) {
     }
 
     slice_for(it, exprs) {
-        Object *value;
-        if (try_eval(vm, env, *it, &value)) {
+        Object *value, *error;
+        if (try_eval(vm, env, *it, &value, &error)) {
             continue;
         }
+
+        stack_print_traceback(vm_stack(vm), stdout);
         return false;
     }
 

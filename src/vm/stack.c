@@ -3,6 +3,10 @@
 #include "utility/guards.h"
 #include "utility/pointers.h"
 #include "utility/exchange.h"
+#include "utility/strings.h"
+#include "utility/container_of.h"
+#include "object/lists.h"
+#include "object/accessors.h"
 
 typedef struct WrappedFrame WrappedFrame;
 struct WrappedFrame {
@@ -72,8 +76,8 @@ void stack_pop(Stack *s) {
 }
 
 bool stack_try_get_prev(Stack *s, Stack_Frame *frame, Stack_Frame **prev) {
-    auto const wrapped_frame = (WrappedFrame *) ((uint8_t *) frame - offsetof(WrappedFrame, frame));
-    guard_is_in_range(wrapped_frame, s->data, s->top - sizeof(WrappedFrame));
+    auto const wrapped_frame = container_of(frame, WrappedFrame, frame);
+    guard_is_in_range(wrapped_frame, s->data, s->end - sizeof(WrappedFrame));
 
     if (nullptr == wrapped_frame->prev) {
         return false;
@@ -117,4 +121,62 @@ bool stack_try_create_local(Stack *s, Object ***obj) {
 
     *obj = exchange(s->top->locals_end, new_locals_end);
     return true;
+}
+
+static void print_env(Object *env) {
+    printf("      Environment: {\n");
+    object_list_for(it, object_as_cons(env).first) {
+        Object *obj_name, *obj_value;
+        guard_is_true(object_list_try_unpack_2(&obj_name, &obj_value, it));
+        printf("        ");
+        object_repr_print(obj_name, stdout);
+        printf(": ");
+        if (TYPE_CONS == obj_value->type) {
+            size_t i = 1;
+
+            printf("(");
+            object_repr_print(obj_value->as_cons.first, stdout);
+            object_list_for(elem, obj_value->as_cons.rest) {
+                i++;
+                printf(", ");
+                object_repr_print(elem, stdout);
+                if (i > 5) { break; }
+            }
+            printf(", ...)");
+        } else if (TYPE_STRING == obj_value->type) {
+            size_t i = 0;
+
+            printf("\"");
+            string_for(c, obj_value->as_atom)
+            {
+                i++;
+                printf("%c", *c);
+                if (i > 10) { break; }
+            }
+
+            printf("\"");
+        } else {
+            object_repr_print(obj_value, stdout);
+        }
+        printf("\n");
+    }
+    printf("      }\n");
+}
+
+void stack_print_traceback(Stack *s, FILE *file) {
+    fprintf(file, "Traceback (most recent call last):\n");
+    guard_is_false(stack_is_empty(s));
+
+    auto frame = stack_top(s);
+    while (true) {
+        printf("    ");
+        object_repr_print(frame->expr, file);
+        printf("\n");
+        print_env(frame->env);
+
+        if (false == stack_try_get_prev(s, frame, &frame)) {
+            break;
+        }
+    }
+    fprintf(file, "Some calls may be missing due to tail call optimization.\n");
 }

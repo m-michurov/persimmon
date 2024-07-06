@@ -9,7 +9,6 @@
 #include "object/env.h"
 #include "utility/slice.h"
 #include "utility/dynamic_array.h"
-#include "utility/strings.h"
 #include "utility/guards.h"
 #include "reader/reader.h"
 #include "stack.h"
@@ -365,55 +364,18 @@ static bool try_step(VirtualMachine *vm) {
     guard_unreachable();
 }
 
-static void print_env(Object *env) {
-    printf("      Environment: {\n");
-    object_list_for(it, object_as_cons(env).first) {
-        Object *obj_name, *obj_value;
-        guard_is_true(object_list_try_unpack_2(&obj_name, &obj_value, it));
-        printf("        ");
-        object_repr_print(obj_name, stdout);
-        printf(": ");
-        if (TYPE_CONS == obj_value->type) {
-            size_t i = 1;
-
-            printf("(");
-            object_repr_print(obj_value->as_cons.first, stdout);
-            object_list_for(elem, obj_value->as_cons.rest) {
-                i++;
-                printf(", ");
-                object_repr_print(elem, stdout);
-                if (i > 5) { break; }
-            }
-            printf(", ...)");
-        } else if (TYPE_STRING == obj_value->type) {
-            size_t i = 0;
-
-            printf("\"");
-            string_for(c, obj_value->as_atom) {
-                i++;
-                printf("%c", *c);
-                if (i > 10) { break; }
-            }
-
-            printf("\"");
-        } else {
-            object_repr_print(obj_value, stdout);
-        }
-        printf("\n");
-    }
-    printf("      }\n");
-}
-
 bool try_eval(
         VirtualMachine *vm,
         Object *env,
         Object *expr,
-        Object **value
+        Object **value,
+        Object **error
 ) {
     guard_is_not_null(vm);
     guard_is_not_null(env);
     guard_is_not_null(expr);
     guard_is_not_null(value);
+    guard_is_not_null(error);
 
     slice_clear(vm_temporaries(vm));
     da_append(vm_temporaries(vm), object_nil());
@@ -427,15 +389,6 @@ bool try_eval(
             continue;
         }
 
-        printf("Traceback (most recent call last):\n");
-        while (false == stack_is_empty(vm_stack(vm))) {
-            printf("    ");
-            object_repr_print(stack_top(vm_stack(vm))->expr, stdout);
-            printf("\n");
-            print_env(stack_top(vm_stack(vm))->env);
-            stack_pop(vm_stack(vm));
-        }
-        printf("Some calls may be missing due to tail call optimization.\n");
         return false;
     }
     guard_is_true(stack_is_empty(vm_stack(vm)));
