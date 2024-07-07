@@ -1,3 +1,3 @@
 (import "demos/lists.lisp")
 
-(print (map (fn (x) (list x (* x x))) (range 100)))
+(apply print (chunk-by 13 (map (fn (x) (list x (* x x))) (range 100))))

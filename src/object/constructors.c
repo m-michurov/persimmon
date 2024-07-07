@@ -100,7 +100,8 @@ Object *object_int(ObjectAllocator *a, int64_t value) {
     guard_is_not_null(a);
 
     Object *obj;
-    guard_is_true(allocator_try_allocate(a, size_int(), &obj));
+    auto const alloc_successful = allocator_try_allocate(a, size_int(), &obj);
+    guard_is_true(alloc_successful);
     return init_int(obj, value);
 }
 
@@ -122,7 +123,8 @@ Object *object_string(ObjectAllocator *a, char const *s) {
 
     auto const len = strlen(s);
     Object *obj;
-    guard_is_true(allocator_try_allocate(a, size_string(len), &obj));
+    auto const alloc_successful = allocator_try_allocate(a, size_string(len), &obj);
+    guard_is_true(alloc_successful);
     return init_string(obj, s, len);
 }
 
@@ -146,7 +148,8 @@ Object *object_atom(ObjectAllocator *a, char const *s) {
 
     auto const len = strlen(s);
     Object *obj;
-    guard_is_true(allocator_try_allocate(a, size_atom(len), &obj));
+    auto const alloc_successful = allocator_try_allocate(a, size_atom(len), &obj);
+    guard_is_true(alloc_successful);
     return init_atom(obj, s, len);
 }
 
@@ -170,7 +173,8 @@ Object *object_cons(ObjectAllocator *a, Object *first, Object *rest) {
     guard_is_not_null(rest);
 
     Object *obj;
-    guard_is_true(allocator_try_allocate(a, size_cons(), &obj));
+    auto const alloc_successful = allocator_try_allocate(a, size_cons(), &obj);
+    guard_is_true(alloc_successful);
     return init_cons(obj, first, rest);
 }
 
@@ -192,7 +196,8 @@ Object *object_primitive(ObjectAllocator *a, Object_Primitive fn) {
     guard_is_not_null(a);
 
     Object *obj;
-    guard_is_true(allocator_try_allocate(a, size_primitive(), &obj));
+    auto const alloc_successful = allocator_try_allocate(a, size_primitive(), &obj);
+    guard_is_true(alloc_successful);
     return init_primitive(obj, fn);
 }
 
@@ -215,7 +220,8 @@ Object *object_closure(ObjectAllocator *a, Object *env, Object *args, Object *bo
     guard_is_not_null(body);
 
     Object *obj;
-    guard_is_true(allocator_try_allocate(a, size_closure(), &obj));
+    auto const alloc_successful = allocator_try_allocate(a, size_closure(), &obj);
+    guard_is_true(alloc_successful);
     return init_closure(obj, env, args, body);
 }
 

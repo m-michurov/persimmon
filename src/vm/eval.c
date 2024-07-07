@@ -68,177 +68,30 @@ static bool try_begin_eval(
         case TYPE_CONS: {
             if (TYPE_ATOM == expr->as_cons.first->type) {
                 auto const atom_name = expr->as_cons.first->as_atom;
+                auto is_special = false;
+                Stack_FrameType frame_type;
 
                 if (0 == strcmp("if", atom_name)) {
-                    auto const len = object_list_count(expr->as_cons.rest);
-                    if (2 != len && 3 != len) {
-                        printf("SpecialFormError: if takes 2 or 3 arguments but %zu were given\n", len);
-                        printf("Usage:\n");
-                        printf("    (if cond then)\n");
-                        printf("    (if cond then else)\n");
-                        printf("In:\n");
-                        printf("    ");
-                        object_repr_print(expr, stdout);
-                        printf("\n");
-                        return false;
-                    }
-
-                    auto const no_overflow = stack_try_push_frame(
-                            s,
-                            frame_make(FRAME_IF, expr, env, values_list, object_as_cons(expr).rest)
-                    );
-                    if (false == no_overflow) {
-                        print_stack_overflow_error();
-                        return false;
-                    }
-                    return true;
+                    frame_type = FRAME_IF;
+                    is_special = true;
+                } else if (0 == strcmp("do", atom_name)) {
+                    frame_type = FRAME_DO;
+                    is_special = true;
+                } else if (0 == strcmp("define", atom_name)) {
+                    frame_type = FRAME_DEFINE;
+                    is_special = true;
+                } else if (0 == strcmp("fn", atom_name)) {
+                    frame_type = FRAME_FN;
+                    is_special = true;
+                } else if (0 == strcmp("import", atom_name)) {
+                    frame_type = FRAME_IMPORT;
+                    is_special = true;
                 }
 
-                if (0 == strcmp("do", atom_name)) {
+                if (is_special) {
                     auto const no_overflow = stack_try_push_frame(
                             s,
-                            frame_make(FRAME_DO, expr, env, values_list, object_as_cons(expr).rest)
-                    );
-                    if (false == no_overflow) {
-                        print_stack_overflow_error();
-                        return false;
-                    }
-                    return true;
-                }
-
-                if (0 == strcmp("define", atom_name)) {
-                    auto const len = object_list_count(expr->as_cons.rest);
-                    if (2 != len) {
-                        printf("SpecialFormError: define takes 2 arguments but %zu were given\n", len);
-                        printf("Usage:\n");
-                        printf("    (define name value)\n");
-                        printf("In:\n");
-                        printf("    ");
-                        object_repr_print(expr, stdout);
-                        printf("\n");
-                        return false;
-                    }
-
-                    auto const no_overflow = stack_try_push_frame(
-                            s,
-                            frame_make(FRAME_DEFINE, expr, env, values_list, object_as_cons(expr).rest)
-                    );
-                    if (false == no_overflow) {
-                        print_stack_overflow_error();
-                        return false;
-                    }
-                    return true;
-                }
-
-                if (0 == strcmp("fn", atom_name)) {
-                    auto const len = object_list_count(expr->as_cons.rest);
-                    if (len < 2) {
-                        printf("SpecialFormError: fn takes at least 2 arguments but %zu were given\n", len);
-                        printf("Usage:\n");
-                        printf("    (fn (args*) x & more)\n");
-                        printf("In:\n");
-                        printf("    ");
-                        object_repr_print(expr, stdout);
-                        printf("\n");
-                        return false;
-                    }
-
-                    auto const args = object_list_nth(expr, 1);
-                    if (TYPE_CONS != args->type && TYPE_NIL != args->type) {
-                        printf("SpecialFormError: invalid fn syntax\n");
-                        printf("Usage:\n");
-                        printf("    (fn (args*) x & more)\n");
-                        printf("In:\n");
-                        printf("    ");
-                        object_repr_print(expr, stdout);
-                        printf("\n");
-                        return false;
-                    }
-
-                    object_list_for(it, args) {
-                        if (TYPE_ATOM == it->type) {
-                            continue;
-                        }
-                        printf(
-                                "SpecialFormError: fn'stack args* must consist of atoms (got %s)\n",
-                                object_type_str(it->type)
-                        );
-                        printf("Usage:\n");
-                        printf("    (fn (args*) x & more)\n");
-                        printf("In:\n");
-                        printf("    ");
-                        object_repr_print(expr, stdout);
-                        printf("\n");
-                        return false;
-                    }
-
-                    auto const body = object_list_skip(expr, 2);
-
-                    Object *closure;
-                    if (object_try_make_closure(a, env, args, body, &closure)) {
-                        return try_push_result(a, values_list, closure);
-                    }
-
-                    print_out_of_memory_error(a);
-                    return false;
-                }
-
-                if (0 == strcmp("import", atom_name)) {
-                    auto const len = object_list_count(expr->as_cons.rest);
-                    if (len != 1) {
-                        printf("SpecialFormError: import takes 1 argument but %zu were given\n", len);
-                        printf("Usage:\n");
-                        printf("    (import path)\n");
-                        printf("In:\n");
-                        printf("    ");
-                        object_repr_print(expr, stdout);
-                        printf("\n");
-                        return false;
-                    }
-
-                    auto const file_name = object_list_nth(expr, 1);
-                    if (TYPE_STRING != file_name->type) {
-                        printf(
-                                "SpecialFormError: import'stack path argument must be allocator string (got %s)\n",
-                                object_type_str(file_name->type)
-                        );
-                        printf("Usage:\n");
-                        printf("    (import path)\n");
-                        printf("In:\n");
-                        printf("    ");
-                        object_repr_print(expr, stdout);
-                        printf("\n");
-                        return false;
-                    }
-
-                    auto const handle = fopen(file_name->as_string, "rb");
-                    if (nullptr == handle) {
-                        printf("ImportError: %s - %s\n", file_name->as_string, strerror(errno));
-                        return false;
-                    }
-                    auto const file = (NamedFile) {.name = file_name->as_string, .handle = handle};
-
-                    auto exprs = (Objects) {0};
-                    if (false == reader_try_read_all(vm_reader(vm), file, &exprs)) {
-                        fclose(handle);
-                        return false;
-                    }
-                    fclose(handle);
-
-                    auto exprs_list = object_nil();
-                    slice_for(it, exprs) {
-                        if (object_try_make_cons(a, *it, exprs_list, &exprs_list)) {
-                            continue;
-                        }
-
-                        print_out_of_memory_error(a);
-                        return false;
-                    }
-                    object_list_reverse(&exprs_list);
-
-                    auto const no_overflow = stack_try_push_frame(
-                            s,
-                            frame_make(FRAME_DO, expr, env, values_list, exprs_list)
+                            frame_make(frame_type, expr, env, values_list, object_as_cons(expr).rest)
                     );
                     if (false == no_overflow) {
                         print_stack_overflow_error();
@@ -267,8 +120,8 @@ static bool try_step(VirtualMachine *vm) {
 
     auto const s = vm_stack(vm);
     auto const a = vm_allocator(vm);
-
     auto const frame = stack_top(s);
+
     switch (frame->type) {
         case FRAME_CALL: {
             if (object_nil() != frame->unevaluated) {
@@ -339,8 +192,66 @@ static bool try_step(VirtualMachine *vm) {
 
             return true;
         }
+        case FRAME_FN: {
+            auto const len = object_list_count(frame->unevaluated);
+            if (len < 2) {
+                printf("SpecialFormError: fn takes at least 2 arguments but %zu were given\n", len);
+                printf("Usage:\n");
+                printf("    (fn (args*) x & more)\n");
+
+                return false;
+            }
+
+            auto const args = object_as_cons(frame->unevaluated).first;
+            if (TYPE_CONS != args->type && TYPE_NIL != args->type) {
+                printf("SpecialFormError: invalid fn syntax\n");
+                printf("Usage:\n");
+                printf("    (fn (args*) x & more)\n");
+                printf("\n");
+
+                return false;
+            }
+
+            object_list_for(it, args) {
+                if (TYPE_ATOM == it->type) {
+                    continue;
+                }
+                printf(
+                        "SpecialFormError: fn'stack args* must consist of atoms (got %s)\n",
+                        object_type_str(it->type)
+                );
+                printf("Usage:\n");
+                printf("    (fn (args*) x & more)\n");
+
+                return false;
+            }
+
+            auto const body = object_as_cons(frame->unevaluated).rest;
+
+            Object *closure;
+            if (object_try_make_closure(a, frame->env, args, body, &closure)) {
+                if (try_push_result(a, frame->results_list, closure)) {
+                    stack_pop(s);
+                    return true;
+                }
+                return false;
+            }
+
+            print_out_of_memory_error(a);
+            return false;
+        }
         case FRAME_IF: {
             if (object_nil() == frame->evaluated) {
+                auto const len = object_list_count(frame->unevaluated);
+                if (2 != len && 3 != len) {
+                    printf("SpecialFormError: if takes 2 or 3 arguments but %zu were given\n", len);
+                    printf("Usage:\n");
+                    printf("    (if cond then)\n");
+                    printf("    (if cond then else)\n");
+
+                    return false;
+                }
+
                 auto const next = object_as_cons(frame->unevaluated).first;
                 frame->unevaluated = object_as_cons(frame->unevaluated).rest;
                 return try_begin_eval(vm, frame->env, next, &frame->evaluated);
@@ -362,9 +273,11 @@ static bool try_step(VirtualMachine *vm) {
         }
         case FRAME_DO: {
             if (object_nil() == frame->unevaluated) {
-                auto const ok = try_push_result(a, frame->results_list, object_nil());
-                stack_pop(s);
-                return ok;
+                if (try_push_result(a, frame->results_list, object_nil())) {
+                    stack_pop(s);
+                    return true;
+                }
+                return false;
             }
 
             if (object_nil() == object_as_cons(frame->unevaluated).rest) {
@@ -378,6 +291,15 @@ static bool try_step(VirtualMachine *vm) {
         }
         case FRAME_DEFINE: {
             if (object_nil() == frame->evaluated) {
+                auto const len = object_list_count(frame->unevaluated);
+                if (2 != len) {
+                    printf("SpecialFormError: define takes 2 arguments but %zu were given\n", len);
+                    printf("Usage:\n");
+                    printf("    (define name value)\n");
+
+                    return false;
+                }
+
                 return try_begin_eval(vm, frame->env, object_list_nth(frame->unevaluated, 1), &frame->evaluated);
             }
 
@@ -386,9 +308,68 @@ static bool try_step(VirtualMachine *vm) {
                     object_as_cons(frame->unevaluated).first,
                     object_as_cons(frame->evaluated).first
             );
-            auto const ok = try_push_result(a, frame->results_list, object_as_cons(frame->evaluated).first);
+            if (try_push_result(a, frame->results_list, object_as_cons(frame->evaluated).first)) {
+                stack_pop(s);
+                return true;
+            }
+            return false;
+        }
+        case FRAME_IMPORT: {
+            auto const len = object_list_count(frame->unevaluated);
+            if (len != 1) {
+                printf("SpecialFormError: import takes 1 argument but %zu were given\n", len);
+                printf("Usage:\n");
+                printf("    (import path)\n");
+                return false;
+            }
+
+            auto const file_name = object_as_cons(frame->unevaluated).first;
+            if (TYPE_STRING != file_name->type) {
+                printf(
+                        "SpecialFormError: import's path argument must be allocator string (got %s)\n",
+                        object_type_str(file_name->type)
+                );
+                printf("Usage:\n");
+                printf("    (import path)\n");
+                return false;
+            }
+
+            auto const handle = fopen(file_name->as_string, "rb");
+            if (nullptr == handle) {
+                printf("ImportError: %s - %s\n", file_name->as_string, strerror(errno));
+                return false;
+            }
+            auto const file = (NamedFile) {.name = file_name->as_string, .handle = handle};
+
+            auto exprs = (Objects) {0};
+            if (false == reader_try_read_all(vm_reader(vm), file, &exprs)) {
+                fclose(handle);
+                return false;
+            }
+            fclose(handle);
+
+            auto exprs_list = object_nil();
+            slice_for(it, exprs) {
+                if (object_try_make_cons(a, *it, exprs_list, &exprs_list)) {
+                    continue;
+                }
+
+                print_out_of_memory_error(a);
+                return false;
+            }
+            object_list_reverse(&exprs_list);
+
             stack_pop(s);
-            return ok;
+            auto const no_overflow = stack_try_push_frame(
+                    s,
+                    frame_make(FRAME_DO, frame->expr, frame->env, frame->results_list, exprs_list)
+            );
+            if (false == no_overflow) {
+                print_stack_overflow_error();
+                return false;
+            }
+
+            return true;
         }
     }
 

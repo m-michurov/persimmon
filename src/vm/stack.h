@@ -4,9 +4,11 @@
 
 typedef enum {
     FRAME_CALL,
+    FRAME_FN,
     FRAME_IF,
     FRAME_DO,
-    FRAME_DEFINE
+    FRAME_DEFINE,
+    FRAME_IMPORT
 } Stack_FrameType;
 
 typedef struct {
