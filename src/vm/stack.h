@@ -35,14 +35,24 @@ void stack_free(Stack **s);
 
 bool stack_is_empty(Stack const *s);
 
-Stack_Frame *stack_top(Stack *s);
+Stack_Frame *stack_top(Stack const*s);
 
 void stack_pop(Stack *s);
-
-bool stack_try_get_prev(Stack *s, Stack_Frame *frame, Stack_Frame **prev);
 
 bool stack_try_push_frame(Stack *s, Stack_Frame frame);
 
 bool stack_try_create_local(Stack *s, Object ***obj);
 
-void stack_print_traceback(Stack *s, FILE *file);
+bool stack_try_get_prev(Stack const *s, Stack_Frame *frame, Stack_Frame **prev);
+
+#define stack_for_reversed(It, Stack_)      \
+for (                                       \
+    Stack_Frame *It =                       \
+        stack_is_empty((Stack_))            \
+            ? nullptr                       \
+            : stack_top((Stack_));          \
+    nullptr != It;                          \
+    stack_try_get_prev((Stack_), It, &It)   \
+        ? nullptr                           \
+        : (It = nullptr)                    \
+)

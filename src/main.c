@@ -8,6 +8,7 @@
 #include "vm/primitives.h"
 #include "vm/eval.h"
 #include "vm/virtual_machine.h"
+#include "vm/traceback.h"
 
 static bool try_shift_args(int *argc, char ***argv, char **arg) {
     if (*argc <= 0) {
@@ -53,7 +54,7 @@ static bool try_eval_input(VirtualMachine *vm, Object *env) {
             continue;
         }
 
-        stack_print_traceback(vm_stack(vm), stdout);
+        traceback_print_from_stack(vm_stack(vm), stdout);
         break;
     }
 
@@ -90,7 +91,7 @@ static bool try_eval_file(VirtualMachine *vm, NamedFile file, Object *env) {
             continue;
         }
 
-        stack_print_traceback(vm_stack(vm), stdout);
+        traceback_print_from_stack(vm_stack(vm), stdout);
         return false;
     }
 
@@ -106,7 +107,7 @@ int main(int argc, char **argv) {
                     .soft_limit_initial = 1024,
                     .soft_limit_grow_factor = 1.25
             },
-            .stack_size = 384
+            .stack_size = 512
     });
     auto env = env_default(vm_allocator(vm));
 

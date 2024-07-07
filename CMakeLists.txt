@@ -25,6 +25,8 @@ add_executable(persimmon
         src/vm/eval_errors.c
         src/utility/pointers.c
         src/vm/virtual_machine.c
+        src/vm/traceback.c
+        src/vm/traceback.h
 )
 
 target_compile_options(persimmon PRIVATE

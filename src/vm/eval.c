@@ -76,6 +76,10 @@ static bool try_begin_eval(
                         printf("Usage:\n");
                         printf("    (if cond then)\n");
                         printf("    (if cond then else)\n");
+                        printf("In:\n");
+                        printf("    ");
+                        object_repr_print(expr, stdout);
+                        printf("\n");
                         return false;
                     }
 
@@ -108,6 +112,10 @@ static bool try_begin_eval(
                         printf("SpecialFormError: define takes 2 arguments but %zu were given\n", len);
                         printf("Usage:\n");
                         printf("    (define name value)\n");
+                        printf("In:\n");
+                        printf("    ");
+                        object_repr_print(expr, stdout);
+                        printf("\n");
                         return false;
                     }
 
@@ -128,6 +136,10 @@ static bool try_begin_eval(
                         printf("SpecialFormError: fn takes at least 2 arguments but %zu were given\n", len);
                         printf("Usage:\n");
                         printf("    (fn (args*) x & more)\n");
+                        printf("In:\n");
+                        printf("    ");
+                        object_repr_print(expr, stdout);
+                        printf("\n");
                         return false;
                     }
 
@@ -136,6 +148,10 @@ static bool try_begin_eval(
                         printf("SpecialFormError: invalid fn syntax\n");
                         printf("Usage:\n");
                         printf("    (fn (args*) x & more)\n");
+                        printf("In:\n");
+                        printf("    ");
+                        object_repr_print(expr, stdout);
+                        printf("\n");
                         return false;
                     }
 
@@ -149,6 +165,10 @@ static bool try_begin_eval(
                         );
                         printf("Usage:\n");
                         printf("    (fn (args*) x & more)\n");
+                        printf("In:\n");
+                        printf("    ");
+                        object_repr_print(expr, stdout);
+                        printf("\n");
                         return false;
                     }
 
@@ -169,6 +189,10 @@ static bool try_begin_eval(
                         printf("SpecialFormError: import takes 1 argument but %zu were given\n", len);
                         printf("Usage:\n");
                         printf("    (import path)\n");
+                        printf("In:\n");
+                        printf("    ");
+                        object_repr_print(expr, stdout);
+                        printf("\n");
                         return false;
                     }
 
@@ -180,6 +204,10 @@ static bool try_begin_eval(
                         );
                         printf("Usage:\n");
                         printf("    (import path)\n");
+                        printf("In:\n");
+                        printf("    ");
+                        object_repr_print(expr, stdout);
+                        printf("\n");
                         return false;
                     }
 
@@ -353,8 +381,11 @@ static bool try_step(VirtualMachine *vm) {
                 return try_begin_eval(vm, frame->env, object_list_nth(frame->unevaluated, 1), &frame->evaluated);
             }
 
-            env_try_define(a, frame->env, object_as_cons(frame->unevaluated).first,
-                           object_as_cons(frame->evaluated).first);
+            env_try_define(
+                    a, frame->env,
+                    object_as_cons(frame->unevaluated).first,
+                    object_as_cons(frame->evaluated).first
+            );
             auto const ok = try_push_result(a, frame->results_list, object_as_cons(frame->evaluated).first);
             stack_pop(s);
             return ok;
@@ -384,6 +415,7 @@ bool try_eval(
         return false;
     }
 
+    // TODO create a stacktrace on error
     while (false == stack_is_empty(vm_stack(vm))) {
         if (try_step(vm)) {
             continue;
