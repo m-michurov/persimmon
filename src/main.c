@@ -55,6 +55,7 @@ static bool try_eval_input(VirtualMachine *vm, Object *env) {
         }
 
         traceback_print_from_stack(vm_stack(vm), stdout);
+        while (false == stack_is_empty(vm_stack(vm))) { stack_pop(vm_stack(vm)); }
         break;
     }
 
@@ -92,6 +93,7 @@ static bool try_eval_file(VirtualMachine *vm, NamedFile file, Object *env) {
         }
 
         traceback_print_from_stack(vm_stack(vm), stdout);
+        while (false == stack_is_empty(vm_stack(vm))) { stack_pop(vm_stack(vm)); }
         return false;
     }
 
