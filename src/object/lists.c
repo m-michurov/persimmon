@@ -58,18 +58,22 @@ void object_list_reverse(Object **list) {
     *list = prev;
 }
 
-Object *object_list_nth(Object *list, size_t n) {
+Object **object_list_nth(Object *list, size_t n) {
     guard_is_not_null(list);
     guard_is_one_of(list->type, TYPE_CONS, TYPE_NIL);
 
     size_t i = 0;
-    object_list_for(it, list) {
+    for (auto it = list; object_nil() != it; it = it->as_cons.rest) {
+        if (TYPE_CONS != it->type) {
+            break;
+        }
+
         if (i < n) {
             i++;
             continue;
         }
 
-        return it;
+        return &it->as_cons.first;
     }
 
     guard_assert(false, "list index %zu is out of range for prim_list_list of %zu elements", n, i);

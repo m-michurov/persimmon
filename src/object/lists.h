@@ -29,7 +29,7 @@ size_t object_list_count(Object *list);
 
 void object_list_reverse(Object **list);
 
-Object *object_list_nth(Object *list, size_t n);
+Object **object_list_nth(Object *list, size_t n);
 
 Object *object_list_skip(Object *list, size_t n);
 

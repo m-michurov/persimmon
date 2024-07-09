@@ -25,9 +25,9 @@ static bool try_shift_args(int *argc, char ***argv, char **arg) {
     return true;
 }
 
-static void env_init_default(ObjectAllocator *a, Object **env) {
-    guard_is_true(env_try_create(a, object_nil(), env));
-    define_primitives(a, *env);
+static bool try_env_init_default(ObjectAllocator *a, Object **env) {
+    return env_try_create(a, object_nil(), env)
+           && try_define_primitives(a, *env);
 }
 
 static bool try_eval_input(VirtualMachine *vm) {
@@ -114,7 +114,11 @@ int main(int argc, char **argv) {
             },
             .import_stack_size = 2
     });
-    env_init_default(vm_allocator(vm), vm_globals(vm));
+    if (false == try_env_init_default(vm_allocator(vm), vm_globals(vm))) {
+        printf("Not enough memory to define basic functions\n");
+        vm_free(&vm);
+        return EXIT_FAILURE;
+    }
 
     char *file_name;
     bool ok = true;

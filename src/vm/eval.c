@@ -212,7 +212,10 @@ static bool try_step(VirtualMachine *vm) {
             }
             object_list_for(formal, formal_args) {
                 auto const actual = object_as_cons(args).first;
-                env_try_define(a, arg_bindings, formal, actual);
+                if (false == env_try_define(a, arg_bindings, formal, actual, nullptr)) {
+                    print_out_of_memory_error(a);
+                    return false;
+                }
                 args = object_as_cons(args).rest;
             }
 
@@ -343,13 +346,13 @@ static bool try_step(VirtualMachine *vm) {
 
                 return try_begin_eval(
                         vm, EVAL_FRAME_KEEP,
-                        frame->env, object_list_nth(frame->unevaluated, 1), &frame->evaluated
+                        frame->env, *object_list_nth(frame->unevaluated, 1), &frame->evaluated
                 );
             }
 
             auto const name = object_as_cons(frame->unevaluated).first;
             auto const value = object_as_cons(frame->evaluated).first;
-            if (false == env_try_define(a, frame->env, name, value)) {
+            if (false == env_try_define(a, frame->env, name, value, nullptr)) {
                 print_out_of_memory_error(a);
                 return false;
             }

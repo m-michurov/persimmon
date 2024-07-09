@@ -4,7 +4,6 @@
 
 #include "object/lists.h"
 #include "object/constructors.h"
-#include "object/constructors_unchecked.h"
 #include "object/accessors.h"
 #include "object/env.h"
 #include "utility/guards.h"
@@ -241,16 +240,23 @@ static bool prim_list_prepend(ObjectAllocator *a, Object *args, Object **value) 
     error(print_out_of_memory_error, (a));
 }
 
-void define_primitives(ObjectAllocator *a, Object *env) {
-    env_try_define(a, env, object_atom(a, "print"), object_primitive(a, prim_print));
-    env_try_define(a, env, object_atom(a, "+"), object_primitive(a, prim_plus));
-    env_try_define(a, env, object_atom(a, "-"), object_primitive(a, prim_minus));
-    env_try_define(a, env, object_atom(a, "*"), object_primitive(a, prim_mul));
-    env_try_define(a, env, object_atom(a, "/"), object_primitive(a, prim_div));
-    env_try_define(a, env, object_atom(a, "list"), object_primitive(a, prim_list_list));
-    env_try_define(a, env, object_atom(a, "first"), object_primitive(a, prim_list_first));
-    env_try_define(a, env, object_atom(a, "rest"), object_primitive(a, prim_list_rest));
-    env_try_define(a, env, object_atom(a, "prepend"), object_primitive(a, prim_list_prepend));
-    env_try_define(a, env, object_atom(a, "eq?"), object_primitive(a, prim_eq));
+static bool try_define(ObjectAllocator *a, Object *env, char const *name, Object_Primitive value) {
+    Object *binding;
+    return env_try_define(a, env, object_nil(), object_nil(), &binding)
+           && object_try_make_atom(a, name, object_list_nth(binding, 0))
+           && object_try_make_primitive(a, value, object_list_nth(binding, 1));
+}
+
+bool try_define_primitives(ObjectAllocator *a, Object *env) {
+    return try_define(a, env, "print", prim_print)
+           && try_define(a, env, "+", prim_plus)
+           && try_define(a, env, "-", prim_minus)
+           && try_define(a, env, "*", prim_mul)
+           && try_define(a, env, "/", prim_div)
+           && try_define(a, env, "list", prim_list_list)
+           && try_define(a, env, "first", prim_list_first)
+           && try_define(a, env, "rest", prim_list_rest)
+           && try_define(a, env, "prepend", prim_list_prepend)
+           && try_define(a, env, "eq?", prim_eq);
 }
 
