@@ -9,9 +9,11 @@
 
 bool object_try_make_list_(ObjectAllocator *a, Object **list, ...) {
     guard_is_not_null(a);
+    guard_is_not_null(list);
+    guard_is_not_null(*list);
 
-    // FIXME make a root
-    auto head = object_nil();
+    *list = object_nil();
+
     va_list args;
     va_start(args, list);
     while (true) {
@@ -20,13 +22,12 @@ bool object_try_make_list_(ObjectAllocator *a, Object **list, ...) {
             break;
         }
 
-        if (false == object_try_make_cons(a, arg, head, &head)) {
+        if (false == object_try_make_cons(a, arg, *list, list)) {
             return false;
         }
     }
 
-    object_list_reverse(&head);
-    *list = head;
+    object_list_reverse(list);
     return true;
 }
 

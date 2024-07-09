@@ -19,12 +19,13 @@ bool env_try_define(ObjectAllocator *a, Object *env, Object *name, Object *value
     guard_is_not_null(value);
     guard_is_equal(env->type, TYPE_CONS);
 
-    // FIXME make a root
-    Object *binding;
-    if (false == object_try_make_list(a, &binding, name, value)) {
+    auto const current_env = &env->as_cons.first;
+    if (false == object_try_make_cons(a, object_nil(), *current_env, current_env)) {
         return false;
     }
-    return object_try_make_cons(a, binding, env->as_cons.first, &env->as_cons.first);
+
+    auto const binding = &(*current_env)->as_cons.first;
+    return object_try_make_list(a, binding, name, value);
 }
 
 bool env_try_find(Object *env, Object *name, Object **value) {
