@@ -390,7 +390,7 @@ static bool try_step(VirtualMachine *vm) {
                 return false;
             }
             fclose(handle);
-            da_append(&exprs, object_nil());
+            guard_is_true(da_try_append(&exprs, object_nil()));
 
             auto exprs_list = object_nil();
             slice_for(it, exprs) {
@@ -425,7 +425,7 @@ bool try_eval(
     guard_is_not_null(error);
 
     slice_clear(vm_temporaries(vm));
-    da_append(vm_temporaries(vm), object_nil());
+    guard_is_true(da_try_append(vm_temporaries(vm), object_nil()));
     auto result = slice_last(*vm_temporaries(vm));
     if (false == try_begin_eval(vm, EVAL_FRAME_KEEP, env, expr, result)) {
         return false;

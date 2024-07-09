@@ -95,7 +95,7 @@ bool parser_try_accept(Parser *p, Token token, SyntaxError *error) {
             return true;
         }
         case TOKEN_OPEN_PAREN: {
-            da_append(&p->stack, ((Parser_Expression) {.last = object_nil(), .begin = token.pos}));
+            guard_is_true(da_try_append(&p->stack, ((Parser_Expression) {.last = object_nil(), .begin = token.pos})));
             return true;
         }
         case TOKEN_CLOSE_PAREN: {

@@ -9,6 +9,7 @@
 #include "vm/eval.h"
 #include "vm/virtual_machine.h"
 #include "vm/traceback.h"
+#include "vm/eval_errors.h"
 
 static bool try_shift_args(int *argc, char ***argv, char **arg) {
     if (*argc <= 0) {
@@ -32,9 +33,9 @@ static Object *env_default(ObjectAllocator *a) {
 }
 
 static bool try_eval_input(VirtualMachine *vm, Object *env) {
-    auto const named_stdin = (NamedFile) {.name = "<stdin>", .handle = stdin};
+    guard_is_true(da_try_append(vm_temporaries(vm), env));
 
-    da_append(vm_temporaries(vm), env);
+    auto const named_stdin = (NamedFile) {.name = "<stdin>", .handle = stdin};
     auto const exprs_begin = vm_temporaries(vm)->count;
 
     if (false == reader_try_prompt(vm_reader(vm), named_stdin, vm_temporaries(vm))) {
@@ -74,7 +75,7 @@ static void run_repl(VirtualMachine *vm, Object *env) {
 }
 
 static bool try_eval_file(VirtualMachine *vm, NamedFile file, Object *env) {
-    da_append(vm_temporaries(vm), env);
+    guard_is_true(da_try_append(vm_temporaries(vm), env));
     auto const exprs_begin = vm_temporaries(vm)->count;
 
     if (false == reader_try_read_all(vm_reader(vm), file, vm_temporaries(vm))) {

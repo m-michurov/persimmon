@@ -56,7 +56,7 @@ void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots) {
 static void mark_gray(Objects *gray, Object *obj) {
     guard_is_equal(obj->color, OBJECT_WHITE);
 
-    da_append(gray, obj);
+    guard_is_true(da_try_append(gray, obj));
     obj->color = OBJECT_GRAY;
 }
 

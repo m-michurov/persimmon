@@ -135,7 +135,7 @@ static bool try_parse_line(
             continue;
         }
 
-        da_append(exprs, expr); // NOLINT(*-sizeof-expression)
+        guard_is_true(da_try_append(exprs, expr)); // NOLINT(*-sizeof-expression)
     }
 
     return true;
