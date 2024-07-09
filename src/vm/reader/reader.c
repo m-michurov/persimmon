@@ -4,10 +4,12 @@
 
 #include "utility/guards.h"
 #include "utility/slice.h"
-#include "utility/dynamic_array.h"
 #include "utility/strings.h"
 #include "utility/exchange.h"
 #include "utility/arena_append.h"
+#include "object/constructors.h"
+#include "object/lists.h"
+#include "vm/eval_errors.h"
 #include "line_reader.h"
 #include "scanner.h"
 #include "parser.h"
@@ -55,17 +57,19 @@ typedef struct {
 } Lines;
 
 struct Reader {
+    ObjectAllocator *a;
     Scanner *s;
     Parser *p;
 };
 
-Reader *reader_new(ObjectAllocator *a) {
+Reader *reader_new(ObjectAllocator *a, Reader_Config config) {
     guard_is_not_null(a);
 
     auto const r = (Reader *) guard_succeeds(calloc, (1, sizeof(Reader)));
     *r = (Reader) {
+            .a = a,
             .s = scanner_new(),
-            .p = parser_new(a)
+            .p = parser_new(a, config.parser_config)
     };
     return r;
 }
@@ -86,7 +90,7 @@ void reader_reset(Reader *r) {
     parser_reset(r->p);
 }
 
-struct Parser_Stack const *reader_parser_stack(Reader const *r) {
+struct Parser_ExpressionsStack const *reader_parser_stack(Reader const *r) {
     guard_is_not_null(r);
 
     return parser_stack(r->p);
@@ -99,10 +103,11 @@ Object *const *reader_parser_expr(Reader const *r) {
 }
 
 static bool try_parse_line(
+        ObjectAllocator *a,
         Scanner *t,
         Parser *p,
         Line line,
-        Objects *exprs,
+        Object **exprs,
         SyntaxError *error
 ) {
     guard_is_not_null(t);
@@ -135,7 +140,12 @@ static bool try_parse_line(
             continue;
         }
 
-        guard_is_true(da_try_append(exprs, expr)); // NOLINT(*-sizeof-expression)
+        if (object_try_make_cons(a, expr, *exprs, exprs)) {
+            return true;
+        }
+
+        print_out_of_memory_error(a);
+        return false;
     }
 
     return true;
@@ -149,7 +159,7 @@ static bool try_prompt(
         LineReader *line_reader,
         Arena *lines_arena,
         char const *file_name,
-        Objects *exprs
+        Object **exprs
 ) {
     guard_is_not_null(r);
     guard_is_not_null(exprs);
@@ -171,7 +181,7 @@ static bool try_prompt(
         }
 
         SyntaxError error;
-        if (try_parse_line(r->s, r->p, line, exprs, &error)) {
+        if (try_parse_line(r->a, r->s, r->p, line, exprs, &error)) {
             continue;
         }
 
@@ -187,7 +197,7 @@ static bool try_read_all(
         LineReader *line_reader,
         Arena *lines_arena,
         char const *file_name,
-        Objects *exprs
+        Object **exprs
 ) {
     guard_is_not_null(r);
 
@@ -199,7 +209,7 @@ static bool try_read_all(
         arena_append(lines_arena, &lines, line);
 
         SyntaxError error;
-        if (false == try_parse_line(r->s, r->p, line, exprs, &error)) {
+        if (false == try_parse_line(r->a, r->s, r->p, line, exprs, &error)) {
             reader_print_error(error, file_name, slice_at(lines, error.pos.lineno - 1)->data);
             return false;
         }
@@ -217,13 +227,14 @@ static bool try_read_all(
 static bool reader_call(
         Reader *r,
         NamedFile file,
-        Objects *exprs,
-        bool (*fn)(Reader *, LineReader *, Arena *, char const *, Objects *)
+        Object **exprs,
+        bool (*fn)(Reader *, LineReader *, Arena *, char const *, Object **)
 ) {
     auto lines_arena = (Arena) {0};
     auto line_reader = line_reader_new(file.handle);
 
     auto const ok = fn(r, line_reader, &lines_arena, file.name, exprs);
+    object_list_reverse(exprs);
 
     arena_free(&lines_arena);
     line_reader_free(&line_reader);
@@ -231,10 +242,10 @@ static bool reader_call(
     return ok;
 }
 
-bool reader_try_prompt(Reader *r, NamedFile file, Objects *exprs) {
+bool reader_try_prompt(Reader *r, NamedFile file, Object **exprs) {
     return reader_call(r, file, exprs, try_prompt);
 }
 
-bool reader_try_read_all(Reader *r, NamedFile file, Objects *exprs) {
+bool reader_try_read_all(Reader *r, NamedFile file, Object **exprs) {
     return reader_call(r, file, exprs, try_read_all);
 }

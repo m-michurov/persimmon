@@ -8,7 +8,6 @@
 #include "object/constructors.h"
 #include "object/env.h"
 #include "utility/slice.h"
-#include "utility/dynamic_array.h"
 #include "utility/guards.h"
 #include "reader/reader.h"
 #include "stack.h"
@@ -377,24 +376,36 @@ static bool try_step(VirtualMachine *vm) {
                 return false;
             }
 
+            if (false == slice_try_append(vm_expressions_stack(vm), object_nil())) {
+                // FIXME proper error
+                printf("Too many source code files\n");
+                print_out_of_memory_error(a);
+                return false;
+            }
+
             auto const handle = fopen(file_name->as_string, "rb");
             if (nullptr == handle) {
                 printf("ImportError: %s - %s\n", file_name->as_string, strerror(errno));
                 return false;
             }
+            auto const exprs = slice_last(*vm_expressions_stack(vm));
             auto const file = (NamedFile) {.name = file_name->as_string, .handle = handle};
-
-            auto exprs = (Objects) {0};
-            if (false == reader_try_read_all(vm_reader(vm), file, &exprs)) {
+            if (false == reader_try_read_all(vm_reader(vm), file, exprs)) {
                 fclose(handle);
                 return false;
             }
             fclose(handle);
-            guard_is_true(da_try_append(&exprs, object_nil()));
+
+            object_list_reverse(exprs);
+            if (false == object_try_make_cons(a, object_nil(), *exprs, exprs)) {
+                print_out_of_memory_error(a);
+                return false;
+            }
+            object_list_reverse(exprs);
 
             auto exprs_list = object_nil();
-            slice_for(it, exprs) {
-                if (object_try_make_cons(a, *it, exprs_list, &exprs_list)) {
+            object_list_for(it, *exprs) {
+                if (object_try_make_cons(a, it, exprs_list, &exprs_list)) {
                     continue;
                 }
 
@@ -404,6 +415,7 @@ static bool try_step(VirtualMachine *vm) {
             object_list_reverse(&exprs_list);
 
             stack_swap_top(s, frame_make(FRAME_DO, frame->expr, frame->env, frame->results_list, exprs_list));
+            slice_try_pop(vm_expressions_stack(vm), nullptr);
             return true;
         }
     }
@@ -424,10 +436,8 @@ bool try_eval(
     guard_is_not_null(value);
     guard_is_not_null(error);
 
-    slice_clear(vm_temporaries(vm));
-    guard_is_true(da_try_append(vm_temporaries(vm), object_nil()));
-    auto result = slice_last(*vm_temporaries(vm));
-    if (false == try_begin_eval(vm, EVAL_FRAME_KEEP, env, expr, result)) {
+    auto result = object_nil();
+    if (false == try_begin_eval(vm, EVAL_FRAME_KEEP, env, expr, &result)) {
         return false;
     }
 
@@ -441,6 +451,6 @@ bool try_eval(
     }
     guard_is_true(stack_is_empty(vm_stack(vm)));
 
-    *value = object_as_cons(*result).first;
+    *value = object_as_cons(result).first;
     return true;
 }

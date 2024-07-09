@@ -49,8 +49,9 @@ void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots) {
     a->roots.stack = pointer_first_nonnull(a->roots.stack, roots.stack);
     a->roots.parser_stack = pointer_first_nonnull(a->roots.parser_stack, roots.parser_stack);
     a->roots.parser_expr = pointer_first_nonnull(a->roots.parser_expr, roots.parser_expr);
+    a->roots.globals = pointer_first_nonnull(a->roots.globals, roots.globals);
+    a->roots.vm_expressions_stack = pointer_first_nonnull(a->roots.vm_expressions_stack, roots.vm_expressions_stack);
     a->roots.constants = pointer_first_nonnull(a->roots.constants, roots.constants);
-    a->roots.temporaries = pointer_first_nonnull(a->roots.temporaries, roots.temporaries);
 }
 
 static void mark_gray(Objects *gray, Object *obj) {
@@ -179,7 +180,9 @@ static bool all_roots_set(ObjectAllocator const *a) {
     return nullptr != a->roots.stack
            && nullptr != a->roots.parser_stack
            && nullptr != a->roots.parser_expr
-           && nullptr != a->roots.temporaries;
+           && nullptr != a->roots.globals
+           && nullptr != a->roots.vm_expressions_stack
+           && nullptr != a->roots.constants;
 }
 
 bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {

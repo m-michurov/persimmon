@@ -31,13 +31,17 @@ Stack_Frame frame_make(
 
 typedef struct Stack Stack;
 
-Stack *stack_new(size_t size_bytes);
+typedef struct {
+    size_t size_bytes;
+} Stack_Config;
+
+Stack *stack_new(Stack_Config config);
 
 void stack_free(Stack **s);
 
 bool stack_is_empty(Stack const *s);
 
-Stack_Frame *stack_top(Stack const*s);
+Stack_Frame *stack_top(Stack const *s);
 
 void stack_pop(Stack *s);
 

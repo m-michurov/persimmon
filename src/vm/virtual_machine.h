@@ -10,7 +10,9 @@ typedef struct VirtualMachine VirtualMachine;
 
 typedef struct {
     ObjectAllocator_Config allocator_config;
-    size_t stack_size;
+    Reader_Config reader_config;
+    Stack_Config stack_config;
+    size_t import_stack_size;
 } VirtualMachine_Config;
 
 VirtualMachine *vm_new(VirtualMachine_Config config);
@@ -23,7 +25,16 @@ Stack *vm_stack(VirtualMachine *vm);
 
 Reader *vm_reader(VirtualMachine *vm);
 
-Objects *vm_temporaries(VirtualMachine *vm);
+Object **vm_globals(VirtualMachine *vm);
+
+typedef struct VM_ExpressionsStack VM_ExpressionsStack;
+struct VM_ExpressionsStack {
+    Object **const data;
+    size_t count;
+    size_t const capacity;
+};
+
+VM_ExpressionsStack *vm_expressions_stack(VirtualMachine *vm);
 
 typedef enum {
     STATIC_NIL = 0,

@@ -10,15 +10,20 @@ typedef struct {
     Position begin;
 } Parser_Expression;
 
-typedef struct Parser_Stack {
-    Parser_Expression *data;
+typedef struct Parser_ExpressionsStack Parser_ExpressionsStack;
+struct Parser_ExpressionsStack {
+    Parser_Expression *const data;
     size_t count;
-    size_t capacity;
-} Parser_Stack;
+    size_t const capacity;
+};
 
 typedef struct Parser Parser;
 
-Parser *parser_new(ObjectAllocator *a);
+typedef struct {
+    size_t max_nesting_depth;
+} Parser_Config;
+
+Parser *parser_new(ObjectAllocator *a, Parser_Config config);
 
 void parser_free(Parser **p);
 
@@ -30,6 +35,6 @@ bool parser_try_accept(Parser *p, Token token, SyntaxError *error);
 
 bool parser_try_get_expression(Parser *p, Object **expression);
 
-Parser_Stack const *parser_stack(Parser const *p);
+Parser_ExpressionsStack const *parser_stack(Parser const *p);
 
 Object *const *parser_expression(Parser const *p);

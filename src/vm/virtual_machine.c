@@ -2,7 +2,6 @@
 
 #include "reader/reader.h"
 #include "utility/guards.h"
-#include "utility/dynamic_array.h"
 #include "utility/slice.h"
 #include "object/constructors_unchecked.h"
 #include "stack.h"
@@ -11,7 +10,9 @@ struct VirtualMachine {
     Reader *reader;
     ObjectAllocator *allocator;
     Stack *stack;
-    Objects temporaries;
+
+    Object *globals;
+    VM_ExpressionsStack expressions_stack;
 
     Objects constants;
 };
@@ -47,29 +48,38 @@ static void init_constants(ObjectAllocator *a, Objects *constants) {
 }
 
 VirtualMachine *vm_new(VirtualMachine_Config config) {
+    guard_is_greater(config.import_stack_size, 0);
+
     auto const vm = (VirtualMachine *) guard_succeeds(calloc, (1, sizeof(VirtualMachine)));
 
     auto const allocator = allocator_new(config.allocator_config);
-    auto const reader = reader_new(allocator);
-    auto const stack = stack_new(config.stack_size);
+    auto const reader = reader_new(allocator, config.reader_config);
+    auto const stack = stack_new(config.stack_config);
 
     auto const constants = (Objects) {
             .data = (Object **) guard_succeeds(calloc, (STATIC_CONSTANTS_COUNT, sizeof(Object *))),
             .count = STATIC_CONSTANTS_COUNT,
     };
 
-    *vm = (VirtualMachine) {
+    memcpy(vm, &(VirtualMachine) {
             .allocator = allocator,
             .reader = reader,
             .stack = stack,
+            .globals = object_nil(),
+            .expressions_stack = {
+                    .data = guard_succeeds(calloc, (config.import_stack_size, sizeof(Object *))),
+                    .capacity = config.import_stack_size
+            },
             .constants = constants
-    };
+    }, sizeof(VirtualMachine));
 
     allocator_set_roots(allocator, (ObjectAllocator_Roots) {
-            .temporaries = &vm->temporaries,
             .stack = vm->stack,
             .parser_stack = reader_parser_stack(vm->reader),
-            .parser_expr = reader_parser_expr(vm->reader)
+            .parser_expr = reader_parser_expr(vm->reader),
+            .globals = &vm->globals,
+            .vm_expressions_stack = &vm->expressions_stack,
+            .constants = &vm->constants
     });
 
     init_constants(allocator, &vm->constants);
@@ -83,7 +93,6 @@ void vm_free(VirtualMachine **vm) {
     reader_free(&(*vm)->reader);
     allocator_free(&(*vm)->allocator);
     stack_free(&(*vm)->stack);
-    da_free(&(*vm)->temporaries);
 
     free(*vm);
     *vm = nullptr;
@@ -107,10 +116,16 @@ Reader *vm_reader(VirtualMachine *vm) {
     return vm->reader;
 }
 
-Objects *vm_temporaries(VirtualMachine *vm) {
+Object **vm_globals(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    return &vm->temporaries;
+    return &vm->globals;
+}
+
+VM_ExpressionsStack *vm_expressions_stack(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    return &vm->expressions_stack;
 }
 
 Object *vm_get(VirtualMachine *vm, StaticConstantName name) {

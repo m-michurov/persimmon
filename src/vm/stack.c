@@ -19,9 +19,11 @@ struct Stack {
     uint8_t data[];
 };
 
-Stack *stack_new(size_t size_bytes) {
-    auto const s = (Stack *) guard_succeeds(calloc, (sizeof(Stack) + size_bytes, 1));
-    s->end = s->data + size_bytes;
+Stack *stack_new(Stack_Config config) {
+    guard_is_greater(config.size_bytes, 0);
+
+    auto const s = (Stack *) guard_succeeds(calloc, (sizeof(Stack) + config.size_bytes, 1));
+    s->end = s->data + config.size_bytes;
     return s;
 }
 

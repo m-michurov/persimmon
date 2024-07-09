@@ -4,20 +4,26 @@
 #include "object/lists.h"
 #include "object/constructors_unchecked.h"
 #include "utility/slice.h"
-#include "utility/dynamic_array.h"
 
 struct Parser {
     ObjectAllocator *a;
-    Parser_Stack stack;
+    Parser_ExpressionsStack stack;
     bool has_expr;
     Object *expr;
 };
 
-Parser *parser_new(ObjectAllocator *a) {
+Parser *parser_new(ObjectAllocator *a, Parser_Config config) {
     guard_is_not_null(a);
+    guard_is_greater(config.max_nesting_depth, 0);
 
     auto const p = (Parser *) guard_succeeds(calloc, (1, sizeof(Parser)));
-    *p = (Parser) {.a = a};
+    memcpy(p, &((Parser) {
+            .a = a,
+            .stack = {
+                    .data = guard_succeeds(calloc, (config.max_nesting_depth, sizeof(Parser_Expression))),
+                    .capacity = config.max_nesting_depth
+            }
+    }), sizeof(Parser));
     return p;
 }
 
@@ -25,7 +31,7 @@ void parser_free(Parser **p) {
     guard_is_not_null(p);
     guard_is_not_null(*p);
 
-    da_free(&(*p)->stack);
+    free((void *) (*p)->stack.data);
     free(*p);
     *p = nullptr;
 }
@@ -35,7 +41,7 @@ void parser_reset(Parser *p) {
     p->has_expr = false;
 }
 
-Parser_Stack const *parser_stack(Parser const *p) {
+Parser_ExpressionsStack const *parser_stack(Parser const *p) {
     return &p->stack;
 }
 
@@ -95,8 +101,15 @@ bool parser_try_accept(Parser *p, Token token, SyntaxError *error) {
             return true;
         }
         case TOKEN_OPEN_PAREN: {
-            guard_is_true(da_try_append(&p->stack, ((Parser_Expression) {.last = object_nil(), .begin = token.pos})));
-            return true;
+            if (slice_try_append(&p->stack, ((Parser_Expression) {.last = object_nil(), .begin = token.pos}))) {
+                return true;
+            }
+
+            *error = (SyntaxError) {
+                    .code = SYNTAX_ERROR_NESTING_TOO_DEEP,
+                    .pos = token.pos,
+            };
+            return false;
         }
         case TOKEN_CLOSE_PAREN: {
             if (slice_empty(p->stack)) {

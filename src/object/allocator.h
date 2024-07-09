@@ -15,14 +15,16 @@ ObjectAllocator *allocator_new(ObjectAllocator_Config config);
 void allocator_free(ObjectAllocator **a);
 
 struct Stack;
-struct Parser_Stack;
+struct Parser_ExpressionsStack;
+struct VM_ExpressionsStack;
 
 typedef struct {
     struct Stack const *stack;
-    struct Parser_Stack const *parser_stack;
+    struct Parser_ExpressionsStack const *parser_stack;
     Object *const *parser_expr;
+    Object *const *globals;
+    struct VM_ExpressionsStack const *vm_expressions_stack;
     Objects const *constants;
-    Objects const *temporaries;
 } ObjectAllocator_Roots;
 
 void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots);
