@@ -4,9 +4,11 @@
 
 typedef enum {
     FRAME_CALL,
+    FRAME_FN,
     FRAME_IF,
     FRAME_DO,
-    FRAME_DEFINE
+    FRAME_DEFINE,
+    FRAME_IMPORT
 } Stack_FrameType;
 
 typedef struct {
@@ -40,6 +42,8 @@ Stack_Frame *stack_top(Stack const*s);
 void stack_pop(Stack *s);
 
 bool stack_try_push_frame(Stack *s, Stack_Frame frame);
+
+void stack_swap_top(Stack *s, Stack_Frame frame);
 
 bool stack_try_create_local(Stack *s, Object ***obj);
 

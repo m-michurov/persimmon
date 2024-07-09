@@ -3,11 +3,7 @@
 #include "utility/guards.h"
 #include "utility/pointers.h"
 #include "utility/exchange.h"
-#include "utility/strings.h"
 #include "utility/container_of.h"
-#include "object/lists.h"
-#include "object/accessors.h"
-#include "object/constructors.h"
 
 typedef struct WrappedFrame WrappedFrame;
 struct WrappedFrame {
@@ -107,6 +103,14 @@ bool stack_try_push_frame(Stack *s, Stack_Frame frame) {
     s->top = wrapped_frame;
 
     return true;
+}
+
+void stack_swap_top(Stack *s, Stack_Frame frame) {
+    guard_is_not_null(s);
+    guard_is_false(stack_is_empty(s));
+
+    s->top->locals_end = s->top->locals;
+    s->top->frame = frame;
 }
 
 bool stack_try_create_local(Stack *s, Object ***obj) {
