@@ -36,7 +36,7 @@ void print_zero_division_error(void) {
     printf("ZeroDivisionError: division by zero\n");
 }
 
-void print_out_of_memory_error(ObjectAllocator *a) {
+void print_out_of_memory_error(ObjectAllocator const *a) {
     printf("OutOfMemoryError: cannot allocate more dynamic memory\n");
     allocator_print_statistics(a);
 }
