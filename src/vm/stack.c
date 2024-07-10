@@ -56,7 +56,8 @@ Stack_Frame frame_make(
             .env = env,
             .results_list = results_list,
             .unevaluated = unevaluated,
-            .evaluated = object_nil()
+            .evaluated = object_nil(),
+            .error = object_nil()
     };
 }
 

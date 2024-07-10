@@ -29,8 +29,10 @@ size_t object_list_count(Object *list);
 
 void object_list_reverse(Object **list);
 
-Object **object_list_nth(Object *list, size_t n);
+Object **object_list_nth(size_t n, Object *list);
 
 Object *object_list_skip(Object *list, size_t n);
 
 bool object_list_try_unpack_2(Object **_1, Object **_2, Object *list);
+
+bool object_list_try_get_tagged(Object *list, char const *tag, Object **value);

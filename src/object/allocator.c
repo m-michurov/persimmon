@@ -207,14 +207,14 @@ bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
     return true;
 }
 
-void allocator_print_statistics(ObjectAllocator const *a) {
+void allocator_print_statistics(ObjectAllocator const *a, FILE *file) {
     size_t objects = 0;
     for (auto it = a->objects; nullptr != it; it = it->next) {
         objects++;
     }
 
-    printf("Heap usage:\n");
-    printf("          Objects: %zu\n", objects);
-    printf("        Heap size: %zu bytes\n", a->heap_size);
-    printf("  Heap size limit: %zu bytes\n", a->hard_limit);
+    fprintf(file, "Heap usage:\n");
+    fprintf(file, "          Objects: %zu\n", objects);
+    fprintf(file, "        Heap size: %zu bytes\n", a->heap_size);
+    fprintf(file, "  Heap size limit: %zu bytes\n", a->hard_limit);
 }

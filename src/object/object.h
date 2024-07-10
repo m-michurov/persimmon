@@ -30,9 +30,9 @@ typedef struct {
     Object *rest;
 } Object_Cons;
 
-struct ObjectAllocator;
+struct VirtualMachine;
 
-typedef bool (*Object_Primitive)(struct ObjectAllocator *, Object *args, Object **value);
+typedef bool (*Object_Primitive)(struct VirtualMachine *, Object *args, Object **value, Object **error);
 
 typedef struct Object_Closure {
     Object *env;

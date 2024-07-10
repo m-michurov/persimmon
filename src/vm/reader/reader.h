@@ -19,7 +19,9 @@ typedef struct {
     Parser_Config parser_config;
 } Reader_Config;
 
-Reader *reader_new(ObjectAllocator *a, Reader_Config config);
+struct VirtualMachine;
+
+Reader *reader_new(struct VirtualMachine *vm, Reader_Config config);
 
 void reader_free(Reader **r);
 
@@ -31,6 +33,6 @@ struct Parser_ExpressionsStack const *reader_parser_stack(Reader const *r);
 
 Object *const *reader_parser_expr(Reader const *r);
 
-bool reader_try_prompt(Reader *r, NamedFile file, Object **exprs);
+bool reader_try_prompt(Reader *r, NamedFile file, Object **exprs, Object **error);
 
-bool reader_try_read_all(Reader *r, NamedFile file, Object **exprs);
+bool reader_try_read_all(Reader *r, NamedFile file, Object **exprs, Object **error);

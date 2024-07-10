@@ -3,7 +3,7 @@
 #include "reader/reader.h"
 #include "utility/guards.h"
 #include "utility/slice.h"
-#include "object/constructors_unchecked.h"
+#include "object/constructors.h"
 #include "stack.h"
 
 struct VirtualMachine {
@@ -29,22 +29,22 @@ struct VirtualMachine {
 //    STATIC_STACK_OVERFLOW_ERROR,
 //    STATIC_SYNTAX_ERROR,
 
-static void init_constants(ObjectAllocator *a, Objects *constants) {
+static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
     guard_is_not_null(a);
     guard_is_not_null(constants);
     guard_is_greater_or_equal(constants->count, STATIC_CONSTANTS_COUNT);
 
-    *slice_at(*constants, STATIC_NIL) = object_nil();
-    *slice_at(*constants, STATIC_TRUE) = object_atom(a, "true");
-    *slice_at(*constants, STATIC_FALSE) = object_atom(a, "false");
-    *slice_at(*constants, STATIC_IO_ERROR) = object_atom(a, "");
-    *slice_at(*constants, STATIC_TYPE_ERROR) = object_atom(a, "TypeError");
-    *slice_at(*constants, STATIC_CALL_ERROR) = object_atom(a, "CallError");
-    *slice_at(*constants, STATIC_NAME_ERROR) = object_atom(a, "NameError");
-    *slice_at(*constants, STATIC_ZERO_DIVISION_ERROR) = object_atom(a, "ZeroDivisionError");
-    *slice_at(*constants, STATIC_OUT_OF_MEMORY_ERROR) = object_atom(a, "OutOfMemoryError");
-    *slice_at(*constants, STATIC_STACK_OVERFLOW_ERROR) = object_atom(a, "StackOverflowError");
-    *slice_at(*constants, STATIC_SYNTAX_ERROR) = object_atom(a, "SyntaxError");
+    return object_try_make_atom(a, "true", slice_at(*constants, STATIC_TRUE))
+           && object_try_make_atom(a, "false", slice_at(*constants, STATIC_FALSE))
+           && object_try_make_atom(a, "OSError", slice_at(*constants, STATIC_OS_ERROR_NAME))
+           && object_try_make_atom(a, "TypeError", slice_at(*constants, STATIC_TYPE_ERROR_NAME))
+           && object_try_make_atom(a, "CallError", slice_at(*constants, STATIC_CALL_ERROR_NAME))
+           && object_try_make_atom(a, "NameError", slice_at(*constants, STATIC_NAME_ERROR_NAME))
+           && object_try_make_atom(a, "ZeroDivisionError", slice_at(*constants, STATIC_ZERO_DIVISION_ERROR_NAME))
+           && object_try_make_atom(a, "OutOfMemoryError", slice_at(*constants, STATIC_OUT_OF_MEMORY_ERROR_NAME))
+           && object_try_make_atom(a, "StackOverflowError", slice_at(*constants, STATIC_STACK_OVERFLOW_ERROR_NAME))
+              && object_try_make_atom(a, "SyntaxError", slice_at(*constants, STATIC_SYNTAX_ERROR_NAME))
+                 && object_try_make_atom(a, "ImportError", slice_at(*constants, STATIC_TOO_MANY_IMPORTS));
 }
 
 VirtualMachine *vm_new(VirtualMachine_Config config) {
@@ -53,7 +53,9 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
     auto const vm = (VirtualMachine *) guard_succeeds(calloc, (1, sizeof(VirtualMachine)));
 
     auto const allocator = allocator_new(config.allocator_config);
-    auto const reader = reader_new(allocator, config.reader_config);
+    vm->allocator = allocator;
+
+    auto const reader = reader_new(vm, config.reader_config);
     auto const stack = stack_new(config.stack_config);
 
     auto const constants = (Objects) {
@@ -82,7 +84,7 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
             .constants = &vm->constants
     });
 
-    init_constants(allocator, &vm->constants);
+    guard_is_true(try_init_static_constants(allocator, &vm->constants));
 
     return vm;
 }
@@ -128,8 +130,10 @@ VM_ExpressionsStack *vm_expressions_stack(VirtualMachine *vm) {
     return &vm->expressions_stack;
 }
 
-Object *vm_get(VirtualMachine *vm, StaticConstantName name) {
+Object *vm_get(VirtualMachine const *vm, StaticConstantName name) {
     guard_is_not_null(vm);
 
-    return *slice_at(vm->constants, name);
+    auto const value = *slice_at(vm->constants, name);
+    guard_is_not_null(value);
+    return value;
 }

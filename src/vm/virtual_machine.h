@@ -37,19 +37,20 @@ struct VM_ExpressionsStack {
 VM_ExpressionsStack *vm_expressions_stack(VirtualMachine *vm);
 
 typedef enum {
-    STATIC_NIL = 0,
     STATIC_TRUE,
     STATIC_FALSE,
-    STATIC_IO_ERROR,
-    STATIC_TYPE_ERROR,
-    STATIC_CALL_ERROR,
-    STATIC_NAME_ERROR,
-    STATIC_ZERO_DIVISION_ERROR,
-    STATIC_OUT_OF_MEMORY_ERROR,
-    STATIC_STACK_OVERFLOW_ERROR,
-    STATIC_SYNTAX_ERROR,
+
+    STATIC_OS_ERROR_NAME,
+    STATIC_TYPE_ERROR_NAME,
+    STATIC_CALL_ERROR_NAME,
+    STATIC_NAME_ERROR_NAME,
+    STATIC_ZERO_DIVISION_ERROR_NAME,
+    STATIC_OUT_OF_MEMORY_ERROR_NAME,
+    STATIC_STACK_OVERFLOW_ERROR_NAME,
+    STATIC_SYNTAX_ERROR_NAME,
+    STATIC_TOO_MANY_IMPORTS,
 
     STATIC_CONSTANTS_COUNT
 } StaticConstantName;
 
-Object *vm_get(VirtualMachine *vm, StaticConstantName name);
+Object *vm_get(VirtualMachine const *vm, StaticConstantName name);

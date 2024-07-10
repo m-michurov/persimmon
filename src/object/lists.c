@@ -10,7 +10,6 @@
 bool object_try_make_list_(ObjectAllocator *a, Object **list, ...) {
     guard_is_not_null(a);
     guard_is_not_null(list);
-    guard_is_not_null(*list);
 
     *list = object_nil();
 
@@ -58,7 +57,7 @@ void object_list_reverse(Object **list) {
     *list = prev;
 }
 
-Object **object_list_nth(Object *list, size_t n) {
+Object **object_list_nth(size_t n, Object *list) {
     guard_is_not_null(list);
     guard_is_one_of(list->type, TYPE_CONS, TYPE_NIL);
 
@@ -118,4 +117,27 @@ bool object_list_try_unpack_2(Object **_1, Object **_2, Object *list) {
     list = list->as_cons.rest;
     (void) list;
     return true;
+}
+
+bool object_list_try_get_tagged(Object *list, char const *tag, Object **value) {
+    guard_is_not_null(list);
+    guard_is_not_null(tag);
+    guard_is_not_null(value);
+
+    object_list_for(it, list) {
+        if (TYPE_CONS != it->type) {
+            continue;
+        }
+
+        Object *key;
+        if (false == object_list_try_unpack_2(&key, value, it)) {
+            continue;
+        }
+
+        if (TYPE_ATOM == key->type && 0 == strcmp(tag, key->as_atom)) {
+            return true;
+        }
+    }
+
+    return false;
 }

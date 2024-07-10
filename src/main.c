@@ -9,7 +9,7 @@
 #include "vm/eval.h"
 #include "vm/virtual_machine.h"
 #include "vm/traceback.h"
-#include "vm/eval_errors.h"
+#include "vm/errors.h"
 
 static bool try_shift_args(int *argc, char ***argv, char **arg) {
     if (*argc <= 0) {
@@ -30,33 +30,62 @@ static bool try_env_init_default(ObjectAllocator *a, Object **env) {
            && try_define_primitives(a, *env);
 }
 
+static void print_error(Object *error) {
+    printf("ERROR:\n");
+    if (TYPE_CONS != error->type) {
+        object_repr_print(error, stdout);
+        printf("\n");
+        return;
+    }
+
+    printf("(");
+    object_repr_print(error->as_cons.first, stdout);
+    printf("\n");
+
+    printf("    ");
+    object_repr_print(error->as_cons.rest->as_cons.first, stdout);
+
+    object_list_for(it, error->as_cons.rest->as_cons.rest) {
+        printf("\n    ");
+        object_repr_print(it, stdout);
+    }
+    printf(")\n");
+
+    Object *traceback;
+    if (object_list_try_get_tagged(error, "traceback", &traceback)) {
+        traceback_print(traceback, stdout);
+    }
+}
+
 static bool try_eval_input(VirtualMachine *vm) {
     auto const named_stdin = (NamedFile) {.name = "<stdin>", .handle = stdin};
 
     slice_try_append(vm_expressions_stack(vm), object_nil());
-    if (false == reader_try_prompt(vm_reader(vm), named_stdin, slice_last(*vm_expressions_stack(vm)))) {
+    Object *error;
+    if (false == reader_try_prompt(vm_reader(vm), named_stdin, slice_last(*vm_expressions_stack(vm)), &error)) {
+        slice_try_pop(vm_expressions_stack(vm), nullptr);
+        print_error(error);
         return true;
     }
 
     if (object_nil() == *slice_last(*vm_expressions_stack(vm))) {
+        slice_try_pop(vm_expressions_stack(vm), nullptr);
         return false;
     }
 
     object_list_for(it, *slice_last(*vm_expressions_stack(vm))) {
-        Object *value, *error;
+        Object *value;
         if (try_eval(vm, *vm_globals(vm), it, &value, &error)) {
             object_repr_print(value, stdout);
             printf("\n");
             continue;
         }
 
-        traceback_print_from_stack(vm_stack(vm), stdout);
-        while (false == stack_is_empty(vm_stack(vm))) {
-            stack_pop(vm_stack(vm));
-        }
+        print_error(error);
         break;
     }
 
+    slice_try_pop(vm_expressions_stack(vm), nullptr);
     return true;
 }
 
@@ -73,25 +102,30 @@ static void run_repl(VirtualMachine *vm) {
 
 static bool try_eval_file(VirtualMachine *vm, NamedFile file) {
     slice_try_append(vm_expressions_stack(vm), object_nil());
-    if (false == reader_try_read_all(vm_reader(vm), file, slice_last(*vm_expressions_stack(vm)))) {
+    Object *error;
+    if (false == reader_try_read_all(vm_reader(vm), file, slice_last(*vm_expressions_stack(vm)), &error)) {
+        slice_try_pop(vm_expressions_stack(vm), nullptr);
+        print_error(error);
         return false;
     }
 
     if (object_nil() == *slice_last(*vm_expressions_stack(vm))) {
+        slice_try_pop(vm_expressions_stack(vm), nullptr);
         return false;
     }
 
     object_list_for(it, *slice_last(*vm_expressions_stack(vm))) {
-        Object *value, *error;
+        Object *value;
         if (try_eval(vm, *vm_globals(vm), it, &value, &error)) {
             continue;
         }
 
-        traceback_print_from_stack(vm_stack(vm), stdout);
-        while (false == stack_is_empty(vm_stack(vm))) { stack_pop(vm_stack(vm)); }
+        print_error(error);
+        slice_try_pop(vm_expressions_stack(vm), nullptr);
         return false;
     }
 
+    slice_try_pop(vm_expressions_stack(vm), nullptr);
     return true;
 }
 
@@ -114,6 +148,19 @@ int main(int argc, char **argv) {
             },
             .import_stack_size = 2
     });
+
+//    Object *error;
+//    create_syntax_error(vm, (SyntaxError) {
+//            .code   = SYNTAX_ERROR_UNEXPECTED_CLOSE_PAREN,
+//            .pos = {
+//                    .lineno = 3,
+//                    .col = 7,
+//                    .end_col = 7
+//            }
+//    }, "main.lisp", "(a b c))", &error);
+//    object_repr_print(error, stdout);
+//    printf("\n");
+
     if (false == try_env_init_default(vm_allocator(vm), vm_globals(vm))) {
         printf("Not enough memory to define basic functions\n");
         vm_free(&vm);

@@ -87,21 +87,18 @@ static void print_env(Object *env, FILE *file) {
 void traceback_print_from_stack(Stack const *s, FILE *file) {
     guard_is_not_null(s);
     guard_is_not_null(file);
-
-    if (stack_is_empty(s)) {
-        return;
-    }
+    guard_is_false(stack_is_empty(s));
 
     fprintf(file, PRINT_HEADER);
-    auto is_top = true;
+//    auto is_top = true;
     stack_for_reversed(frame, s) {
         fprintf(file, PRINT_INDENT);
         object_repr_print(frame->expr, file);
         fprintf(file, "\n");
-        if (is_top) {
-            print_env(frame->env, file);
-        }
-        is_top = false;
+//        if (is_top) {
+//            print_env(frame->env, file);
+//        }
+//        is_top = false;
     }
     fprintf(file, PRINT_FOOTER);
 }
