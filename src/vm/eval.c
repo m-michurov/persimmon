@@ -378,12 +378,14 @@ static bool try_step(VirtualMachine *vm) {
             auto const handle = fopen(file_name->as_string, "rb");
             if (nullptr == handle) {
                 create_os_error(vm, errno, &frame->error);
+                slice_try_pop(vm_expressions_stack(vm), nullptr);
                 return false;
             }
             auto const exprs = slice_last(*vm_expressions_stack(vm));
             auto const file = (NamedFile) {.name = file_name->as_string, .handle = handle};
             if (false == reader_try_read_all(vm_reader(vm), file, exprs, &frame->error)) {
                 fclose(handle);
+                slice_try_pop(vm_expressions_stack(vm), nullptr);
                 return false;
             }
             fclose(handle);
@@ -391,6 +393,7 @@ static bool try_step(VirtualMachine *vm) {
             object_list_reverse(exprs);
             if (false == object_try_make_cons(a, object_nil(), *exprs, exprs)) {
                 create_out_of_memory_error(vm, &frame->error);
+                slice_try_pop(vm_expressions_stack(vm), nullptr);
                 return false;
             }
             object_list_reverse(exprs);
@@ -402,6 +405,7 @@ static bool try_step(VirtualMachine *vm) {
                 }
 
                 create_out_of_memory_error(vm, &frame->error);
+                slice_try_pop(vm_expressions_stack(vm), nullptr);
                 return false;
             }
             object_list_reverse(&exprs_list);
