@@ -16,7 +16,7 @@
 static void report_out_of_memory(VirtualMachine *vm, Object *error_type) {
     fprintf(
             stderr,
-            "Critical: ran out of memory when creating an exception of type %s.\n",
+            "ERROR: ran out of memory when creating an exception of type %s.\n",
             object_as_atom(error_type)
     );
     allocator_print_statistics(vm_allocator(vm), stderr);
@@ -104,7 +104,8 @@ void create_os_error(VirtualMachine *vm, errno_t error_code, Object **error) {
     auto const ok =
             object_try_make_list(a, error, type, object_nil(), object_nil())
             && try_create_string_field(vm, FIELD_MESSAGE, strerror(error_code), object_list_nth(++field_index, *error))
-            && try_create_traceback(vm, object_list_nth(++field_index, *error));
+            && try_create_traceback(vm, object_list_nth(++field_index, *error))
+            && false;
     if (ok) {
         return;
     }
@@ -280,10 +281,13 @@ void create_out_of_memory_error(VirtualMachine *vm, Object **error) {
     guard_is_not_null(vm);
     guard_is_not_null(error);
 
-    auto const type = vm_get(vm, STATIC_OS_ERROR_NAME);
+    auto const type = vm_get(vm, STATIC_OUT_OF_MEMORY_ERROR_NAME);
 
     *error = type;
-    report_out_of_memory(vm, type);
+    object_repr_print(type, stdout);
+    printf("\n");
+    allocator_print_statistics(vm_allocator(vm), stderr);
+    traceback_print_from_stack(vm_stack(vm), stderr);
 }
 
 void create_stack_overflow_error(VirtualMachine *vm, Object **error) {

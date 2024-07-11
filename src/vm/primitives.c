@@ -20,8 +20,7 @@ static bool prim_eq(VirtualMachine *vm, Object *args, Object **value, Object **e
 
     Object *lhs, *rhs;
     if (false == object_list_try_unpack_2(&lhs, &rhs, args)) {
-        create_call_error(vm, "prim_eq?", 2, object_list_count(args), error);
-        return false;
+        call_error(vm, "prim_eq?", 2, object_list_count(args), error);
     }
 
     if (false == object_equals(lhs, rhs)) {
@@ -33,8 +32,7 @@ static bool prim_eq(VirtualMachine *vm, Object *args, Object **value, Object **e
         return true;
     }
 
-    create_out_of_memory_error(vm, error);
-    return false;
+    out_of_memory_error(vm, error);
 }
 
 static bool prim_print(VirtualMachine *vm, Object *args, Object **value, Object **error) {
@@ -64,8 +62,7 @@ static bool prim_plus(VirtualMachine *vm, Object *args, Object **value, Object *
     int64_t acc = 0;
     object_list_for(arg, args) {
         if (TYPE_INT != arg->type) {
-            create_type_error(vm, error, arg->type, TYPE_INT);
-            return false;
+            type_error(vm, error, arg->type, TYPE_INT);
         }
 
         acc += arg->as_int;
@@ -75,8 +72,7 @@ static bool prim_plus(VirtualMachine *vm, Object *args, Object **value, Object *
         return true;
     }
 
-    create_out_of_memory_error(vm, error);
-    return false;
+    out_of_memory_error(vm, error);
 }
 
 static bool prim_minus(VirtualMachine *vm, Object *args, Object **value, Object **error) {
@@ -91,21 +87,18 @@ static bool prim_minus(VirtualMachine *vm, Object *args, Object **value, Object 
             return true;
         }
 
-        create_out_of_memory_error(vm, error);
-        return false;
+        out_of_memory_error(vm, error);
     }
 
     auto const first = args->as_cons.first;
     if (TYPE_INT != first->type) {
-        create_type_error(vm, error, first->type, TYPE_INT);
-        return false;
+        type_error(vm, error, first->type, TYPE_INT);
     }
 
     auto acc = first->as_int;
     object_list_for(arg, args->as_cons.rest) {
         if (TYPE_INT != arg->type) {
-            create_type_error(vm, error, arg->type, TYPE_INT);
-            return false;
+            type_error(vm, error, arg->type, TYPE_INT);
         }
 
         acc -= arg->as_int;
@@ -115,8 +108,7 @@ static bool prim_minus(VirtualMachine *vm, Object *args, Object **value, Object 
         return true;
     }
 
-    create_out_of_memory_error(vm, error);
-    return false;
+    out_of_memory_error(vm, error);
 }
 
 static bool prim_mul(VirtualMachine *vm, Object *args, Object **value, Object **error) {
@@ -129,8 +121,7 @@ static bool prim_mul(VirtualMachine *vm, Object *args, Object **value, Object **
     int64_t acc = 1;
     object_list_for(arg, args) {
         if (TYPE_INT != arg->type) {
-            create_type_error(vm, error, arg->type, TYPE_INT);
-            return false;
+            type_error(vm, error, arg->type, TYPE_INT);
         }
 
         acc *= arg->as_int;
@@ -140,8 +131,7 @@ static bool prim_mul(VirtualMachine *vm, Object *args, Object **value, Object **
         return true;
     }
 
-    create_out_of_memory_error(vm, error);
-    return false;
+    out_of_memory_error(vm, error);
 }
 
 static bool prim_div(VirtualMachine *vm, Object *args, Object **value, Object **error) {
@@ -156,26 +146,22 @@ static bool prim_div(VirtualMachine *vm, Object *args, Object **value, Object **
             return true;
         }
 
-        create_out_of_memory_error(vm, error);
-        return false;
+        out_of_memory_error(vm, error);
     }
 
     auto const first = args->as_cons.first;
     if (TYPE_INT != first->type) {
-        create_type_error(vm, error, first->type, TYPE_INT);
-        return false;
+        type_error(vm, error, first->type, TYPE_INT);
     }
 
     auto acc = first->as_int;
     object_list_for(arg, args->as_cons.rest) {
         if (TYPE_INT != arg->type) {
-            create_type_error(vm, error, arg->type, TYPE_INT);
-            return false;
+            type_error(vm, error, arg->type, TYPE_INT);
         }
 
         if (0 == arg->as_int) {
-            create_zero_division_error(vm, error);
-            return false;
+            zero_division_error(vm, error);
         }
 
         acc /= arg->as_int;
@@ -185,8 +171,7 @@ static bool prim_div(VirtualMachine *vm, Object *args, Object **value, Object **
         return true;
     }
 
-    create_out_of_memory_error(vm, error);
-    return false;
+    out_of_memory_error(vm, error);
 }
 
 static bool prim_list_list(VirtualMachine *vm, Object *args, Object **value, Object **error) {
@@ -210,14 +195,12 @@ static bool prim_list_first(VirtualMachine *vm, Object *args, Object **value, Ob
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        create_call_error(vm, "first", expected, got, error);
-        return false;
+        call_error(vm, "first", expected, got, error);
     }
 
     auto const list = object_as_cons(args).first;
     if (TYPE_CONS != list->type) {
-        create_type_error(vm, error, list->type, TYPE_CONS);
-        return false;
+        type_error(vm, error, list->type, TYPE_CONS);
     }
 
     *value = object_as_cons(list).first;
@@ -234,13 +217,12 @@ static bool prim_list_rest(VirtualMachine *vm, Object *args, Object **value, Obj
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        create_call_error(vm, "rest", expected, got, error);
+        call_error(vm, "rest", expected, got, error);
     }
 
     auto const list = object_as_cons(args).first;
     if (TYPE_CONS != list->type) {
-        create_type_error(vm, error, list->type, TYPE_CONS);
-        return false;
+        type_error(vm, error, list->type, TYPE_CONS);
     }
 
     *value = object_as_cons(list).rest;
@@ -256,21 +238,18 @@ static bool prim_list_prepend(VirtualMachine *vm, Object *args, Object **value, 
 
     Object *element, *list;
     if (false == object_list_try_unpack_2(&element, &list, args)) {
-        create_call_error(vm, "prepend", 2, object_list_count(args), error);
-        return false;
+        call_error(vm, "prepend", 2, object_list_count(args), error);
     }
 
     if (list->type != TYPE_NIL && list->type != TYPE_CONS) {
-        create_type_error(vm, error, list->type, TYPE_CONS);
-        return false;
+        type_error(vm, error, list->type, TYPE_CONS);
     }
 
     if (object_try_make_cons(vm_allocator(vm), element, list, value)) {
         return true;
     }
 
-    create_out_of_memory_error(vm, error);
-    return false;
+    out_of_memory_error(vm, error);
 }
 
 static bool try_define(ObjectAllocator *a, Object *env, char const *name, Object_Primitive value) {

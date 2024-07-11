@@ -89,8 +89,7 @@ static bool try_parse_line(
         SyntaxError syntax_error;
         if (false == scanner_try_accept(r->s, char_pos, *it, &syntax_error)) {
             auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
-            create_syntax_error(r->vm, syntax_error, file_name, erroneous_line, error);
-            return false;
+            syntax_error(r->vm, syntax_error, file_name, erroneous_line, error);
         }
 
         auto token = scanner_peek(r->s);
@@ -100,8 +99,7 @@ static bool try_parse_line(
 
         if (false == parser_try_accept(r->p, *token, &syntax_error)) {
             auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
-            create_syntax_error(r->vm, syntax_error, file_name, erroneous_line, error);
-            return false;
+            syntax_error(r->vm, syntax_error, file_name, erroneous_line, error);
         }
 
         Object *expr;
@@ -113,8 +111,7 @@ static bool try_parse_line(
             continue;
         }
 
-        create_out_of_memory_error(r->vm, error);
-        return false;
+        out_of_memory_error(r->vm, error);
     }
 
     return true;
@@ -184,14 +181,8 @@ static bool try_read_all(
 
     SyntaxError syntax_error;
     if (false == parser_try_accept(r->p, (Token) {.type = TOKEN_EOF}, &syntax_error)) {
-        create_syntax_error(
-                r->vm,
-                syntax_error,
-                file_name,
-                slice_at(lines, syntax_error.pos.lineno - 1)->data,
-                error
-        );
-        return false;
+        auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
+        syntax_error(r->vm, syntax_error, file_name, erroneous_line, error);
     }
 
     return true;
