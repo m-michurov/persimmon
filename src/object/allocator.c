@@ -59,6 +59,8 @@ void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots) {
     a->roots.parser_stack = pointer_first_nonnull(a->roots.parser_stack, roots.parser_stack);
     a->roots.parser_expr = pointer_first_nonnull(a->roots.parser_expr, roots.parser_expr);
     a->roots.globals = pointer_first_nonnull(a->roots.globals, roots.globals);
+    a->roots.value = pointer_first_nonnull(a->roots.value, roots.value);
+    a->roots.error = pointer_first_nonnull(a->roots.error, roots.error);
     a->roots.vm_expressions_stack = pointer_first_nonnull(a->roots.vm_expressions_stack, roots.vm_expressions_stack);
     a->roots.constants = pointer_first_nonnull(a->roots.constants, roots.constants);
 }
@@ -119,6 +121,14 @@ static void mark_children(Objects *gray, Object *obj) {
             mark_black(obj);
             return;
         }
+        case TYPE_MACRO: {
+            mark_gray_if_white(gray, obj->as_macro.args);
+            mark_gray_if_white(gray, obj->as_macro.env);
+            mark_gray_if_white(gray, obj->as_macro.body);
+
+            mark_black(obj);
+            return;
+        }
     }
 
     guard_unreachable();
@@ -150,6 +160,8 @@ static void mark(ObjectAllocator *a) {
 
     mark_gray_if_white(&gray, *a->roots.parser_expr);
     mark_gray_if_white(&gray, *a->roots.globals);
+    mark_gray_if_white(&gray, *a->roots.value);
+    mark_gray_if_white(&gray, *a->roots.error);
 
     slice_for(it, *a->roots.vm_expressions_stack) {
         mark_gray_if_white(&gray, *it);
@@ -248,6 +260,8 @@ static bool all_roots_set(ObjectAllocator const *a) {
            && nullptr != a->roots.parser_stack
            && nullptr != a->roots.parser_expr
            && nullptr != a->roots.globals
+           && nullptr != a->roots.value
+           && nullptr != a->roots.error
            && nullptr != a->roots.vm_expressions_stack
            && nullptr != a->roots.constants;
 }

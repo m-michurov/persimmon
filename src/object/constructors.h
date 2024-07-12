@@ -14,3 +14,5 @@ bool object_try_make_cons(ObjectAllocator *a, Object *first, Object *rest, Objec
 bool object_try_make_primitive(ObjectAllocator *a, Object_Primitive fn, Object **obj);
 
 bool object_try_make_closure(ObjectAllocator *a, Object *env, Object *args, Object *body, Object **obj);
+
+bool object_try_make_macro(ObjectAllocator *a, Object *env, Object *args, Object *body, Object **obj);

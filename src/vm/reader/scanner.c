@@ -16,6 +16,7 @@ typedef enum {
     TOKENIZER_ATOM,
     TOKENIZER_OPEN_PAREN,
     TOKENIZER_CLOSE_PAREN,
+    TOKENIZER_QUOTE
 } State;
 
 struct Scanner {
@@ -47,6 +48,9 @@ char const *token_type_str(Token_Type type) {
         }
         case TOKEN_CLOSE_PAREN: {
             return "TOKEN_CLOSE_PAREN";
+        }
+        case TOKEN_QUOTE: {
+            return "TOKEN_QUOTE";
         }
     }
 
@@ -121,6 +125,12 @@ static void tokenizer_transition(Scanner *t, Position pos, State new_state) {
             tokenizer_clear(t);
             return;
         }
+        case TOKENIZER_QUOTE: {
+            t->has_token = true;
+            t->token = (Token) {.type = TOKEN_QUOTE, .pos = token_pos};
+            tokenizer_clear(t);
+            return;
+        }
     }
 
     guard_unreachable();
@@ -143,6 +153,11 @@ static bool try_add_digit(int64_t int_value, int64_t digit, int64_t *result) {
 }
 
 static bool tokenizer_any_accept(Scanner *t, Position pos, int c, SyntaxError *error) {
+    if ('\'' == c) {
+        tokenizer_transition(t, pos, TOKENIZER_QUOTE);
+        return true;
+    }
+
     if (isdigit(c)) {
         tokenizer_transition(t, pos, TOKENIZER_INT);
         t->int_value = c - '0';
@@ -376,6 +391,9 @@ bool scanner_try_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
         }
         case TOKENIZER_ATOM: {
             return tokenizer_name_accept(s, pos, c, error);
+        }
+        case TOKENIZER_QUOTE: {
+            return tokenizer_any_accept(s, pos, c, error);
         }
     }
 

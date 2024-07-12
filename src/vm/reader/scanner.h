@@ -12,7 +12,8 @@ typedef enum {
     TOKEN_STRING,
     TOKEN_ATOM,
     TOKEN_OPEN_PAREN,
-    TOKEN_CLOSE_PAREN
+    TOKEN_CLOSE_PAREN,
+    TOKEN_QUOTE
 } Token_Type;
 
 char const *token_type_str(Token_Type type);

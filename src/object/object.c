@@ -29,6 +29,9 @@ char const *object_type_str(Object_Type type) {
         case TYPE_CLOSURE: {
             return "closure";
         }
+        case TYPE_MACRO: {
+            return "macro";
+        }
         case TYPE_NIL: {
             return "nil";
         }
@@ -65,6 +68,11 @@ bool object_equals(Object *a, Object *b) { // NOLINT(*-no-recursion)
             return object_equals(a->as_closure.env, b->as_closure.env)
                    && object_equals(a->as_closure.args, b->as_closure.args)
                    && object_equals(a->as_closure.body, b->as_closure.body);
+        }
+        case TYPE_MACRO: {
+            return object_equals(a->as_macro.env, b->as_macro.env)
+                   && object_equals(a->as_macro.args, b->as_macro.args)
+                   && object_equals(a->as_macro.body, b->as_macro.body);
         }
         case TYPE_NIL: {
             return true;
@@ -138,7 +146,8 @@ void object_repr_sb(Object *object, StringBuilder *sb) { // NOLINT(*-no-recursio
             return;
         }
         case TYPE_PRIMITIVE:
-        case TYPE_CLOSURE: {
+        case TYPE_CLOSURE:
+        case TYPE_MACRO: {
             sb_sprintf(sb, "<%s>", object_type_str(object->type));
             return;
         }
@@ -211,7 +220,8 @@ void object_repr_print(Object *object, FILE *file) { // NOLINT(*-no-recursion)
             return;
         }
         case TYPE_PRIMITIVE:
-        case TYPE_CLOSURE: {
+        case TYPE_CLOSURE:
+        case TYPE_MACRO: {
             fprintf(file, "<%s>", object_type_str(object->type));
             return;
         }

@@ -8,6 +8,7 @@
 typedef struct {
     Object *last;
     Position begin;
+    bool is_quote;
 } Parser_Expression;
 
 typedef struct Parser_ExpressionsStack Parser_ExpressionsStack;

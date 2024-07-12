@@ -95,6 +95,22 @@ static Object *init_closure(Object *obj, Object *env, Object *args, Object *body
     return obj;
 }
 
+static Object *init_macro(Object *obj, Object *env, Object *args, Object *body) {
+    guard_is_not_null(obj);
+    guard_is_not_null(env);
+    guard_is_not_null(args);
+    guard_is_not_null(body);
+
+    obj->type = TYPE_MACRO;
+    obj->as_macro = (Object_Closure) {
+            .env = env,
+            .args = args,
+            .body = body
+    };
+
+    return obj;
+}
+
 bool object_try_make_int(ObjectAllocator *a, int64_t value, Object **obj) {
     guard_is_not_null(a);
     guard_is_not_null(obj);
@@ -173,5 +189,20 @@ bool object_try_make_closure(ObjectAllocator *a, Object *env, Object *args, Obje
     }
 
     init_closure(*obj, env, args, body);
+    return true;
+}
+
+bool object_try_make_macro(ObjectAllocator *a, Object *env, Object *args, Object *body, Object **obj) {
+    guard_is_not_null(a);
+    guard_is_not_null(env);
+    guard_is_not_null(args);
+    guard_is_not_null(body);
+    guard_is_not_null(obj);
+
+    if (false == allocator_try_allocate(a, size_closure(), obj)) {
+        return false;
+    }
+
+    init_macro(*obj, env, args, body);
     return true;
 }

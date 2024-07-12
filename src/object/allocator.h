@@ -35,6 +35,8 @@ typedef struct {
     struct Parser_ExpressionsStack const *parser_stack;
     Object *const *parser_expr;
     Object *const *globals;
+    Object *const *value;
+    Object *const *error;
     struct VM_ExpressionsStack const *vm_expressions_stack;
     Objects const *constants;
 } ObjectAllocator_Roots;

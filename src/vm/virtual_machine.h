@@ -21,6 +21,10 @@ void vm_free(VirtualMachine **vm);
 
 ObjectAllocator *vm_allocator(VirtualMachine *vm);
 
+Object **vm_value(VirtualMachine *vm);
+
+Object **vm_error(VirtualMachine *vm);
+
 Stack *vm_stack(VirtualMachine *vm);
 
 Reader *vm_reader(VirtualMachine *vm);

@@ -12,6 +12,7 @@ typedef enum {
     TYPE_CONS,
     TYPE_PRIMITIVE,
     TYPE_CLOSURE,
+    TYPE_MACRO,
     TYPE_NIL
 } Object_Type;
 
@@ -59,6 +60,7 @@ struct Object {
         Object_Cons as_cons;
         Object_Primitive as_primitive;
         Object_Closure as_closure;
+        Object_Closure as_macro;
     };
 };
 

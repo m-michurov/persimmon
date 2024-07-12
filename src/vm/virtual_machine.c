@@ -12,6 +12,8 @@ struct VirtualMachine {
     Stack *stack;
 
     Object *globals;
+    Object *value;
+    Object *error;
     VM_ExpressionsStack expressions_stack;
 
     Objects constants;
@@ -71,6 +73,8 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
             .reader = reader,
             .stack = stack,
             .globals = object_nil(),
+            .value = object_nil(),
+            .error = object_nil(),
             .expressions_stack = {
                     .data = guard_succeeds(calloc, (config.import_stack_size, sizeof(Object *))),
                     .capacity = config.import_stack_size
@@ -83,6 +87,8 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
             .parser_stack = reader_parser_stack(vm->reader),
             .parser_expr = reader_parser_expr(vm->reader),
             .globals = &vm->globals,
+            .value = &vm->value,
+            .error = &vm->error,
             .vm_expressions_stack = &vm->expressions_stack,
             .constants = &vm->constants
     });
@@ -107,6 +113,18 @@ ObjectAllocator *vm_allocator(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
     return vm->allocator;
+}
+
+Object **vm_value(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    return &vm->value;
+}
+
+Object **vm_error(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    return &vm->error;
 }
 
 Stack *vm_stack(VirtualMachine *vm) {
