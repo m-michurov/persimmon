@@ -136,7 +136,12 @@ int main(int argc, char **argv) {
             .allocator_config = {
                     .hard_limit = 1024 * 1024,
                     .soft_limit_initial = 1024,
-                    .soft_limit_grow_factor = 1.25
+                    .soft_limit_grow_factor = 1.25,
+                    .debug = {
+                            .no_free = true,
+                            .trace = false,
+                            .gc_mode = ALLOCATOR_SOFT_GC
+                    }
             },
             .reader_config = {
                     .parser_config = {

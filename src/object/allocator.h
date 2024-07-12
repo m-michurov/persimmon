@@ -4,10 +4,22 @@
 
 typedef struct ObjectAllocator ObjectAllocator;
 
+typedef enum {
+    ALLOCATOR_SOFT_GC,
+    ALLOCATOR_ALWAYS_GC,
+    ALLOCATOR_NEVER_GC,
+} ObjectAllocator_GarbageCollectionMode;
+
 typedef struct {
     size_t hard_limit;
     size_t soft_limit_initial;
     double soft_limit_grow_factor;
+
+    struct {
+        ObjectAllocator_GarbageCollectionMode gc_mode;
+        bool no_free;
+        bool trace;
+    } debug;
 } ObjectAllocator_Config;
 
 ObjectAllocator *allocator_new(ObjectAllocator_Config config);

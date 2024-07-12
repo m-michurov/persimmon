@@ -9,15 +9,15 @@
 #include "vm/stack.h"
 #include "vm/reader/parser.h"
 
-#define GC_TRACE
-#define GC_ALWAYS
-
 struct ObjectAllocator {
     Object *objects;
     Object *freed;
 
     ObjectAllocator_Roots roots;
 
+    ObjectAllocator_GarbageCollectionMode gc_mode;
+    bool trace;
+    bool no_free;
     bool gc_is_running;
     size_t heap_size;
     size_t hard_limit;
@@ -30,7 +30,10 @@ ObjectAllocator *allocator_new(ObjectAllocator_Config config) {
     *allocator = (ObjectAllocator) {
             .soft_limit = config.soft_limit_initial,
             .hard_limit = config.hard_limit,
-            .grow_factor = config.soft_limit_grow_factor
+            .grow_factor = config.soft_limit_grow_factor,
+            .gc_mode = config.debug.gc_mode,
+            .trace = config.debug.trace,
+            .no_free = config.debug.no_free
     };
     return allocator;
 }
@@ -165,6 +168,8 @@ static void mark(ObjectAllocator *a) {
     da_free(&gray);
 }
 
+#define TYPE_FREED 12345
+
 static void sweep(ObjectAllocator *a) {
     guard_is_not_null(a);
 
@@ -187,9 +192,22 @@ static void sweep(ObjectAllocator *a) {
 
         unreached->next = exchange(a->freed, unreached);
         a->heap_size -= unreached->size;
-        unreached->type = 12345;
-        // free(unreached);
+
+        if (a->no_free) {
+            unreached->type = TYPE_FREED;
+        } else {
+            free(unreached);
+        }
     }
+}
+
+static size_t count_objects(ObjectAllocator *a) {
+    size_t count = 0;
+    for (auto it = a->objects; nullptr != it; it = it->next) {
+        count++;
+    }
+
+    return count;
 }
 
 static void collect_garbage(ObjectAllocator *a) {
@@ -198,29 +216,23 @@ static void collect_garbage(ObjectAllocator *a) {
 
     a->gc_is_running = true;
 
-#ifdef GC_TRACE
+
     auto const heap_size_initial = a->heap_size;
-    size_t count_initial = 0;
-    for (auto it = a->objects; nullptr != it; it = it->next) {
-        count_initial++;
+    size_t count_initial, count_final;
+
+    if (a->trace) {
+        count_initial = count_objects(a);
     }
-#endif
+
     mark(a);
     sweep(a);
 
-#ifdef GC_TRACE
-    size_t count_final = 0;
-    for (auto it = a->objects; nullptr != it; it = it->next) {
-        count_final++;
-    }
-
-    if (count_final < count_initial) {
+    if (a->trace && (count_final = count_objects(a)) < count_initial) {
         printf(
                 "GC: freed %zu objects (%zu bytes total)\n",
                 count_initial - count_final, heap_size_initial - a->heap_size
         );
     }
-#endif
 
     a->gc_is_running = false;
 }
@@ -246,11 +258,8 @@ bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
     guard_is_true(all_roots_set(a));
 
     auto const should_collect =
-#ifdef GC_ALWAYS
-            true;
-#else
-    a->heap_size + size >= a->soft_limit;
-#endif
+            ALLOCATOR_NEVER_GC != a->gc_mode
+            && (ALLOCATOR_ALWAYS_GC == a->gc_mode || a->heap_size + size >= a->soft_limit);
     if (should_collect) {
         collect_garbage(a);
         adjust_soft_limit(a, size);
