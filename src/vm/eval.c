@@ -175,8 +175,9 @@ static bool try_step(VirtualMachine *vm) {
         case FRAME_CALL: {
             if (object_nil() != frame->unevaluated) {
                 auto const next = object_as_cons(frame->unevaluated).first;
-                frame->unevaluated = object_as_cons(frame->unevaluated).rest;
-                return try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated, &frame->error);
+                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated, &frame->error);
+                object_list_shift(&frame->unevaluated);
+                return ok;
             }
 
             object_list_reverse(&frame->evaluated);
@@ -185,11 +186,16 @@ static bool try_step(VirtualMachine *vm) {
             auto const fn = object_as_cons(frame->evaluated).first;
             auto args = object_as_cons(frame->evaluated).rest;
             if (TYPE_PRIMITIVE == fn->type) {
-                Object *value;
-                if (false == fn->as_primitive(vm, args, &value, &frame->error)) {
+                Object **value;
+                if (false == stack_try_create_local(s, &value)) {
+                    stack_overflow_error(vm, &frame->error);
+                }
+
+                if (false == fn->as_primitive(vm, args, value, &frame->error)) {
                     return false;
                 }
-                return try_save_result_and_pop(vm, frame->results_list, value, &frame->error);
+
+                return try_save_result_and_pop(vm, frame->results_list, *value, &frame->error);
             }
 
             if (TYPE_CLOSURE != fn->type) {
@@ -203,29 +209,41 @@ static bool try_step(VirtualMachine *vm) {
                 call_error(vm, "<closure>", formal_argc, actual_argc, &frame->error);
             }
 
-            Object *arg_bindings;
-            if (false == env_try_create(a, fn->as_closure.env, &arg_bindings)) {
+            Object **arg_bindings;
+            if (false == stack_try_create_local(s, &arg_bindings)) {
+                stack_overflow_error(vm, &frame->error);
+            }
+
+            if (false == env_try_create(a, fn->as_closure.env, arg_bindings)) {
                 out_of_memory_error(vm, &frame->error);
             }
+
             object_list_for(formal, formal_args) {
-                auto const actual = object_as_cons(args).first;
-                if (false == env_try_define(a, arg_bindings, formal, actual, nullptr)) {
+                auto const actual = object_list_shift(&args);
+                if (false == env_try_define(a, *arg_bindings, formal, actual, nullptr)) {
                     out_of_memory_error(vm, &frame->error);
                 }
-                args = object_as_cons(args).rest;
             }
 
-            Object *do_atom;
-            if (false == object_try_make_atom(a, "do", &do_atom)) {
+            Object **do_atom;
+            if (false == stack_try_create_local(s, &do_atom)) {
+                stack_overflow_error(vm, &frame->error);
+            }
+
+            if (false == object_try_make_atom(a, "do", do_atom)) {
                 out_of_memory_error(vm, &frame->error);
             }
 
-            Object *body;
-            if (false == object_try_make_cons(a, do_atom, fn->as_closure.body, &body)) {
+            Object **body;
+            if (false == stack_try_create_local(s, &body)) {
+                stack_overflow_error(vm, &frame->error);
+            }
+
+            if (false == object_try_make_cons(a, *do_atom, fn->as_closure.body, body)) {
                 out_of_memory_error(vm, &frame->error);
             }
 
-            stack_swap_top(s, frame_make(FRAME_DO, body, arg_bindings, frame->results_list, body->as_cons.rest));
+            stack_swap_top(s, frame_make(FRAME_DO, *body, *arg_bindings, frame->results_list, (*body)->as_cons.rest));
             return true;
         }
         case FRAME_FN: {
@@ -249,9 +267,12 @@ static bool try_step(VirtualMachine *vm) {
 
             auto const body = object_as_cons(frame->unevaluated).rest;
 
-            Object *closure;
-            if (object_try_make_closure(a, frame->env, args, body, &closure)) {
-                if (try_save_result_and_pop(vm, frame->results_list, closure, &frame->error)) {
+            Object **closure;
+            if (false == stack_try_create_local(s, &closure)) {
+                stack_overflow_error(vm, &frame->error);
+            }
+            if (object_try_make_closure(a, frame->env, args, body, closure)) {
+                if (try_save_result_and_pop(vm, frame->results_list, *closure, &frame->error)) {
                     return true;
                 }
 
@@ -272,8 +293,9 @@ static bool try_step(VirtualMachine *vm) {
                 }
 
                 auto const cond = object_as_cons(frame->unevaluated).first;
-                frame->unevaluated = object_as_cons(frame->unevaluated).rest;
-                return try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, cond, &frame->evaluated, &frame->error);
+                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, cond, &frame->evaluated, &frame->error);
+                object_list_shift(&frame->unevaluated);
+                return ok;
             }
 
             auto const cond_value = object_as_cons(frame->evaluated).first;
@@ -310,8 +332,9 @@ static bool try_step(VirtualMachine *vm) {
             }
 
             auto const next = object_as_cons(frame->unevaluated).first;
-            frame->unevaluated = object_as_cons(frame->unevaluated).rest;
-            return try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, nullptr, &frame->error);
+            auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, nullptr, &frame->error);
+            object_list_shift(&frame->unevaluated);
+            return ok;
         }
         case FRAME_DEFINE: {
             if (object_nil() == frame->evaluated) {
@@ -375,18 +398,22 @@ static bool try_step(VirtualMachine *vm) {
             }
             object_list_reverse(exprs);
 
-            auto exprs_list = object_nil();
+            Object **exprs_list;
+            if (false == stack_try_create_local(s, &exprs_list)) {
+                stack_overflow_error(vm, &frame->error);
+            }
+
             object_list_for(it, *exprs) {
-                if (object_try_make_cons(a, it, exprs_list, &exprs_list)) {
+                if (object_try_make_cons(a, it, *exprs_list, exprs_list)) {
                     continue;
                 }
 
                 out_of_memory_error(vm, &frame->error);
                 slice_try_pop(vm_expressions_stack(vm), nullptr);
             }
-            object_list_reverse(&exprs_list);
+            object_list_reverse(exprs_list);
 
-            stack_swap_top(s, frame_make(FRAME_DO, frame->expr, frame->env, frame->results_list, exprs_list));
+            stack_swap_top(s, frame_make(FRAME_DO, frame->expr, frame->env, frame->results_list, *exprs_list));
             slice_try_pop(vm_expressions_stack(vm), nullptr);
             return true;
         }

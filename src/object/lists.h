@@ -3,6 +3,10 @@
 #include "object.h"
 #include "allocator.h"
 
+bool object_list_try_prepend(ObjectAllocator *a, Object *value, Object **list);
+
+Object *object_list_shift(Object **list);
+
 bool object_try_make_list_(ObjectAllocator *a, Object **list, ...);
 
 #define object_try_make_list(Object_Allocator_, List, ...) \

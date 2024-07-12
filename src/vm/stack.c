@@ -61,7 +61,15 @@ Stack_Frame frame_make(
     };
 }
 
-Stack_Frame *stack_top(Stack const*s) {
+Objects frame_locals(Stack_Frame const *frame) {
+    auto const wrapped_frame = container_of(frame, WrappedFrame, frame);
+    return (Objects) {
+            .data = wrapped_frame->locals,
+            .count = wrapped_frame->locals_end - wrapped_frame->locals
+    };
+}
+
+Stack_Frame *stack_top(Stack const *s) {
     guard_is_not_null(s);
     guard_is_not_null(s->top);
 
@@ -121,11 +129,12 @@ bool stack_try_create_local(Stack *s, Object ***obj) {
     guard_is_not_null(obj);
     guard_is_not_null(s->top);
 
-    auto new_locals_end = s->top->locals_end + sizeof(Object *);
+    auto new_locals_end = s->top->locals_end + 1;
     if ((uint8_t *) new_locals_end > s->end) {
         return false;
     }
 
     *obj = exchange(s->top->locals_end, new_locals_end);
+    **obj = object_nil();
     return true;
 }

@@ -1,5 +1,4 @@
 #include "constructors.h"
-#include "constructors_unchecked.h"
 
 #include <string.h>
 #include <stddef.h>
@@ -96,15 +95,6 @@ static Object *init_closure(Object *obj, Object *env, Object *args, Object *body
     return obj;
 }
 
-Object *object_int(ObjectAllocator *a, int64_t value) {
-    guard_is_not_null(a);
-
-    Object *obj;
-    auto const alloc_successful = allocator_try_allocate(a, size_int(), &obj);
-    guard_is_true(alloc_successful);
-    return init_int(obj, value);
-}
-
 bool object_try_make_int(ObjectAllocator *a, int64_t value, Object **obj) {
     guard_is_not_null(a);
     guard_is_not_null(obj);
@@ -115,17 +105,6 @@ bool object_try_make_int(ObjectAllocator *a, int64_t value, Object **obj) {
 
     init_int(*obj, value);
     return true;
-}
-
-Object *object_string(ObjectAllocator *a, char const *s) {
-    guard_is_not_null(a);
-    guard_is_not_null(s);
-
-    auto const len = strlen(s);
-    Object *obj;
-    auto const alloc_successful = allocator_try_allocate(a, size_string(len), &obj);
-    guard_is_true(alloc_successful);
-    return init_string(obj, s, len);
 }
 
 bool object_try_make_string(ObjectAllocator *a, char const *s, Object **obj) {
@@ -142,17 +121,6 @@ bool object_try_make_string(ObjectAllocator *a, char const *s, Object **obj) {
     return true;
 }
 
-Object *object_atom(ObjectAllocator *a, char const *s) {
-    guard_is_not_null(a);
-    guard_is_not_null(s);
-
-    auto const len = strlen(s);
-    Object *obj;
-    auto const alloc_successful = allocator_try_allocate(a, size_atom(len), &obj);
-    guard_is_true(alloc_successful);
-    return init_atom(obj, s, len);
-}
-
 bool object_try_make_atom(ObjectAllocator *a, char const *s, Object **obj) {
     guard_is_not_null(a);
     guard_is_not_null(s);
@@ -165,17 +133,6 @@ bool object_try_make_atom(ObjectAllocator *a, char const *s, Object **obj) {
 
     init_atom(*obj, s, len);
     return true;
-}
-
-Object *object_cons(ObjectAllocator *a, Object *first, Object *rest) {
-    guard_is_not_null(a);
-    guard_is_not_null(first);
-    guard_is_not_null(rest);
-
-    Object *obj;
-    auto const alloc_successful = allocator_try_allocate(a, size_cons(), &obj);
-    guard_is_true(alloc_successful);
-    return init_cons(obj, first, rest);
 }
 
 bool object_try_make_cons(ObjectAllocator *a, Object *first, Object *rest, Object **obj) {
@@ -192,15 +149,6 @@ bool object_try_make_cons(ObjectAllocator *a, Object *first, Object *rest, Objec
     return true;
 }
 
-Object *object_primitive(ObjectAllocator *a, Object_Primitive fn) {
-    guard_is_not_null(a);
-
-    Object *obj;
-    auto const alloc_successful = allocator_try_allocate(a, size_primitive(), &obj);
-    guard_is_true(alloc_successful);
-    return init_primitive(obj, fn);
-}
-
 bool object_try_make_primitive(ObjectAllocator *a, Object_Primitive fn, Object **obj) {
     guard_is_not_null(a);
     guard_is_not_null(obj);
@@ -211,18 +159,6 @@ bool object_try_make_primitive(ObjectAllocator *a, Object_Primitive fn, Object *
 
     init_primitive(*obj, fn);
     return true;
-}
-
-Object *object_closure(ObjectAllocator *a, Object *env, Object *args, Object *body) {
-    guard_is_not_null(a);
-    guard_is_not_null(env);
-    guard_is_not_null(args);
-    guard_is_not_null(body);
-
-    Object *obj;
-    auto const alloc_successful = allocator_try_allocate(a, size_closure(), &obj);
-    guard_is_true(alloc_successful);
-    return init_closure(obj, env, args, body);
 }
 
 bool object_try_make_closure(ObjectAllocator *a, Object *env, Object *args, Object *body, Object **obj) {

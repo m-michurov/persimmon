@@ -2,10 +2,29 @@
 
 #include <stdarg.h>
 
-#include "constructors.h"
-#include "accessors.h"
 #include "utility/guards.h"
 #include "utility/exchange.h"
+#include "constructors.h"
+#include "accessors.h"
+
+bool object_list_try_prepend(ObjectAllocator *a, Object *value, Object **list) {
+    guard_is_not_null(a);
+    guard_is_not_null(value);
+    guard_is_not_null(list);
+    guard_is_not_null(*list);
+
+    return object_try_make_cons(a, value, *list, list);
+}
+
+Object *object_list_shift(Object **list) {
+    guard_is_not_null(list);
+    guard_is_not_null(*list);
+    guard_is_equal((*list)->type, TYPE_CONS);
+
+    auto const first = (*list)->as_cons.first;
+    *list = (*list)->as_cons.rest;
+    return first;
+}
 
 bool object_try_make_list_(ObjectAllocator *a, Object **list, ...) {
     guard_is_not_null(a);

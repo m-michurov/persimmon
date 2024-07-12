@@ -43,8 +43,8 @@ static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
            && object_try_make_atom(a, "ZeroDivisionError", slice_at(*constants, STATIC_ZERO_DIVISION_ERROR_NAME))
            && object_try_make_atom(a, "OutOfMemoryError", slice_at(*constants, STATIC_OUT_OF_MEMORY_ERROR_NAME))
            && object_try_make_atom(a, "StackOverflowError", slice_at(*constants, STATIC_STACK_OVERFLOW_ERROR_NAME))
-              && object_try_make_atom(a, "SyntaxError", slice_at(*constants, STATIC_SYNTAX_ERROR_NAME))
-                 && object_try_make_atom(a, "ImportError", slice_at(*constants, STATIC_TOO_MANY_IMPORTS));
+           && object_try_make_atom(a, "SyntaxError", slice_at(*constants, STATIC_SYNTAX_ERROR_NAME))
+           && object_try_make_atom(a, "ImportError", slice_at(*constants, STATIC_TOO_MANY_IMPORTS));
 }
 
 VirtualMachine *vm_new(VirtualMachine_Config config) {
@@ -62,6 +62,9 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
             .data = (Object **) guard_succeeds(calloc, (STATIC_CONSTANTS_COUNT, sizeof(Object *))),
             .count = STATIC_CONSTANTS_COUNT,
     };
+    slice_for(it, constants) {
+        *it = object_nil();
+    }
 
     memcpy(vm, &(VirtualMachine) {
             .allocator = allocator,

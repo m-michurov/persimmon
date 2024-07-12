@@ -1,9 +1,9 @@
 #include "parser.h"
 
 #include "utility/guards.h"
-#include "object/lists.h"
-#include "object/constructors_unchecked.h"
 #include "utility/slice.h"
+#include "object/lists.h"
+#include "object/constructors.h"
 
 struct Parser {
     ObjectAllocator *a;
@@ -22,7 +22,8 @@ Parser *parser_new(ObjectAllocator *a, Parser_Config config) {
             .stack = {
                     .data = guard_succeeds(calloc, (config.max_nesting_depth, sizeof(Parser_Expression))),
                     .capacity = config.max_nesting_depth
-            }
+            },
+            .expr = object_nil()
     }), sizeof(Parser));
     return p;
 }
@@ -51,95 +52,104 @@ bool parser_is_inside_expression(Parser const *p) {
 
 // FIXME use checked constructors
 // TODO find a way to report OOM
-bool parser_try_accept(Parser *p, Token token, SyntaxError *error) {
+Parser_Result parser_try_accept(Parser *p, Token token, SyntaxError *syntax_error) {
     guard_is_not_null(p);
-    guard_is_not_null(error);
+    guard_is_not_null(syntax_error);
 
     switch (token.type) {
         case TOKEN_EOF: {
             if (slice_empty(p->stack)) {
-                return true;
+                return PARSER_OK;
             }
 
-            *error = (SyntaxError) {
+            *syntax_error = (SyntaxError) {
                     .code = SYNTAX_ERROR_NO_MATCHING_CLOSE_PAREN,
                     .pos = slice_last(p->stack)->begin
             };
-            return false;
+            return PARSER_SYNTAX_ERROR;
         }
         case TOKEN_INT: {
-            auto const expr = object_int(p->a, token.as_int);
-            if (slice_empty(p->stack)) {
-                p->expr = expr;
-                p->has_expr = true;
-                return true;
+            if (false == object_try_make_int(p->a, token.as_int, &p->expr)) {
+                return PARSER_ALLOCATION_ERROR;
             }
 
-            slice_last(p->stack)->last = object_cons(p->a, expr, slice_last(p->stack)->last);
-            return true;
+            if (slice_empty(p->stack)) {
+                p->has_expr = true;
+                return PARSER_OK;
+            }
+
+            return object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)
+                   ? PARSER_OK
+                   : PARSER_ALLOCATION_ERROR;
         }
         case TOKEN_STRING: {
-            auto const expr = object_string(p->a, token.as_string);
-            if (slice_empty(p->stack)) {
-                p->expr = expr;
-                p->has_expr = true;
-                return true;
+            if (false == object_try_make_string(p->a, token.as_string, &p->expr)) {
+                return PARSER_ALLOCATION_ERROR;
             }
 
-            slice_last(p->stack)->last = object_cons(p->a, expr, slice_last(p->stack)->last);
-            return true;
+            if (slice_empty(p->stack)) {
+                p->has_expr = true;
+                return PARSER_OK;
+            }
+
+            return object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)
+                   ? PARSER_OK
+                   : PARSER_ALLOCATION_ERROR;
         }
         case TOKEN_ATOM: {
-            auto const expr = object_atom(p->a, token.as_atom);
-            if (slice_empty(p->stack)) {
-                p->expr = expr;
-                p->has_expr = true;
-                return true;
+            if (false == object_try_make_atom(p->a, token.as_atom, &p->expr)) {
+                return PARSER_ALLOCATION_ERROR;
             }
 
-            slice_last(p->stack)->last = object_cons(p->a, expr, slice_last(p->stack)->last);
-            return true;
+            if (slice_empty(p->stack)) {
+                p->has_expr = true;
+                return PARSER_OK;
+            }
+
+            return object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)
+                   ? PARSER_OK
+                   : PARSER_ALLOCATION_ERROR;
         }
         case TOKEN_OPEN_PAREN: {
             if (slice_try_append(&p->stack, ((Parser_Expression) {.last = object_nil(), .begin = token.pos}))) {
-                return true;
+                return PARSER_OK;
             }
 
-            *error = (SyntaxError) {
+            *syntax_error = (SyntaxError) {
                     .code = SYNTAX_ERROR_NESTING_TOO_DEEP,
                     .pos = token.pos,
             };
-            return false;
+            return PARSER_SYNTAX_ERROR;
         }
         case TOKEN_CLOSE_PAREN: {
             if (slice_empty(p->stack)) {
-                *error = (SyntaxError) {
+                *syntax_error = (SyntaxError) {
                         .code = SYNTAX_ERROR_UNEXPECTED_CLOSE_PAREN,
                         .pos = token.pos,
                 };
-                return false;
+                return PARSER_SYNTAX_ERROR;
             }
+
+            p->expr = slice_last(p->stack)->last;
+            object_list_reverse(&p->expr);
 
             if (1 == p->stack.count) {
-                p->expr = slice_last(p->stack)->last;
                 slice_try_pop(&p->stack, nullptr);
-                object_list_reverse(&p->expr);
                 p->has_expr = true;
-                return true;
+                return PARSER_OK;
             }
 
-            auto expr = slice_last(p->stack)->last;
             slice_try_pop(&p->stack, nullptr);
-            object_list_reverse(&expr);
-            slice_last(p->stack)->last = object_cons(p->a, expr, slice_last(p->stack)->last);
-            return true;
+            return object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)
+                   ? PARSER_OK
+                   : PARSER_ALLOCATION_ERROR;
         }
     }
 
     guard_unreachable();
 }
 
-Object *const *parser_expression(Parser const *p) {
+Object *const *parser_peek(Parser const *p) {
     guard_is_not_null(p);
 
     return &p->expr;

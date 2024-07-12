@@ -20,7 +20,7 @@ bool env_try_define(ObjectAllocator *a, Object *env, Object *name, Object *value
     guard_is_equal(env->type, TYPE_CONS);
 
     auto const current_env = &env->as_cons.first;
-    if (false == object_try_make_cons(a, object_nil(), *current_env, current_env)) {
+    if (false == object_list_try_prepend(a, object_nil(), current_env)) {
         return false;
     }
 

@@ -48,6 +48,7 @@ typedef enum {
 
 struct Object {
     Object_Type type;
+    size_t size;
     Object_Color color;
     Object *next;
 

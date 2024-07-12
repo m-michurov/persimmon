@@ -31,10 +31,16 @@ void parser_reset(Parser *p);
 
 bool parser_is_inside_expression(Parser const *p);
 
-bool parser_try_accept(Parser *p, Token token, SyntaxError *error);
+typedef enum {
+    PARSER_OK,
+    PARSER_SYNTAX_ERROR,
+    PARSER_ALLOCATION_ERROR
+} Parser_Result;
+
+Parser_Result parser_try_accept(Parser *p, Token token, SyntaxError *syntax_error);
 
 bool parser_try_get_expression(Parser *p, Object **expression);
 
 Parser_ExpressionsStack const *parser_stack(Parser const *p);
 
-Object *const *parser_expression(Parser const *p);
+Object *const *parser_peek(Parser const *p);

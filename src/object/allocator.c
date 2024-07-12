@@ -1,14 +1,20 @@
 #include "allocator.h"
 
 #include "utility/guards.h"
-#include "vm/reader/parser.h"
 #include "utility/slice.h"
 #include "utility/dynamic_array.h"
 #include "utility/exchange.h"
 #include "utility/pointers.h"
+#include "vm/virtual_machine.h"
+#include "vm/stack.h"
+#include "vm/reader/parser.h"
+
+#define GC_TRACE
+#define GC_ALWAYS
 
 struct ObjectAllocator {
     Object *objects;
+    Object *freed;
 
     ObjectAllocator_Roots roots;
 
@@ -55,6 +61,8 @@ void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots) {
 }
 
 static void mark_gray(Objects *gray, Object *obj) {
+    guard_is_not_null(gray);
+    guard_is_not_null(obj);
     guard_is_equal(obj->color, OBJECT_WHITE);
 
     guard_is_true(da_try_append(gray, obj));
@@ -62,6 +70,11 @@ static void mark_gray(Objects *gray, Object *obj) {
 }
 
 static void mark_gray_if_white(Objects *gray, Object *obj) {
+    guard_is_not_null(gray);
+    guard_is_not_null(obj);
+
+    guard_is_not_equal((int) obj->type, 12345);
+
     if (OBJECT_WHITE != obj->color) {
         return;
     }
@@ -112,24 +125,42 @@ static void mark(ObjectAllocator *a) {
     guard_is_not_null(a);
 
     auto gray = (Objects) {0};
-    // TODO mark data stack roots
-    // TODO mark parser stack roots
 
-    for (auto it = a->objects; nullptr != it; it = it->next) {
-        guard_is_equal(it->color, OBJECT_WHITE);
-        mark_gray(&gray, it);
+    stack_for_reversed(frame, a->roots.stack) {
+        mark_gray_if_white(&gray, frame->expr);
+        mark_gray_if_white(&gray, frame->env);
+        mark_gray_if_white(&gray, frame->unevaluated);
+        mark_gray_if_white(&gray, frame->evaluated);
+        if (nullptr != frame->results_list) {
+            mark_gray_if_white(&gray, *frame->results_list);
+        }
+        mark_gray_if_white(&gray, frame->error);
+
+        slice_for(it, frame_locals(frame)) {
+            mark_gray_if_white(&gray, *it);
+        }
     }
 
+    slice_for(it, *a->roots.parser_stack) {
+        mark_gray_if_white(&gray, it->last);
+    }
+
+    mark_gray_if_white(&gray, *a->roots.parser_expr);
+    mark_gray_if_white(&gray, *a->roots.globals);
+
+    slice_for(it, *a->roots.vm_expressions_stack) {
+        mark_gray_if_white(&gray, *it);
+    }
+
+    slice_for(it, *a->roots.constants) {
+        mark_gray_if_white(&gray, *it);
+    }
 
     Object *obj;
-    while (false == slice_empty(gray) && slice_try_pop(&gray, &obj)) {
+    while (slice_try_pop(&gray, &obj)) {
         mark_children(&gray, obj);
     }
-
     guard_is_true(slice_empty(gray));
-    for (auto it = a->objects; nullptr != it; it = it->next) {
-        guard_is_equal(it->color, OBJECT_BLACK);
-    }
 
     da_free(&gray);
 }
@@ -145,8 +176,6 @@ static void sweep(ObjectAllocator *a) {
             continue;
         }
 
-        guard_unreachable();
-
         auto const unreached = exchange(it, it->next);
         guard_is_equal(unreached->color, OBJECT_WHITE);
 
@@ -156,7 +185,10 @@ static void sweep(ObjectAllocator *a) {
             prev->next = it;
         }
 
-        free(unreached);
+        unreached->next = exchange(a->freed, unreached);
+        a->heap_size -= unreached->size;
+        unreached->type = 12345;
+        // free(unreached);
     }
 }
 
@@ -165,8 +197,31 @@ static void collect_garbage(ObjectAllocator *a) {
     guard_is_false(a->gc_is_running);
 
     a->gc_is_running = true;
+
+#ifdef GC_TRACE
+    auto const heap_size_initial = a->heap_size;
+    size_t count_initial = 0;
+    for (auto it = a->objects; nullptr != it; it = it->next) {
+        count_initial++;
+    }
+#endif
     mark(a);
     sweep(a);
+
+#ifdef GC_TRACE
+    size_t count_final = 0;
+    for (auto it = a->objects; nullptr != it; it = it->next) {
+        count_final++;
+    }
+
+    if (count_final < count_initial) {
+        printf(
+                "GC: freed %zu objects (%zu bytes total)\n",
+                count_initial - count_final, heap_size_initial - a->heap_size
+        );
+    }
+#endif
+
     a->gc_is_running = false;
 }
 
@@ -190,7 +245,13 @@ bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
     guard_is_greater(size, 0);
     guard_is_true(all_roots_set(a));
 
-    if (a->heap_size + size >= a->soft_limit) {
+    auto const should_collect =
+#ifdef GC_ALWAYS
+            true;
+#else
+    a->heap_size + size >= a->soft_limit;
+#endif
+    if (should_collect) {
         collect_garbage(a);
         adjust_soft_limit(a, size);
     }
@@ -201,6 +262,7 @@ bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
 
     auto const new_obj = (Object *) guard_succeeds(calloc, (size, 1));
     new_obj->next = exchange(a->objects, new_obj);
+    new_obj->size = size;
     a->heap_size += size;
     *obj = new_obj;
 

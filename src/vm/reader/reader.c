@@ -64,7 +64,7 @@ struct Parser_ExpressionsStack const *reader_parser_stack(Reader const *r) {
 Object *const *reader_parser_expr(Reader const *r) {
     guard_is_not_null(r);
 
-    return parser_expression(r->p);
+    return parser_peek(r->p);
 }
 
 static bool try_parse_line(
@@ -97,9 +97,17 @@ static bool try_parse_line(
             continue;
         }
 
-        if (false == parser_try_accept(r->p, *token, &syntax_error)) {
-            auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
-            syntax_error(r->vm, syntax_error, file_name, erroneous_line, error);
+        switch (parser_try_accept(r->p, *token, &syntax_error)) {
+            case PARSER_OK: {
+                break;
+            }
+            case PARSER_SYNTAX_ERROR: {
+                auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
+                syntax_error(r->vm, syntax_error, file_name, erroneous_line, error);
+            }
+            case PARSER_ALLOCATION_ERROR: {
+                out_of_memory_error(r->vm, error);
+            }
         }
 
         Object *expr;
@@ -180,12 +188,20 @@ static bool try_read_all(
     }
 
     SyntaxError syntax_error;
-    if (false == parser_try_accept(r->p, (Token) {.type = TOKEN_EOF}, &syntax_error)) {
-        auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
-        syntax_error(r->vm, syntax_error, file_name, erroneous_line, error);
+    switch (parser_try_accept(r->p, (Token) {.type = TOKEN_EOF}, &syntax_error)) {
+        case PARSER_OK: {
+            return true;
+        }
+        case PARSER_SYNTAX_ERROR: {
+            auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
+            syntax_error(r->vm, syntax_error, file_name, erroneous_line, error);
+        }
+        case PARSER_ALLOCATION_ERROR: {
+            out_of_memory_error(r->vm, error);
+        }
     }
 
-    return true;
+    guard_unreachable();
 }
 
 static bool reader_call(

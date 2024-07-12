@@ -29,6 +29,8 @@ Stack_Frame frame_make(
         Object *unevaluated
 );
 
+Objects frame_locals(Stack_Frame const *frame);
+
 typedef struct Stack Stack;
 
 typedef struct {
