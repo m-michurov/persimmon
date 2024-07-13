@@ -25,7 +25,7 @@ add_executable(persimmon
         src/object/allocator.c
         src/object/lists.c
         src/object/object.c
-        src/object/env.c
+        src/vm/env.c
         src/vm/reader/named_file.c
         src/vm/reader/named_file.h
         src/vm/constants.c

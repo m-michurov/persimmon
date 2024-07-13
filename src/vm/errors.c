@@ -297,34 +297,39 @@ void create_import_nesting_too_deep_error(VirtualMachine *vm, Object **error) {
     create_error_with_message(vm, vm_get(vm, STATIC_TOO_MANY_IMPORTS), "too many nested imports", error);
 }
 
-void create_if_too_few_args_error(VirtualMachine *vm, Object **error) {
-    create_error_with_message(vm, vm_get(vm, STATIC_SYNTAX_ERROR_NAME), "too few arguments for if", error);
+void create_too_few_args_error(VirtualMachine *vm, char const *name, Object **error) {
+    char message[512] = {0};
+    auto const written = snprintf(message, sizeof(message), "too few arguments for %s", name);
+    guard_is_less(written, (typeof(written)) sizeof(message));
+    create_error_with_message(vm, vm_get(vm, STATIC_SYNTAX_ERROR_NAME), message, error);
 }
 
-void create_if_too_many_args_error(VirtualMachine *vm, Object **error) {
-    create_error_with_message(vm, vm_get(vm, STATIC_SYNTAX_ERROR_NAME), "too many arguments for if", error);
+void create_too_many_args_error(VirtualMachine *vm, char const *name, Object **error) {
+    char message[512] = {0};
+    auto const written = snprintf(message, sizeof(message), "too many arguments for %s", name);
+    guard_is_less(written, (typeof(written)) sizeof(message));
+    create_error_with_message(vm, vm_get(vm, STATIC_SYNTAX_ERROR_NAME), message, error);
 }
 
-void create_fn_too_few_args_error(VirtualMachine *vm, Object **error) {
-    create_error_with_message(vm, vm_get(vm, STATIC_SYNTAX_ERROR_NAME), "too few arguments for fn", error);
-}
-
-void create_fn_args_type_error(VirtualMachine *vm, Object **error) {
+void create_parameters_type_error(VirtualMachine *vm, Object **error) {
     create_error_with_message(
             vm,
             vm_get(vm, STATIC_SYNTAX_ERROR_NAME),
-            "parameters declaration must be a list of atoms",
+            "parameters declaration is invalid",
             error
     );
 }
 
-void create_import_args_error(VirtualMachine *vm, Object **error) {
-    create_error_with_message(
-            vm,
-            vm_get(vm, STATIC_SYNTAX_ERROR_NAME),
-            "import takes exactly one argument",
-            error
+void create_args_count_error(VirtualMachine *vm, char const *name, size_t expected, Object **error) {
+    char message[512] = {0};
+    auto const written = snprintf(
+            message,
+            sizeof(message),
+            "%s takes exactly %zu argument%s",
+            name, expected, (1 == expected % 10) ? "" : "s"
     );
+    guard_is_less(written, (typeof(written)) sizeof(message));
+    create_error_with_message(vm, vm_get(vm, STATIC_SYNTAX_ERROR_NAME), message, error);
 }
 
 void create_import_path_type_error(VirtualMachine *vm, Object **error) {
@@ -336,21 +341,90 @@ void create_import_path_type_error(VirtualMachine *vm, Object **error) {
     );
 }
 
-void create_define_args_error(VirtualMachine *vm, Object **error) {
-    create_error_with_message(
-            vm,
-            vm_get(vm, STATIC_SYNTAX_ERROR_NAME),
-            "define takes exactly two arguments",
-            error
-    );
+void create_binding_count_error(VirtualMachine *vm, size_t expected, size_t got, Object **error) {
+    guard_is_not_null(vm);
+    guard_is_not_null(error);
+
+    auto const a = vm_allocator(vm);
+    auto const type = vm_get(vm, STATIC_CALL_ERROR_NAME);
+
+    auto field_index = 0;
+    auto const ok =
+            object_try_make_list(
+                    a, error,
+                    type,
+                    object_nil(),
+                    object_nil(),
+                    object_nil(),
+                    object_nil()
+            )
+            && try_create_string_field(
+                    vm,
+                    FIELD_MESSAGE, "cannot bind values",
+                    object_list_nth(++field_index, *error)
+            )
+            && try_create_int_field(vm, FIELD_EXPECTED, (int64_t) expected, object_list_nth(++field_index, *error))
+            && try_create_int_field(vm, FIELD_GOT, (int64_t) got, object_list_nth(++field_index, *error))
+            && try_create_traceback(vm, object_list_nth(++field_index, *error));
+    if (ok) {
+        return;
+    }
+
+    *error = type;
+    report_out_of_memory(vm, type);
 }
 
-void create_define_name_type_error(VirtualMachine *vm, Object **error) {
-    create_error_with_message(
-            vm,
-            vm_get(vm, STATIC_SYNTAX_ERROR_NAME),
-            "defined name must be an atom",
-            error
-    );
+void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_type, Object **error) {
+    guard_is_not_null(vm);
+    guard_is_not_null(error);
+
+    auto const a = vm_allocator(vm);
+    auto const type = vm_get(vm, STATIC_TYPE_ERROR_NAME);
+
+    auto field_index = 0;
+    auto ok =
+            object_try_make_list(
+                    a, error,
+                    type,
+                    object_nil(),
+                    object_nil(),
+                    object_nil()
+            )
+            && try_create_string_field(vm, FIELD_MESSAGE, "cannot unpack", object_list_nth(++field_index, *error))
+            && try_create_string_field(vm, "type", object_type_str(value_type), object_list_nth(++field_index, *error))
+            && try_create_traceback(vm, object_list_nth(++field_index, *error));
+    if (ok) {
+        return;
+    }
+
+    *error = type;
+    report_out_of_memory(vm, type);
 }
 
+void create_binding_target_error(VirtualMachine *vm, Object_Type target_type, Object **error) {
+    guard_is_not_null(vm);
+    guard_is_not_null(error);
+
+    auto const a = vm_allocator(vm);
+    auto const type = vm_get(vm, STATIC_TYPE_ERROR_NAME);
+
+    auto field_index = 0;
+    auto ok =
+            object_try_make_list(
+                    a, error,
+                    type,
+                    object_nil(),
+                    object_nil(),
+                    object_nil()
+            )
+            &&
+            try_create_string_field(vm, FIELD_MESSAGE, "cannot bind to target", object_list_nth(++field_index, *error))
+            && try_create_string_field(vm, "type", object_type_str(target_type), object_list_nth(++field_index, *error))
+            && try_create_traceback(vm, object_list_nth(++field_index, *error));
+    if (ok) {
+        return;
+    }
+
+    *error = type;
+    report_out_of_memory(vm, type);
+}

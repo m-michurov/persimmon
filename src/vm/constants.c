@@ -4,7 +4,7 @@
 #include "object/lists.h"
 #include "object/constructors.h"
 #include "object/accessors.h"
-#include "object/env.h"
+#include "env.h"
 
 bool try_define_constants(VirtualMachine *vm, Object *env) {
     guard_is_not_null(vm);

@@ -15,7 +15,7 @@
 #include "vm/reader/parser.h"
 #include "vm/primitives.h"
 #include "vm/stack.h"
-#include "object/env.h"
+#include "vm/env.h"
 #include "object_arena_allocator.h"
 
 bool try_parse(Arena *arena, Object_Allocator *allocator, Tokens tokens, Objects *exprs) {

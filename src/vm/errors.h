@@ -65,34 +65,36 @@ void create_import_nesting_too_deep_error(VirtualMachine *vm, Object **error);
 
 #define import_nesting_too_deep_error(VM, Error) ERRORS__error(create_import_nesting_too_deep_error, (VM), (Error))
 
-void create_if_too_few_args_error(VirtualMachine *vm, Object **error);
+void create_too_few_args_error(VirtualMachine *vm, char const *name, Object **error);
 
-#define if_too_few_args_error(VM, Error) ERRORS__error(create_if_too_few_args_error, (VM), (Error))
+#define too_few_args_error(VM, Name, Error) ERRORS__error(create_too_few_args_error, (VM), (Name), (Error))
 
-void create_if_too_many_args_error(VirtualMachine *vm, Object **error);
+void create_too_many_args_error(VirtualMachine *vm, char const *name, Object **error);
 
-#define if_too_many_args_error(VM, Error) ERRORS__error(create_if_too_many_args_error, (VM), (Error))
+#define too_many_args_error(VM, Name, Error) ERRORS__error(create_too_many_args_error, (VM), (Name), (Error))
 
-void create_fn_too_few_args_error(VirtualMachine *vm, Object **error);
+void create_args_count_error(VirtualMachine *vm, char const *name, size_t expected, Object **error);
 
-#define fn_too_few_args_error(VM, Error) ERRORS__error(create_fn_too_few_args_error, (VM), (Error))
+#define args_count_error(VM, Name, Expected, Error) \
+    ERRORS__error(create_args_count_error, (VM), (Name), (Expected), (Error))
 
-void create_fn_args_type_error(VirtualMachine *vm, Object **error);
+void create_parameters_type_error(VirtualMachine *vm, Object **error);
 
-#define fn_args_type_error(VM, Error) ERRORS__error(create_fn_args_type_error, (VM), (Error))
-
-void create_import_args_error(VirtualMachine *vm, Object **error);
-
-#define import_args_error(VM, Error) ERRORS__error(create_import_args_error, (VM), (Error))
+#define parameters_type_error(VM, Error) ERRORS__error(create_parameters_type_error, (VM), (Error))
 
 void create_import_path_type_error(VirtualMachine *vm, Object **error);
 
 #define import_path_type_error(VM, Error) ERRORS__error(create_import_path_type_error, (VM), (Error))
 
-void create_define_args_error(VirtualMachine *vm, Object **error);
+void create_binding_count_error(VirtualMachine *vm, size_t expected, size_t got, Object **error);
 
-#define define_args_error(VM, Error) ERRORS__error(create_define_args_error, (VM), (Error))
+#define binding_count_error(VM, Expected, Got, Error) \
+    ERRORS__error(create_binding_count_error, (VM), (Expected), (Got), (Error))
 
-void create_define_name_type_error(VirtualMachine *vm, Object **error);
+void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_type, Object **error);
 
-#define define_name_type_error(VM, Error) ERRORS__error(create_define_name_type_error, (VM), (Error))
+#define binding_unpack_error(VM, Type, Error) ERRORS__error(create_binding_unpack_error, (VM), (Type), (Error))
+
+void create_binding_target_error(VirtualMachine *vm, Object_Type target_type, Object **error);
+
+#define binding_target_error(VM, Type, Error) ERRORS__error(create_binding_target_error, (VM), (Type), (Error))

@@ -2,13 +2,13 @@
 
 #include <string.h>
 
+#include "utility/slice.h"
+#include "utility/guards.h"
 #include "object/lists.h"
 #include "object/accessors.h"
 #include "object/constructors.h"
-#include "object/env.h"
-#include "utility/slice.h"
-#include "utility/guards.h"
 #include "reader/reader.h"
+#include "env.h"
 #include "stack.h"
 #include "errors.h"
 
@@ -175,6 +175,35 @@ static bool try_begin_eval(
     guard_unreachable();
 }
 
+static bool try_bind(VirtualMachine *vm, Object *env, Object *target, Object *value, Object **error) {
+    Env_BindingError binding_error;
+    if (env_try_bind(vm_allocator(vm), env, target, value, &binding_error)) {
+        return true;
+    }
+
+    switch (binding_error.type) {
+        case Env_CannotUnpack: {
+            binding_unpack_error(vm, binding_error.as_cannot_unpack.value_type, error);
+        }
+        case Env_CountMismatch: {
+            binding_count_error(
+                    vm,
+                    binding_error.as_count_mismatch.expected,
+                    binding_error.as_count_mismatch.got,
+                    error
+            );
+        }
+        case Env_InvalidTarget: {
+            binding_target_error(vm, binding_error.as_invalid_target.target_type, error);
+        }
+        case Env_AllocationError: {
+            out_of_memory_error(vm, error);
+        }
+    }
+
+    guard_unreachable();
+}
+
 static bool try_step(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
@@ -187,10 +216,10 @@ static bool try_step(VirtualMachine *vm) {
             if (1 == object_list_count(frame->evaluated)) {
                 auto const fn = frame->evaluated->as_cons.first;
                 if (TYPE_MACRO == fn->type) {
-                    auto args = frame->unevaluated;
+                    auto actual_args = frame->unevaluated;
 
                     auto const formal_args = fn->as_macro.args;
-                    auto const actual_argc = object_list_count(args);
+                    auto const actual_argc = object_list_count(actual_args);
                     auto const formal_argc = object_list_count(formal_args);
                     if (actual_argc != formal_argc) {
                         call_error(vm, "<macro>", formal_argc, actual_argc, &frame->error);
@@ -205,11 +234,8 @@ static bool try_step(VirtualMachine *vm) {
                         out_of_memory_error(vm, &frame->error);
                     }
 
-                    object_list_for(formal, formal_args) {
-                        auto const actual = object_list_shift(&args);
-                        if (false == env_try_define(a, *arg_bindings, formal, actual, nullptr)) {
-                            out_of_memory_error(vm, &frame->error);
-                        }
+                    if (false == try_bind(vm, *arg_bindings, formal_args, actual_args, &frame->error)) {
+                        return false;
                     }
 
                     Object **do_atom;
@@ -257,7 +283,7 @@ static bool try_step(VirtualMachine *vm) {
             guard_is_not_equal(frame->evaluated, object_nil());
 
             auto const fn = object_as_cons(frame->evaluated).first;
-            auto args = object_as_cons(frame->evaluated).rest;
+            auto actual_args = object_as_cons(frame->evaluated).rest;
 
             if (TYPE_PRIMITIVE == fn->type) {
                 Object **value;
@@ -265,7 +291,7 @@ static bool try_step(VirtualMachine *vm) {
                     stack_overflow_error(vm, &frame->error);
                 }
 
-                if (false == fn->as_primitive(vm, args, value, &frame->error)) {
+                if (false == fn->as_primitive(vm, actual_args, value, &frame->error)) {
                     return false;
                 }
 
@@ -276,7 +302,7 @@ static bool try_step(VirtualMachine *vm) {
                 type_error(vm, &frame->error, fn->type, TYPE_CLOSURE, TYPE_MACRO, TYPE_PRIMITIVE);
             }
             auto const formal_args = fn->as_closure.args;
-            auto const actual_argc = object_list_count(args);
+            auto const actual_argc = object_list_count(actual_args);
             auto const formal_argc = object_list_count(formal_args);
             if (actual_argc != formal_argc) {
                 call_error(vm, "<closure>", formal_argc, actual_argc, &frame->error);
@@ -291,11 +317,8 @@ static bool try_step(VirtualMachine *vm) {
                 out_of_memory_error(vm, &frame->error);
             }
 
-            object_list_for(formal, formal_args) {
-                auto const actual = object_list_shift(&args);
-                if (false == env_try_define(a, *arg_bindings, formal, actual, nullptr)) {
-                    out_of_memory_error(vm, &frame->error);
-                }
+            if (false == try_bind(vm, *arg_bindings, formal_args, actual_args, &frame->error)) {
+                return false;
             }
 
             Object **do_atom;
@@ -328,20 +351,12 @@ static bool try_step(VirtualMachine *vm) {
         case FRAME_FN: {
             auto const len = object_list_count(frame->unevaluated);
             if (len < 2) {
-                fn_too_few_args_error(vm, &frame->error);
+                too_few_args_error(vm, "fn", &frame->error);
             }
 
             auto const args = object_as_cons(frame->unevaluated).first;
-            if (TYPE_CONS != args->type && TYPE_NIL != args->type) {
-                fn_args_type_error(vm, &frame->error);
-            }
-
-            object_list_for(it, args) {
-                if (TYPE_ATOM == it->type) {
-                    continue;
-                }
-
-                fn_args_type_error(vm, &frame->error);
+            if (false == env_is_valid_bind_target(args) || (TYPE_CONS != args->type && TYPE_NIL != args->type)) {
+                parameters_type_error(vm, &frame->error);
             }
 
             auto const body = object_as_cons(frame->unevaluated).rest;
@@ -363,23 +378,12 @@ static bool try_step(VirtualMachine *vm) {
         case FRAME_MACRO: {
             auto const len = object_list_count(frame->unevaluated);
             if (len < 2) {
-                // FIXME macro
-                fn_too_few_args_error(vm, &frame->error);
+                too_few_args_error(vm, "macro", &frame->error);
             }
 
             auto const args = object_as_cons(frame->unevaluated).first;
-            if (TYPE_CONS != args->type && TYPE_NIL != args->type) {
-                // FIXME macro
-                fn_args_type_error(vm, &frame->error);
-            }
-
-            object_list_for(it, args) {
-                if (TYPE_ATOM == it->type) {
-                    continue;
-                }
-
-                // FIXME macro
-                fn_args_type_error(vm, &frame->error);
+            if (false == env_is_valid_bind_target(args) || (TYPE_CONS != args->type && TYPE_NIL != args->type)) {
+                parameters_type_error(vm, &frame->error);
             }
 
             auto const body = object_as_cons(frame->unevaluated).rest;
@@ -402,11 +406,11 @@ static bool try_step(VirtualMachine *vm) {
             if (object_nil() == frame->evaluated) {
                 auto const len = object_list_count(frame->unevaluated);
                 if (len < 2) {
-                    if_too_few_args_error(vm, &frame->error);
+                    too_few_args_error(vm, "if", &frame->error);
                 }
 
                 if (len > 3) {
-                    if_too_many_args_error(vm, &frame->error);
+                    too_many_args_error(vm, "if", &frame->error);
                 }
 
                 auto const cond = object_as_cons(frame->unevaluated).first;
@@ -455,9 +459,9 @@ static bool try_step(VirtualMachine *vm) {
         }
         case FRAME_DEFINE: {
             if (object_nil() == frame->evaluated) {
-                auto const len = object_list_count(frame->unevaluated);
-                if (2 != len) {
-                    define_args_error(vm, &frame->error);
+                size_t const expected = 2;
+                if (expected != object_list_count(frame->unevaluated)) {
+                    args_count_error(vm, "define", expected, &frame->error);
                 }
 
                 return try_begin_eval(
@@ -467,22 +471,18 @@ static bool try_step(VirtualMachine *vm) {
                 );
             }
 
-            auto const name = object_as_cons(frame->unevaluated).first;
-            if (TYPE_ATOM != name->type) {
-                define_name_type_error(vm, &frame->error);
-            }
-
+            auto const target = object_as_cons(frame->unevaluated).first;
             auto const value = object_as_cons(frame->evaluated).first;
-            if (false == env_try_define(a, frame->env, name, value, nullptr)) {
-                out_of_memory_error(vm, &frame->error);
+            if (false == try_bind(vm, frame->env, target, value, &frame->error)) {
+                return false;
             }
 
             return try_save_result_and_pop(vm, frame->results_list, value, &frame->error);
         }
         case FRAME_IMPORT: {
-            auto const len = object_list_count(frame->unevaluated);
-            if (len != 1) {
-                import_args_error(vm, &frame->error);
+            size_t const expected = 1;
+            if (expected != object_list_count(frame->unevaluated)) {
+                args_count_error(vm, "import", expected, &frame->error);
             }
 
             auto const file_name = object_as_cons(frame->unevaluated).first;
@@ -536,9 +536,9 @@ static bool try_step(VirtualMachine *vm) {
             return true;
         }
         case FRAME_QUOTE: {
-            if (1 != object_list_count(frame->unevaluated)) {
-                // FIXME quote error
-                define_args_error(vm, &frame->error);
+            size_t const expected = 1;
+            if (expected != object_list_count(frame->unevaluated)) {
+                args_count_error(vm, "quote", expected, &frame->error);
             }
 
             auto const value = object_as_cons(frame->unevaluated).first;

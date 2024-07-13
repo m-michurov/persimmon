@@ -1,10 +1,10 @@
 #include "virtual_machine.h"
 
-#include "reader/reader.h"
 #include "utility/guards.h"
 #include "utility/slice.h"
 #include "object/constructors.h"
-#include "object/env.h"
+#include "reader/reader.h"
+#include "env.h"
 #include "stack.h"
 #include "constants.h"
 #include "primitives.h"
@@ -49,7 +49,8 @@ static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
            && object_try_make_atom(a, "OutOfMemoryError", slice_at(*constants, STATIC_OUT_OF_MEMORY_ERROR_NAME))
            && object_try_make_atom(a, "StackOverflowError", slice_at(*constants, STATIC_STACK_OVERFLOW_ERROR_NAME))
            && object_try_make_atom(a, "SyntaxError", slice_at(*constants, STATIC_SYNTAX_ERROR_NAME))
-           && object_try_make_atom(a, "ImportError", slice_at(*constants, STATIC_TOO_MANY_IMPORTS));
+           && object_try_make_atom(a, "ImportError", slice_at(*constants, STATIC_TOO_MANY_IMPORTS))
+           && object_try_make_atom(a, "BindError", slice_at(*constants, STATIC_BIND_ERROR));
 }
 
 VirtualMachine *vm_new(VirtualMachine_Config config) {

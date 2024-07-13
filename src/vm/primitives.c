@@ -6,8 +6,8 @@
 #include "object/lists.h"
 #include "object/constructors.h"
 #include "object/accessors.h"
-#include "object/env.h"
-#include "vm/errors.h"
+#include "env.h"
+#include "errors.h"
 
 #define error(PrintErrorFn, Args) do { PrintErrorFn Args; return false; } while (false)
 

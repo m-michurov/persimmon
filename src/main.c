@@ -2,7 +2,7 @@
 
 #include "utility/guards.h"
 #include "utility/slice.h"
-#include "object/env.h"
+#include "vm/env.h"
 #include "object/lists.h"
 #include "vm/reader/reader.h"
 #include "vm/eval.h"
