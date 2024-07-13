@@ -37,7 +37,7 @@ static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
     guard_is_greater_or_equal(constants->count, STATIC_CONSTANTS_COUNT);
 
     return object_try_make_atom(a, "true", slice_at(*constants, STATIC_TRUE))
-           && object_try_make_atom(a, "false", slice_at(*constants, STATIC_FALSE))
+           && (*slice_at(*constants, STATIC_FALSE) = object_nil())
            && object_try_make_atom(a, "OSError", slice_at(*constants, STATIC_OS_ERROR_NAME))
            && object_try_make_atom(a, "TypeError", slice_at(*constants, STATIC_TYPE_ERROR_NAME))
            && object_try_make_atom(a, "CallError", slice_at(*constants, STATIC_CALL_ERROR_NAME))

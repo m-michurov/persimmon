@@ -6,6 +6,7 @@
 #include "object/lists.h"
 #include "vm/reader/reader.h"
 #include "vm/primitives.h"
+#include "vm/constants.h"
 #include "vm/eval.h"
 #include "vm/virtual_machine.h"
 #include "vm/traceback.h"
@@ -24,9 +25,12 @@ static bool try_shift_args(int *argc, char ***argv, char **arg) {
     return true;
 }
 
-static bool try_env_init_default(ObjectAllocator *a, Object **env) {
-    return env_try_create(a, object_nil(), env)
-           && try_define_primitives(a, *env);
+static bool env_try_init_global(VirtualMachine *vm) {
+    auto const a = vm_allocator(vm);
+
+    return env_try_create(a, object_nil(), vm_globals(vm))
+           && try_define_primitives(a, *vm_globals(vm))
+           && try_define_constants(vm, *vm_globals(vm));
 }
 
 static void print_error(Object *error) {
@@ -149,20 +153,8 @@ int main(int argc, char **argv) {
             .import_stack_size = 2
     });
 
-//    Object *error;
-//    create_syntax_error(vm, (SyntaxError) {
-//            .code   = SYNTAX_ERROR_UNEXPECTED_CLOSE_PAREN,
-//            .pos = {
-//                    .lineno = 3,
-//                    .col = 7,
-//                    .end_col = 7
-//            }
-//    }, "main.lisp", "(a b c))", &error);
-//    object_repr_print(error, stdout);
-//    printf("\n");
-
-    if (false == try_env_init_default(vm_allocator(vm), vm_globals(vm))) {
-        printf("Not enough memory to define basic functions\n");
+    if (false == env_try_init_global(vm)) {
+        printf("ERROR: Could not initialize the global environment\n");
         vm_free(&vm);
         return EXIT_FAILURE;
     }
@@ -170,15 +162,15 @@ int main(int argc, char **argv) {
     char *file_name;
     bool ok = true;
     if (try_shift_args(&argc, &argv, &file_name)) {
-        auto handle = fopen(file_name, "rb");
-        if (nullptr == file_name) {
-            printf("Could not open \"%s\": %s\n", file_name, strerror(errno));
+        NamedFile file;
+        if (false == named_file_try_open(file_name, "rb", &file)) {
+            printf("ERROR: Could not open \"%s\": %s\n", file_name, strerror(errno));
             vm_free(&vm);
             return EXIT_FAILURE;
         }
 
-        ok = try_eval_file(vm, (NamedFile) {.name = file_name, .handle=handle});
-        fclose(handle);
+        ok = try_eval_file(vm, file);
+        named_file_close(&file);
     } else {
         run_repl(vm);
     }

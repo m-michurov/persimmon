@@ -494,19 +494,20 @@ static bool try_step(VirtualMachine *vm) {
                 import_nesting_too_deep_error(vm, &frame->error);
             }
 
-            auto const handle = fopen(file_name->as_string, "rb");
-            if (nullptr == handle) {
+            NamedFile file;
+            if (false == named_file_try_open(file_name->as_string, "rb", &file)) {
                 slice_try_pop(vm_expressions_stack(vm), nullptr);
                 os_error(vm, errno, &frame->error);
             }
+
             auto const exprs = slice_last(*vm_expressions_stack(vm));
-            auto const file = (NamedFile) {.name = file_name->as_string, .handle = handle};
-            if (false == reader_try_read_all(vm_reader(vm), file, exprs, &frame->error)) {
-                fclose(handle);
+
+            auto const read_ok = reader_try_read_all(vm_reader(vm), file, exprs, &frame->error);
+            named_file_close(&file);
+            if (false == read_ok) {
                 slice_try_pop(vm_expressions_stack(vm), nullptr);
                 return false;
             }
-            fclose(handle);
 
             object_list_reverse(exprs);
             if (false == object_try_make_cons(a, object_nil(), *exprs, exprs)) {

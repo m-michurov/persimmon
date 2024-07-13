@@ -50,8 +50,31 @@ bool parser_is_inside_expression(Parser const *p) {
     return p->has_expr || false == slice_empty(p->stack);
 }
 
-// FIXME use checked constructors
-// TODO find a way to report OOM
+static bool try_unwind_quotes(Parser *p, Parser_Result *result) {
+    if (slice_empty(p->stack)) {
+        return false;
+    }
+
+    while (slice_last(p->stack)->is_quote) {
+        if (false == object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)) {
+            *result = PARSER_ALLOCATION_ERROR;
+            return true;
+        }
+
+        p->expr = slice_last(p->stack)->last;
+        object_list_reverse(&p->expr);
+        slice_try_pop(&p->stack, nullptr);
+
+        if (slice_empty(p->stack)) {
+            p->has_expr = true;
+            *result = PARSER_OK;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 Parser_Result parser_try_accept(Parser *p, Token token, SyntaxError *syntax_error) {
     guard_is_not_null(p);
     guard_is_not_null(syntax_error);
@@ -78,19 +101,9 @@ Parser_Result parser_try_accept(Parser *p, Token token, SyntaxError *syntax_erro
                 return PARSER_OK;
             }
 
-            if (slice_last(p->stack)->is_quote) {
-                if (false == object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)) {
-                    return PARSER_ALLOCATION_ERROR;
-                }
-
-                p->expr = slice_last(p->stack)->last;
-                object_list_reverse(&p->expr);
-                slice_try_pop(&p->stack, nullptr);
-
-                if (slice_empty(p->stack)) {
-                    p->has_expr = true;
-                    return PARSER_OK;
-                }
+            Parser_Result result;
+            if (try_unwind_quotes(p, &result)) {
+                return result;
             }
 
             return object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)
@@ -107,19 +120,9 @@ Parser_Result parser_try_accept(Parser *p, Token token, SyntaxError *syntax_erro
                 return PARSER_OK;
             }
 
-            if (slice_last(p->stack)->is_quote) {
-                if (false == object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)) {
-                    return PARSER_ALLOCATION_ERROR;
-                }
-
-                p->expr = slice_last(p->stack)->last;
-                object_list_reverse(&p->expr);
-                slice_try_pop(&p->stack, nullptr);
-
-                if (slice_empty(p->stack)) {
-                    p->has_expr = true;
-                    return PARSER_OK;
-                }
+            Parser_Result result;
+            if (try_unwind_quotes(p, &result)) {
+                return result;
             }
 
             return object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)
@@ -136,19 +139,9 @@ Parser_Result parser_try_accept(Parser *p, Token token, SyntaxError *syntax_erro
                 return PARSER_OK;
             }
 
-            if (slice_last(p->stack)->is_quote) {
-                if (false == object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)) {
-                    return PARSER_ALLOCATION_ERROR;
-                }
-
-                p->expr = slice_last(p->stack)->last;
-                object_list_reverse(&p->expr);
-                slice_try_pop(&p->stack, nullptr);
-
-                if (slice_empty(p->stack)) {
-                    p->has_expr = true;
-                    return PARSER_OK;
-                }
+            Parser_Result result;
+            if (try_unwind_quotes(p, &result)) {
+                return result;
             }
 
             return object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)
@@ -175,21 +168,6 @@ Parser_Result parser_try_accept(Parser *p, Token token, SyntaxError *syntax_erro
                 return PARSER_SYNTAX_ERROR;
             }
 
-            if (slice_last(p->stack)->is_quote) {
-                if (false == object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)) {
-                    return PARSER_ALLOCATION_ERROR;
-                }
-
-                p->expr = slice_last(p->stack)->last;
-                object_list_reverse(&p->expr);
-                slice_try_pop(&p->stack, nullptr);
-
-                if (slice_empty(p->stack)) {
-                    p->has_expr = true;
-                    return PARSER_OK;
-                }
-            }
-
             p->expr = slice_last(p->stack)->last;
             object_list_reverse(&p->expr);
 
@@ -201,19 +179,9 @@ Parser_Result parser_try_accept(Parser *p, Token token, SyntaxError *syntax_erro
 
             slice_try_pop(&p->stack, nullptr);
 
-            if (false == slice_empty(p->stack) && slice_last(p->stack)->is_quote) {
-                if (false == object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)) {
-                    return PARSER_ALLOCATION_ERROR;
-                }
-
-                p->expr = slice_last(p->stack)->last;
-                object_list_reverse(&p->expr);
-                slice_try_pop(&p->stack, nullptr);
-
-                if (slice_empty(p->stack)) {
-                    p->has_expr = true;
-                    return PARSER_OK;
-                }
+            Parser_Result result;
+            if (try_unwind_quotes(p, &result)) {
+                return result;
             }
 
             return object_list_try_prepend(p->a, p->expr, &slice_last(p->stack)->last)

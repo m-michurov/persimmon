@@ -26,6 +26,10 @@ add_executable(persimmon
         src/object/lists.c
         src/object/object.c
         src/object/env.c
+        src/vm/reader/named_file.c
+        src/vm/reader/named_file.h
+        src/vm/constants.c
+        src/vm/constants.h
 )
 
 target_compile_options(persimmon PRIVATE

@@ -20,19 +20,11 @@ static bool prim_eq(VirtualMachine *vm, Object *args, Object **value, Object **e
 
     Object *lhs, *rhs;
     if (false == object_list_try_unpack_2(&lhs, &rhs, args)) {
-        call_error(vm, "prim_eq?", 2, object_list_count(args), error);
+        call_error(vm, "eq?", 2, object_list_count(args), error);
     }
 
-    if (false == object_equals(lhs, rhs)) {
-        *value = object_nil();
-        return true;
-    }
-
-    if (object_try_make_atom(vm_allocator(vm), "true", value)) {
-        return true;
-    }
-
-    out_of_memory_error(vm, error);
+    *value = vm_get(vm, object_equals(lhs, rhs) ? STATIC_TRUE : STATIC_FALSE);
+    return true;
 }
 
 static bool prim_print(VirtualMachine *vm, Object *args, Object **value, Object **error) {

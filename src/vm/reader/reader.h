@@ -7,13 +7,9 @@
 #include "object/allocator.h"
 #include "syntax_error.h"
 #include "parser.h"
+#include "named_file.h"
 
 typedef struct Reader Reader;
-
-typedef struct {
-    char const *name;
-    FILE *handle;
-} NamedFile;
 
 typedef struct {
     Parser_Config parser_config;
