@@ -16,7 +16,9 @@
     (do
         (defn firsts- (acc col)
             (if col
-                (firsts- (prepend (first (first col)) acc) (rest col))
+                (do
+                    (define (value _) (first col))
+                    (firsts- (prepend value acc) (rest col)))
                 (macros.reverse acc)))
         (firsts- nil col-of-cols)))
 
@@ -24,7 +26,9 @@
     (do
         (defn seconds- (acc col)
             (if col
-                (seconds- (prepend (first (rest (first col))) acc) (rest col))
+                (do
+                    (define (_ value) (first col))
+                    (seconds- (prepend value acc) (rest col)))
                 (macros.reverse acc)))
         (seconds- nil col-of-cols)))
 
