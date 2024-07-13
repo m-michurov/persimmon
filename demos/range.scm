@@ -1,4 +1,4 @@
-(import "demos/macros.lisp")
+(import "demos/macros.scm")
 
 (defn range (n)
     (let
@@ -6,4 +6,4 @@
             (if (eq? 0 n)
                 acc
                 (self self (- n 1) (prepend n acc))))))
-        (range- range- n (list))))
+        (range- range- n nil)))

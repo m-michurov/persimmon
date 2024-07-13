@@ -1,4 +1,4 @@
-(import "demos/macros.lisp")
+(import "demos/macros.scm")
 
 (defn reverse (col)
     (let
@@ -6,7 +6,7 @@
             (if col
                 (self self (prepend (first col) acc) (rest col))
                 acc))))
-        (reverse- reverse- (list) col)))
+        (reverse- reverse- nil col)))
 
 (defn map (f col)
     (let
@@ -14,7 +14,7 @@
             (if col
                 (self self (prepend (f (first col)) acc) (rest col))
                 (reverse acc)))))
-        (map- map- (list) col)))
+        (map- map- nil col)))
 
 
 (defn apply (f col)
@@ -31,14 +31,13 @@
                     (reverse acc)
                     (self self (- n 1) (prepend (first col) acc) (rest col)))
                 (reverse acc)))))
-        (take- take- n (list) col)))
+        (take- take- n nil col)))
 
 (defn drop (n col)
     (if col
         (if (eq? 0 n)
             col
-            (drop (- n 1) (rest col)))
-        (list)))
+            (drop (- n 1) (rest col)))))
 
 (defn chunk-by (n col)
     (let
@@ -46,4 +45,4 @@
             (if col
                 (self self (prepend (take n col) acc) (drop n col))
                 (reverse acc)))))
-    (chunk-by- chunk-by- (list) col)))
+    (chunk-by- chunk-by- nil col)))

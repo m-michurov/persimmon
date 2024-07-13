@@ -10,7 +10,7 @@
             (if col
                 (reverse- (prepend (first col) acc) (rest col))
                 acc))
-        (reverse- (list) col)))
+        (reverse- nil col)))
 
 (defn macros.firsts (col-of-cols)
     (do
@@ -18,7 +18,7 @@
             (if col
                 (firsts- (prepend (first (first col)) acc) (rest col))
                 (macros.reverse acc)))
-        (firsts- (list) col-of-cols)))
+        (firsts- nil col-of-cols)))
 
 (defn macros.seconds (col-of-cols)
     (do
@@ -26,7 +26,7 @@
             (if col
                 (seconds- (prepend (first (rest (first col))) acc) (rest col))
                 (macros.reverse acc)))
-        (seconds- (list) col-of-cols)))
+        (seconds- nil col-of-cols)))
 
 (defn macros.concat (a b)
     (do
