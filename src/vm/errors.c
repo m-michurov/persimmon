@@ -104,8 +104,7 @@ void create_os_error(VirtualMachine *vm, errno_t error_code, Object **error) {
     auto const ok =
             object_try_make_list(a, error, type, object_nil(), object_nil())
             && try_create_string_field(vm, FIELD_MESSAGE, strerror(error_code), object_list_nth(++field_index, *error))
-            && try_create_traceback(vm, object_list_nth(++field_index, *error))
-            && false;
+            && try_create_traceback(vm, object_list_nth(++field_index, *error));
     if (ok) {
         return;
     }
