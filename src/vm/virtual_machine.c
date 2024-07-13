@@ -4,7 +4,10 @@
 #include "utility/guards.h"
 #include "utility/slice.h"
 #include "object/constructors.h"
+#include "object/env.h"
 #include "stack.h"
+#include "constants.h"
+#include "primitives.h"
 
 struct VirtualMachine {
     Reader *reader;
@@ -94,6 +97,10 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
     });
 
     guard_is_true(try_init_static_constants(allocator, &vm->constants));
+
+    guard_is_true(env_try_create(vm->allocator, object_nil(), &vm->globals));
+    guard_is_true(try_define_constants(vm, vm->globals));
+    guard_is_true(try_define_primitives(vm->allocator, vm->globals));
 
     return vm;
 }

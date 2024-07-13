@@ -5,8 +5,6 @@
 #include "object/env.h"
 #include "object/lists.h"
 #include "vm/reader/reader.h"
-#include "vm/primitives.h"
-#include "vm/constants.h"
 #include "vm/eval.h"
 #include "vm/virtual_machine.h"
 #include "vm/traceback.h"
@@ -23,14 +21,6 @@ static bool try_shift_args(int *argc, char ***argv, char **arg) {
     (*argv)++;
 
     return true;
-}
-
-static bool env_try_init_global(VirtualMachine *vm) {
-    auto const a = vm_allocator(vm);
-
-    return env_try_create(a, object_nil(), vm_globals(vm))
-           && try_define_primitives(a, *vm_globals(vm))
-           && try_define_constants(vm, *vm_globals(vm));
 }
 
 static void print_error(Object *error) {
@@ -152,12 +142,6 @@ int main(int argc, char **argv) {
             },
             .import_stack_size = 2
     });
-
-    if (false == env_try_init_global(vm)) {
-        printf("ERROR: Could not initialize the global environment\n");
-        vm_free(&vm);
-        return EXIT_FAILURE;
-    }
 
     char *file_name;
     bool ok = true;
