@@ -113,18 +113,11 @@ static void mark_children(Objects *gray, Object *obj) {
             mark_black(obj);
             return;
         }
-        case TYPE_CLOSURE: {
+        case TYPE_CLOSURE:
+        case TYPE_MACRO: {
             mark_gray_if_white(gray, obj->as_closure.args);
             mark_gray_if_white(gray, obj->as_closure.env);
             mark_gray_if_white(gray, obj->as_closure.body);
-
-            mark_black(obj);
-            return;
-        }
-        case TYPE_MACRO: {
-            mark_gray_if_white(gray, obj->as_macro.args);
-            mark_gray_if_white(gray, obj->as_macro.env);
-            mark_gray_if_white(gray, obj->as_macro.body);
 
             mark_black(obj);
             return;

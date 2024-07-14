@@ -43,7 +43,19 @@ bool env_is_valid_bind_target(Object *target) {
             return true;
         }
         case TYPE_CONS: {
-            object_list_for(it, target) {
+            auto is_varargs = false;
+            while (object_nil() != target) {
+                auto const it = object_list_shift(&target);
+
+                if (is_varargs) {
+                    return TYPE_ATOM == it->type && object_nil() == target;
+                }
+
+                if (TYPE_ATOM == it->type && 0 == strcmp(".", it->as_atom)) {
+                    is_varargs = true;
+                    continue;
+                }
+
                 if (env_is_valid_bind_target(it)) {
                     continue;
                 }
@@ -63,6 +75,27 @@ bool env_is_valid_bind_target(Object *target) {
     }
 
     guard_unreachable();
+}
+
+static bool try_count_targets(Object *target, size_t *count, bool *is_varargs) {
+    *is_varargs = false;
+    *count = 0;
+    while (object_nil() != target) {
+        auto const it = object_list_shift(&target);
+
+        if (*is_varargs) {
+            return TYPE_ATOM == it->type && object_nil() == target;
+        }
+
+        if (TYPE_ATOM == it->type && 0 == strcmp(".", it->as_atom)) {
+            *is_varargs = true;
+            continue;
+        }
+
+        (*count)++;
+    }
+
+    return true;
 }
 
 static bool validate_binding(Object *target, Object *value, Env_BindingError *error) {
@@ -99,20 +132,32 @@ static bool validate_binding(Object *target, Object *value, Env_BindingError *er
                 return false;
             }
 
-            auto const expected = object_list_count(target);
+            size_t expected;
+            bool is_varargs;
+            if (false == try_count_targets(target, &expected, &is_varargs)) {
+                *error = (Env_BindingError) {.type = Env_InvalidVarargsFormat};
+                return false;
+            }
+
             auto const got = object_list_count(value);
-            if (expected != got) {
+            if ((got < expected && is_varargs) || (expected != got && false == is_varargs)) {
                 *error = (Env_BindingError) {
                         .type = Env_CountMismatch,
                         .as_count_mismatch = {
                                 .expected = expected,
+                                .is_varargs = is_varargs,
                                 .got = got
                         }
                 };
                 return false;
             }
 
+            auto targets_left = expected;
             object_list_for(it, target) {
+                if (0 == targets_left--) {
+                    break;
+                }
+
                 if (validate_binding(it, object_list_shift(&value), error)) {
                     continue;
                 }
@@ -120,7 +165,7 @@ static bool validate_binding(Object *target, Object *value, Env_BindingError *er
                 return false;
             }
 
-            guard_is_equal(value, object_nil());
+            guard_is_true(is_varargs || object_nil() == value);
             return true;
         }
         case TYPE_INT:
@@ -163,9 +208,18 @@ static bool env_try_bind_(ObjectAllocator *a, Object *env, Object *target, Objec
         }
         case TYPE_CONS: {
             guard_is_equal(value->type, TYPE_CONS);
-            guard_is_equal(object_list_count(target), object_list_count(value));
 
+            auto is_varargs = false;
             object_list_for(it, target) {
+                if (is_varargs) {
+                    return env_try_bind_(a, env, it, value, error);
+                }
+
+                if (TYPE_ATOM == it->type && 0 == strcmp(".", it->as_atom)) {
+                    is_varargs = true;
+                    continue;
+                }
+
                 if (env_try_bind_(a, env, it, object_list_shift(&value), error)) {
                     continue;
                 }

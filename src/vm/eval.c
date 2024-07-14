@@ -175,6 +175,11 @@ static bool try_begin_eval(
     guard_unreachable();
 }
 
+static bool validate_args(Object *args) {
+    return env_is_valid_bind_target(args)
+           && (TYPE_CONS == args->type || TYPE_NIL == args->type);
+}
+
 static bool try_bind(VirtualMachine *vm, Object *env, Object *target, Object *value, Object **error) {
     Env_BindingError binding_error;
     if (env_try_bind(vm_allocator(vm), env, target, value, &binding_error)) {
@@ -189,12 +194,16 @@ static bool try_bind(VirtualMachine *vm, Object *env, Object *target, Object *va
             binding_count_error(
                     vm,
                     binding_error.as_count_mismatch.expected,
+                    binding_error.as_count_mismatch.is_varargs,
                     binding_error.as_count_mismatch.got,
                     error
             );
         }
         case Env_InvalidTarget: {
             binding_target_error(vm, binding_error.as_invalid_target.target_type, error);
+        }
+        case Env_InvalidVarargsFormat: {
+            binding_varargs_error(vm, error);
         }
         case Env_AllocationError: {
             out_of_memory_error(vm, error);
@@ -213,63 +222,56 @@ static bool try_step(VirtualMachine *vm) {
 
     switch (frame->type) {
         case FRAME_CALL: {
-            if (1 == object_list_count(frame->evaluated)) {
+            if (1 == object_list_count(frame->evaluated) && TYPE_MACRO == frame->evaluated->as_cons.first->type) {
                 auto const fn = frame->evaluated->as_cons.first;
-                if (TYPE_MACRO == fn->type) {
-                    auto actual_args = frame->unevaluated;
+                auto actual_args = frame->unevaluated;
 
-                    auto const formal_args = fn->as_macro.args;
-                    auto const actual_argc = object_list_count(actual_args);
-                    auto const formal_argc = object_list_count(formal_args);
-                    if (actual_argc != formal_argc) {
-                        call_error(vm, "<macro>", formal_argc, actual_argc, &frame->error);
-                    }
+                auto const formal_args = fn->as_closure.args;
 
-                    Object **arg_bindings;
-                    if (false == stack_try_create_local(s, &arg_bindings)) {
-                        stack_overflow_error(vm, &frame->error);
-                    }
-
-                    if (false == env_try_create(a, fn->as_macro.env, arg_bindings)) {
-                        out_of_memory_error(vm, &frame->error);
-                    }
-
-                    if (false == try_bind(vm, *arg_bindings, formal_args, actual_args, &frame->error)) {
-                        return false;
-                    }
-
-                    Object **do_atom;
-                    if (false == stack_try_create_local(s, &do_atom)) {
-                        stack_overflow_error(vm, &frame->error);
-                    }
-
-                    if (false == object_try_make_atom(a, "do", do_atom)) {
-                        out_of_memory_error(vm, &frame->error);
-                    }
-
-                    Object **body;
-                    if (false == stack_try_create_local(s, &body)) {
-                        stack_overflow_error(vm, &frame->error);
-                    }
-
-                    if (false == object_try_make_cons(a, *do_atom, fn->as_closure.body, body)) {
-                        out_of_memory_error(vm, &frame->error);
-                    }
-
-                    stack_swap_top(s, frame_make(
-                            FRAME_DO,
-                            object_nil(),
-                            frame->env,
-                            frame->results_list,
-                            object_nil()
-                    ));
-
-                    return try_begin_eval(
-                            vm, EVAL_FRAME_KEEP,
-                            *arg_bindings, *body,
-                            &frame->unevaluated, &frame->error
-                    );
+                Object **arg_bindings;
+                if (false == stack_try_create_local(s, &arg_bindings)) {
+                    stack_overflow_error(vm, &frame->error);
                 }
+
+                if (false == env_try_create(a, fn->as_closure.env, arg_bindings)) {
+                    out_of_memory_error(vm, &frame->error);
+                }
+
+                if (false == try_bind(vm, *arg_bindings, formal_args, actual_args, &frame->error)) {
+                    return false;
+                }
+
+                Object **do_atom;
+                if (false == stack_try_create_local(s, &do_atom)) {
+                    stack_overflow_error(vm, &frame->error);
+                }
+
+                if (false == object_try_make_atom(a, "do", do_atom)) {
+                    out_of_memory_error(vm, &frame->error);
+                }
+
+                Object **body;
+                if (false == stack_try_create_local(s, &body)) {
+                    stack_overflow_error(vm, &frame->error);
+                }
+
+                if (false == object_try_make_cons(a, *do_atom, fn->as_closure.body, body)) {
+                    out_of_memory_error(vm, &frame->error);
+                }
+
+                stack_swap_top(s, frame_make(
+                        FRAME_DO,
+                        object_nil(),
+                        frame->env,
+                        frame->results_list,
+                        object_nil()
+                ));
+
+                return try_begin_eval(
+                        vm, EVAL_FRAME_KEEP,
+                        *arg_bindings, *body,
+                        &frame->unevaluated, &frame->error
+                );
             }
 
             if (object_nil() != frame->unevaluated) {
@@ -302,11 +304,6 @@ static bool try_step(VirtualMachine *vm) {
                 type_error(vm, &frame->error, fn->type, TYPE_CLOSURE, TYPE_MACRO, TYPE_PRIMITIVE);
             }
             auto const formal_args = fn->as_closure.args;
-            auto const actual_argc = object_list_count(actual_args);
-            auto const formal_argc = object_list_count(formal_args);
-            if (actual_argc != formal_argc) {
-                call_error(vm, "<closure>", formal_argc, actual_argc, &frame->error);
-            }
 
             Object **arg_bindings;
             if (false == stack_try_create_local(s, &arg_bindings)) {
@@ -355,7 +352,7 @@ static bool try_step(VirtualMachine *vm) {
             }
 
             auto const args = object_as_cons(frame->unevaluated).first;
-            if (false == env_is_valid_bind_target(args) || (TYPE_CONS != args->type && TYPE_NIL != args->type)) {
+            if (false == validate_args(args)) {
                 parameters_type_error(vm, &frame->error);
             }
 
@@ -382,7 +379,7 @@ static bool try_step(VirtualMachine *vm) {
             }
 
             auto const args = object_as_cons(frame->unevaluated).first;
-            if (false == env_is_valid_bind_target(args) || (TYPE_CONS != args->type && TYPE_NIL != args->type)) {
+            if (false == validate_args(args)) {
                 parameters_type_error(vm, &frame->error);
             }
 

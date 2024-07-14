@@ -64,15 +64,11 @@ bool object_equals(Object *a, Object *b) { // NOLINT(*-no-recursion)
         case TYPE_PRIMITIVE: {
             return a->as_primitive == b->as_primitive;
         }
-        case TYPE_CLOSURE: {
+        case TYPE_CLOSURE:
+        case TYPE_MACRO: {
             return object_equals(a->as_closure.env, b->as_closure.env)
                    && object_equals(a->as_closure.args, b->as_closure.args)
                    && object_equals(a->as_closure.body, b->as_closure.body);
-        }
-        case TYPE_MACRO: {
-            return object_equals(a->as_macro.env, b->as_macro.env)
-                   && object_equals(a->as_macro.args, b->as_macro.args)
-                   && object_equals(a->as_macro.body, b->as_macro.body);
         }
         case TYPE_NIL: {
             return true;
@@ -149,6 +145,30 @@ void object_repr_sb(Object *object, StringBuilder *sb) { // NOLINT(*-no-recursio
         case TYPE_CLOSURE:
         case TYPE_MACRO: {
             sb_sprintf(sb, "<%s>", object_type_str(object->type));
+            return;
+        }
+    }
+
+    guard_unreachable();
+}
+
+void object_print(Object *object, FILE *file) {
+    guard_is_not_null(file);
+    guard_is_not_null(object);
+
+    switch (object->type) {
+        case TYPE_STRING: {
+            fprintf(file, "%s", object->as_string);
+            return;
+        }
+        case TYPE_INT:
+        case TYPE_ATOM:
+        case TYPE_CONS:
+        case TYPE_NIL:
+        case TYPE_PRIMITIVE:
+        case TYPE_CLOSURE:
+        case TYPE_MACRO: {
+            object_repr_print(object, file);
             return;
         }
     }

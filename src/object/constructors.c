@@ -102,7 +102,7 @@ static Object *init_macro(Object *obj, Object *env, Object *args, Object *body) 
     guard_is_not_null(body);
 
     obj->type = TYPE_MACRO;
-    obj->as_macro = (Object_Closure) {
+    obj->as_closure = (Object_Closure) {
             .env = env,
             .args = args,
             .body = body
@@ -205,4 +205,46 @@ bool object_try_make_macro(ObjectAllocator *a, Object *env, Object *args, Object
 
     init_macro(*obj, env, args, body);
     return true;
+}
+
+bool object_try_copy(ObjectAllocator *a, Object *obj, Object **copy) {
+    guard_is_not_null(a);
+    guard_is_not_null(obj);
+    guard_is_not_null(copy);
+
+    switch (obj->type) {
+        case TYPE_INT: {
+            return object_try_make_int(a, obj->as_int, copy);
+        }
+        case TYPE_STRING: {
+            return object_try_make_string(a, obj->as_string, copy);
+        }
+        case TYPE_ATOM: {
+            return object_try_make_atom(a, obj->as_atom, copy);
+        }
+        case TYPE_CONS: {
+            return object_try_make_cons(a, object_nil(), object_nil(), copy)
+                   && object_try_copy(a, obj->as_cons.first, &(*copy)->as_cons.first)
+                   && object_try_copy(a, obj->as_cons.rest, &(*copy)->as_cons.rest);
+        }
+        case TYPE_PRIMITIVE: {
+            return object_try_make_primitive(a, obj->as_primitive, copy);
+        }
+        case TYPE_CLOSURE: {
+            return object_try_make_closure(a, obj->as_closure.env, object_nil(), object_nil(), copy)
+                   && object_try_copy(a, obj->as_closure.args, &(*copy)->as_closure.args)
+                   && object_try_copy(a, obj->as_closure.body, &(*copy)->as_closure.body);
+        }
+        case TYPE_MACRO: {
+            return object_try_make_macro(a, obj->as_closure.env, object_nil(), object_nil(), copy)
+                   && object_try_copy(a, obj->as_closure.args, &(*copy)->as_closure.args)
+                   && object_try_copy(a, obj->as_closure.body, &(*copy)->as_closure.body);
+        }
+        case TYPE_NIL: {
+            *copy = obj;
+            return true;
+        }
+    }
+
+    guard_unreachable();
 }

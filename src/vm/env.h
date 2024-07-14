@@ -11,6 +11,7 @@ typedef enum {
     Env_CannotUnpack,
     Env_CountMismatch,
     Env_InvalidTarget,
+    Env_InvalidVarargsFormat,
     Env_AllocationError
 } Env_BindingErrorType;
 
@@ -20,6 +21,7 @@ typedef struct {
     union {
         struct {
             size_t expected;
+            bool is_varargs;
             size_t got;
         } as_count_mismatch;
 

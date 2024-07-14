@@ -86,10 +86,10 @@ void create_import_path_type_error(VirtualMachine *vm, Object **error);
 
 #define import_path_type_error(VM, Error) ERRORS__error(create_import_path_type_error, (VM), (Error))
 
-void create_binding_count_error(VirtualMachine *vm, size_t expected, size_t got, Object **error);
+void create_binding_count_error(VirtualMachine *vm, size_t expected, bool at_least, size_t got, Object **error);
 
-#define binding_count_error(VM, Expected, Got, Error) \
-    ERRORS__error(create_binding_count_error, (VM), (Expected), (Got), (Error))
+#define binding_count_error(VM, Expected, AtLeast, Got, Error) \
+    ERRORS__error(create_binding_count_error, (VM), (Expected), (AtLeast), (Got), (Error))
 
 void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_type, Object **error);
 
@@ -98,3 +98,7 @@ void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_type, Obj
 void create_binding_target_error(VirtualMachine *vm, Object_Type target_type, Object **error);
 
 #define binding_target_error(VM, Type, Error) ERRORS__error(create_binding_target_error, (VM), (Type), (Error))
+
+void create_binding_varargs_error(VirtualMachine *vm, Object **error);
+
+#define binding_varargs_error(VM, Error) ERRORS__error(create_binding_varargs_error, (VM), (Error))

@@ -60,7 +60,6 @@ struct Object {
         Object_Cons as_cons;
         Object_Primitive as_primitive;
         Object_Closure as_closure;
-        Object_Closure as_macro;
     };
 };
 
@@ -69,5 +68,7 @@ Object *object_nil();
 bool object_equals(Object *a, Object *b);
 
 void object_repr_sb(Object *object, StringBuilder *sb);
+
+void object_print(Object *object, FILE *file);
 
 void object_repr_print(Object *object, FILE *file);

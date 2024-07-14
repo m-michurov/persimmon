@@ -16,3 +16,5 @@ bool object_try_make_primitive(ObjectAllocator *a, Object_Primitive fn, Object *
 bool object_try_make_closure(ObjectAllocator *a, Object *env, Object *args, Object *body, Object **obj);
 
 bool object_try_make_macro(ObjectAllocator *a, Object *env, Object *args, Object *body, Object **obj);
+
+bool object_try_copy(ObjectAllocator *a, Object *obj, Object **copy);

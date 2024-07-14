@@ -341,7 +341,7 @@ void create_import_path_type_error(VirtualMachine *vm, Object **error) {
     );
 }
 
-void create_binding_count_error(VirtualMachine *vm, size_t expected, size_t got, Object **error) {
+void create_binding_count_error(VirtualMachine *vm, size_t expected, bool at_least, size_t got, Object **error) {
     guard_is_not_null(vm);
     guard_is_not_null(error);
 
@@ -363,7 +363,12 @@ void create_binding_count_error(VirtualMachine *vm, size_t expected, size_t got,
                     FIELD_MESSAGE, "cannot bind values",
                     object_list_nth(++field_index, *error)
             )
-            && try_create_int_field(vm, FIELD_EXPECTED, (int64_t) expected, object_list_nth(++field_index, *error))
+            && try_create_int_field(
+                    vm,
+                    at_least ? "expected-at-least" : FIELD_EXPECTED,
+                    (int64_t) expected,
+                    object_list_nth(++field_index, *error)
+            )
             && try_create_int_field(vm, FIELD_GOT, (int64_t) got, object_list_nth(++field_index, *error))
             && try_create_traceback(vm, object_list_nth(++field_index, *error));
     if (ok) {
@@ -420,6 +425,32 @@ void create_binding_target_error(VirtualMachine *vm, Object_Type target_type, Ob
             &&
             try_create_string_field(vm, FIELD_MESSAGE, "cannot bind to target", object_list_nth(++field_index, *error))
             && try_create_string_field(vm, "type", object_type_str(target_type), object_list_nth(++field_index, *error))
+            && try_create_traceback(vm, object_list_nth(++field_index, *error));
+    if (ok) {
+        return;
+    }
+
+    *error = type;
+    report_out_of_memory(vm, type);
+}
+
+void create_binding_varargs_error(VirtualMachine *vm, Object **error) {
+    guard_is_not_null(vm);
+    guard_is_not_null(error);
+
+    auto const a = vm_allocator(vm);
+    auto const type = vm_get(vm, STATIC_TYPE_ERROR_NAME);
+
+    auto field_index = 0;
+    auto ok =
+            object_try_make_list(
+                    a, error,
+                    type,
+                    object_nil(),
+                    object_nil()
+            )
+            &&
+            try_create_string_field(vm, FIELD_MESSAGE, "invalid variadic binding format", object_list_nth(++field_index, *error))
             && try_create_traceback(vm, object_list_nth(++field_index, *error));
     if (ok) {
         return;

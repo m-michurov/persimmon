@@ -1,13 +1,5 @@
 (import "demos/macros.scm")
 
-(defn reverse (col)
-    (let
-        ((reverse- (fn (self acc col)
-            (if col
-                (self self (prepend (first col) acc) (rest col))
-                acc))))
-        (reverse- reverse- nil col)))
-
 (defn map (f col)
     (let
         ((map- (fn (self acc col)

@@ -97,6 +97,18 @@ Object **object_list_nth(size_t n, Object *list) {
     guard_assert(false, "list index %zu is out of range for prim_list_list of %zu elements", n, i);
 }
 
+Object **object_list_last(Object **list) {
+    guard_is_not_null(list);
+    guard_is_not_null(*list);
+    guard_is_one_of((*list)->type, TYPE_CONS, TYPE_NIL);\
+
+    while (object_nil() != *list) {
+        list = &(*list)->as_cons.rest;
+    }
+
+    return list;
+}
+
 Object *object_list_skip(Object *list, size_t n) {
     guard_is_not_null(list);
     guard_is_one_of(list->type, TYPE_CONS, TYPE_NIL);
