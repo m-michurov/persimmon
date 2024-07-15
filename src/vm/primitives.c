@@ -263,8 +263,8 @@ static bool prim_list_reverse(VirtualMachine *vm, Object *args, Object **value) 
     }
 
     auto const list = object_as_cons(args).first;
-    if (TYPE_CONS != list->type) {
-        type_error(vm, list->type, TYPE_CONS);
+    if (TYPE_CONS != list->type && TYPE_NIL != list->type) {
+        type_error(vm, list->type, TYPE_CONS, TYPE_NIL);
     }
 
     if (false == object_try_copy(vm_allocator(vm), list, value)) {

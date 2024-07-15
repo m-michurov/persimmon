@@ -368,6 +368,7 @@ static bool tokenizer_name_accept(Scanner *t, Position pos, int c, SyntaxError *
     return false;
 }
 
+// FIXME handle comments
 bool scanner_try_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
     guard_is_not_null(s);
     guard_is_not_null(error);

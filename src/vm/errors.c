@@ -338,7 +338,7 @@ void create_binding_count_error(VirtualMachine *vm, size_t expected, bool at_lea
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
-    auto const default_error = vm_get(vm, STATIC_CALL_ERROR_DEFAULT);
+    auto const default_error = vm_get(vm, STATIC_BIND_DEFAULT);
     auto const error_type = object_as_cons(default_error).first;
 
     auto field_index = 0;

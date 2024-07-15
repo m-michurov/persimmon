@@ -217,6 +217,8 @@ static bool try_bind(VirtualMachine *vm, Object *env, Object *target, Object *va
     guard_unreachable();
 }
 
+// FIXME for fn and macro, convert body expressions into (do ...) on creation
+// FIXME make try an implicit do
 static bool try_step(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
@@ -617,7 +619,7 @@ bool try_eval(VirtualMachine *vm, Object *env, Object *expr) {
     }
 
     while (false == stack_is_empty(s)) {
-        auto const frame = stack_top(s);
+        auto const frame = stack_top(s); // FIXME naming
         if (try_step(vm)) {
             continue;
         }
