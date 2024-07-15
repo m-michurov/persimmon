@@ -52,17 +52,19 @@ void allocator_free(ObjectAllocator **a) {
     *a = nullptr;
 }
 
+#define update_root(Dst, Src, Member) ((Dst).Member = pointer_first_nonnull((Dst).Member, (Src).Member))
+
 void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots) {
     guard_is_not_null(a);
 
-    a->roots.stack = pointer_first_nonnull(a->roots.stack, roots.stack);
-    a->roots.parser_stack = pointer_first_nonnull(a->roots.parser_stack, roots.parser_stack);
-    a->roots.parser_expr = pointer_first_nonnull(a->roots.parser_expr, roots.parser_expr);
-    a->roots.globals = pointer_first_nonnull(a->roots.globals, roots.globals);
-    a->roots.value = pointer_first_nonnull(a->roots.value, roots.value);
-    a->roots.error = pointer_first_nonnull(a->roots.error, roots.error);
-    a->roots.vm_expressions_stack = pointer_first_nonnull(a->roots.vm_expressions_stack, roots.vm_expressions_stack);
-    a->roots.constants = pointer_first_nonnull(a->roots.constants, roots.constants);
+    update_root(a->roots, roots, stack);
+    update_root(a->roots, roots, parser_stack);
+    update_root(a->roots, roots, parser_expr);
+    update_root(a->roots, roots, globals);
+    update_root(a->roots, roots, value);
+    update_root(a->roots, roots, error);
+    update_root(a->roots, roots, vm_expressions_stack);
+    update_root(a->roots, roots, constants);
 }
 
 static void mark_gray(Objects *gray, Object *obj) {
