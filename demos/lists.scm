@@ -1,5 +1,12 @@
 (import "demos/def.scm")
 
+(defn range (n)
+  (defn inner (n acc)
+    (if (eq? 0 n)
+      acc
+      (inner (- n 1) (prepend n acc))))
+  (inner n nil))
+
 (defn map (f col)
   (defn inner (acc col)
     (if col
