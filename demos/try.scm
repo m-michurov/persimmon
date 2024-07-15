@@ -1,24 +1,25 @@
 (import "demos/lists.scm")
 (import "demos/range.scm")
 
-(print (try (/ 10 0)))
-(print (try (/ 10 4)))
+(defn error-get (name fields)
+  (if fields
+    (let (((binding . rest) fields))
+      (let (((cur-name value . _) binding))
+        (if (eq? name cur-name)
+          value
+          (error-get name rest))))))
 
 (defn print-traceback (err)
-  (let (((_ . rest) err))
-    (apply (fn ((name value . _))
-             (if (eq? 'traceback name)
-               (do
-                 (print "Traceback:")
-                 (apply print value))))
-      rest)))
+  (let (((_ . fields) err))
+    (print "Traceback:")
+    (apply print (error-get 'traceback fields))))
 
 (defmacro run-catching (. code)
   (let ((result
           (list 'let (list (list '(val err) (list 'try (concat '(do) code))))
                 '(if err
-                   (let ((type . _) err)
-                     (print 'ERROR type)
+                   (let (((type . fields) err))
+                     (print 'ERROR type '- (error-get 'message fields))
                      (print-traceback err))
                    (print 'VALUE val)))))
     (print result)
@@ -27,3 +28,7 @@
 (run-catching (/ 10 0))
 (run-catching (/ 10 3))
 (run-catching (define x (/ 1 2) (print y)))
+(run-catching (define x (/ 1 2)) (print y))
+(run-catching (define x (/ 1 2)) x)
+(run-catching (try))
+(run-catching (try 1 2 3))
