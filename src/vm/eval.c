@@ -224,14 +224,6 @@ static bool try_step(VirtualMachine *vm) {
     auto const a = vm_allocator(vm);
     auto const frame = stack_top(s);
 
-    object_repr_print(frame->expr, stdout);
-    printf("\n");
-    object_repr_print(frame->unevaluated, stdout);
-    printf("\n");
-    object_repr_print(frame->evaluated, stdout);
-    printf("\n");
-    printf("\n");
-
     switch (frame->type) {
         case FRAME_CALL: {
             if (1 == object_list_count(frame->evaluated) && TYPE_MACRO == frame->evaluated->as_cons.first->type) {
@@ -273,7 +265,7 @@ static bool try_step(VirtualMachine *vm) {
 
                 stack_swap_top(s, frame_make(
                         FRAME_DO,
-                        object_nil(),
+                        frame->expr,
                         frame->env,
                         frame->results_list,
                         object_nil()
@@ -555,18 +547,22 @@ static bool try_step(VirtualMachine *vm) {
         }
         case FRAME_TRY: {
             if (object_nil() != *vm_error(vm)) {
-                guard_is_equal(object_nil(), frame->unevaluated);
-                guard_is_equal(object_nil(), frame->evaluated);
+                guard_is_equal(frame->unevaluated, object_nil());
+                guard_is_equal(frame->evaluated, object_nil());
 
-                Object **error, **result;
-                if (false == stack_try_create_local(s, &error)
-                    || false == stack_try_create_local(s, &result)) {
+                Object **error;
+                if (false == stack_try_create_local(s, &error)) {
+                    stack_overflow_error(vm);
+                }
+
+                Object **result;
+                if (false == stack_try_create_local(s, &result)) {
                     stack_overflow_error(vm);
                 }
 
                 *error = exchange(*vm_error(vm), object_nil());
 
-                if (false == object_try_make_list(a, result, object_nil(), error)) {
+                if (false == object_try_make_list(a, result, object_nil(), *error)) {
                     out_of_memory_error(vm);
                 }
 
@@ -575,7 +571,7 @@ static bool try_step(VirtualMachine *vm) {
 
             if (object_nil() == frame->evaluated) {
                 guard_is_equal(object_list_count(frame->unevaluated), 1);
-                guard_is_equal(object_nil(), *vm_error(vm));
+                guard_is_equal(*vm_error(vm), object_nil());
 
                 auto const next = object_as_cons(frame->unevaluated).first;
                 auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
@@ -583,6 +579,9 @@ static bool try_step(VirtualMachine *vm) {
                 return ok;
             }
 
+            guard_is_equal(*vm_error(vm), object_nil());
+            guard_is_equal(frame->unevaluated, object_nil());
+            guard_is_equal(frame->unevaluated, object_nil());
 
             Object **result;
             if (false == stack_try_create_local(s, &result)) {

@@ -68,17 +68,18 @@ static bool try_create_traceback(VirtualMachine *vm, Object **field) {
            && traceback_try_get(a, vm_stack(vm), object_list_nth(1, *field));
 }
 
-static void create_error_with_message(VirtualMachine *vm, Object *type, char const *message) {
+static void create_error_with_message(VirtualMachine *vm, Object *default_error, char const *message) {
     guard_is_not_null(vm);
     guard_is_not_null(message);
 
     auto const a = vm_allocator(vm);
+    auto const error_type = object_as_cons(default_error).first;
 
     auto field_index = 0;
     auto const ok =
             object_try_make_list(
                     a, vm_error(vm),
-                    type,
+                    error_type,
                     object_nil(),
                     object_nil()
             )
@@ -88,19 +89,20 @@ static void create_error_with_message(VirtualMachine *vm, Object *type, char con
         return;
     }
 
-    *vm_error(vm) = type;
-    report_out_of_memory(vm, type);
+    *vm_error(vm) = default_error;
+    report_out_of_memory(vm, error_type);
 }
 
 void create_os_error(VirtualMachine *vm, errno_t error_code) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
-    auto const type = vm_get(vm, STATIC_OS_ERROR_NAME);
+    auto const default_error = vm_get(vm, STATIC_OS_ERROR_DEFAULT);
+    auto const error_type = object_as_cons(default_error).first;
 
     auto field_index = 0;
     auto const ok =
-            object_try_make_list(a, vm_error(vm), type, object_nil(), object_nil())
+            object_try_make_list(a, vm_error(vm), error_type, object_nil(), object_nil())
             && try_create_string_field(vm, FIELD_MESSAGE, strerror(error_code),
                                        object_list_nth(++field_index, *vm_error(vm)))
             && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
@@ -108,8 +110,8 @@ void create_os_error(VirtualMachine *vm, errno_t error_code) {
         return;
     }
 
-    *vm_error(vm) = type;
-    report_out_of_memory(vm, type);
+    *vm_error(vm) = default_error;
+    report_out_of_memory(vm, error_type);
 }
 
 void create_type_error_(
@@ -123,13 +125,14 @@ void create_type_error_(
     guard_is_greater(expected_count, 0);
 
     auto const a = vm_allocator(vm);
-    auto const type = vm_get(vm, STATIC_TYPE_ERROR_NAME);
+    auto const default_error = vm_get(vm, STATIC_TYPE_ERROR_DEFAULT);
+    auto const error_type = object_as_cons(default_error).first;
 
     auto field_index = 0;
     auto ok =
             object_try_make_list(
                     a, vm_error(vm),
-                    type,
+                    error_type,
                     object_nil(),
                     object_nil(),
                     object_nil(),
@@ -153,8 +156,8 @@ void create_type_error_(
         return;
     }
 
-    *vm_error(vm) = type;
-    report_out_of_memory(vm, type);
+    *vm_error(vm) = default_error;
+    report_out_of_memory(vm, error_type);
 }
 
 void create_syntax_error(
@@ -168,13 +171,14 @@ void create_syntax_error(
     guard_is_not_null(text);
 
     auto const a = vm_allocator(vm);
-    auto const type = vm_get(vm, STATIC_SYNTAX_ERROR_NAME);
+    auto const default_error = vm_get(vm, STATIC_SYNTAX_ERROR_DEFAULT);
+    auto const error_type = object_as_cons(default_error).first;
 
     auto field_index = 0;
     auto const ok =
             object_try_make_list(
                     a, vm_error(vm),
-                    type,
+                    error_type,
                     object_nil(),
                     object_nil(),
                     object_nil(),
@@ -200,21 +204,22 @@ void create_syntax_error(
         return;
     }
 
-    *vm_error(vm) = type;
-    report_out_of_memory(vm, type);
+    *vm_error(vm) = default_error;
+    report_out_of_memory(vm, error_type);
 }
 
 void create_call_error(VirtualMachine *vm, char const *name, size_t expected_args, size_t got_args) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
-    auto const type = vm_get(vm, STATIC_CALL_ERROR_NAME);
+    auto const default_error = vm_get(vm, STATIC_CALL_ERROR_DEFAULT);
+    auto const error_type = object_as_cons(default_error).first;
 
     auto field_index = 0;
     auto const ok =
             object_try_make_list(
                     a, vm_error(vm),
-                    type,
+                    error_type,
                     object_nil(),
                     object_nil(),
                     object_nil(),
@@ -235,21 +240,22 @@ void create_call_error(VirtualMachine *vm, char const *name, size_t expected_arg
         return;
     }
 
-    *vm_error(vm) = type;
-    report_out_of_memory(vm, type);
+    *vm_error(vm) = default_error;
+    report_out_of_memory(vm, error_type);
 }
 
 void create_name_error(VirtualMachine *vm, char const *name) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
-    auto const type = vm_get(vm, STATIC_NAME_ERROR_NAME);
+    auto const default_error = vm_get(vm, STATIC_NAME_ERROR_DEFAULT);
+    auto const error_type = object_as_cons(default_error).first;
 
     auto field_index = 0;
     auto const ok =
             object_try_make_list(
                     a, vm_error(vm),
-                    type,
+                    error_type,
                     object_nil(),
                     object_nil(),
                     object_nil()
@@ -265,50 +271,51 @@ void create_name_error(VirtualMachine *vm, char const *name) {
         return;
     }
 
-    *vm_error(vm) = type;
-    report_out_of_memory(vm, type);
+    *vm_error(vm) = default_error;
+    report_out_of_memory(vm, error_type);
 }
 
 void create_zero_division_error(VirtualMachine *vm) {
-    create_error_with_message(vm, vm_get(vm, STATIC_ZERO_DIVISION_ERROR_NAME), "division by zero");
+    create_error_with_message(vm, vm_get(vm, STATIC_ZERO_DIVISION_ERROR_DEFAULT), "division by zero");
 }
 
 void create_out_of_memory_error(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    auto const type = vm_get(vm, STATIC_OUT_OF_MEMORY_ERROR_NAME);
+    auto const default_error = vm_get(vm, STATIC_OUT_OF_MEMORY_ERROR_DEFAULT);
+    auto const error_type = object_as_cons(default_error).first;
 
-    *vm_error(vm) = type;
-    object_repr_print(type, stdout);
+    *vm_error(vm) = default_error;
+    object_repr_print(error_type, stdout);
     printf("\n");
     allocator_print_statistics(vm_allocator(vm), stderr);
     traceback_print_from_stack(vm_stack(vm), stderr);
 }
 
 void create_stack_overflow_error(VirtualMachine *vm) {
-    create_error_with_message(vm, vm_get(vm, STATIC_STACK_OVERFLOW_ERROR_NAME), "stack capacity exceeded");
+    create_error_with_message(vm, vm_get(vm, STATIC_STACK_OVERFLOW_ERROR_DEFAULT), "stack capacity exceeded");
 }
 
 void create_import_nesting_too_deep_error(VirtualMachine *vm) {
-    create_error_with_message(vm, vm_get(vm, STATIC_TOO_MANY_IMPORTS), "too many nested imports");
+    create_error_with_message(vm, vm_get(vm, STATIC_TOO_MANY_DEFAULT), "too many nested imports");
 }
 
 void create_too_few_args_error(VirtualMachine *vm, char const *name) {
     char message[512] = {0};
     auto const written = snprintf(message, sizeof(message), "too few arguments for %s", name);
     guard_is_less(written, (typeof(written)) sizeof(message));
-    create_error_with_message(vm, vm_get(vm, STATIC_SYNTAX_ERROR_NAME), message);
+    create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
 }
 
 void create_too_many_args_error(VirtualMachine *vm, char const *name) {
     char message[512] = {0};
     auto const written = snprintf(message, sizeof(message), "too many arguments for %s", name);
     guard_is_less(written, (typeof(written)) sizeof(message));
-    create_error_with_message(vm, vm_get(vm, STATIC_SYNTAX_ERROR_NAME), message);
+    create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
 }
 
 void create_parameters_type_error(VirtualMachine *vm) {
-    create_error_with_message(vm, vm_get(vm, STATIC_SYNTAX_ERROR_NAME), "parameters declaration is invalid");
+    create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), "parameters declaration is invalid");
 }
 
 void create_args_count_error(VirtualMachine *vm, char const *name, size_t expected) {
@@ -320,24 +327,25 @@ void create_args_count_error(VirtualMachine *vm, char const *name, size_t expect
             name, expected, (1 == expected % 10) ? "" : "s"
     );
     guard_is_less(written, (typeof(written)) sizeof(message));
-    create_error_with_message(vm, vm_get(vm, STATIC_SYNTAX_ERROR_NAME), message);
+    create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
 }
 
 void create_import_path_type_error(VirtualMachine *vm) {
-    create_error_with_message(vm, vm_get(vm, STATIC_SYNTAX_ERROR_NAME), "import path must be a string");
+    create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), "import path must be a string");
 }
 
 void create_binding_count_error(VirtualMachine *vm, size_t expected, bool at_least, size_t got) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
-    auto const type = vm_get(vm, STATIC_CALL_ERROR_NAME);
+    auto const default_error = vm_get(vm, STATIC_CALL_ERROR_DEFAULT);
+    auto const error_type = object_as_cons(default_error).first;
 
     auto field_index = 0;
     auto const ok =
             object_try_make_list(
                     a, vm_error(vm),
-                    type,
+                    error_type,
                     object_nil(),
                     object_nil(),
                     object_nil(),
@@ -360,49 +368,55 @@ void create_binding_count_error(VirtualMachine *vm, size_t expected, bool at_lea
         return;
     }
 
-    *vm_error(vm) = type;
-    report_out_of_memory(vm, type);
+    *vm_error(vm) = default_error;
+    report_out_of_memory(vm, error_type);
 }
 
 void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_type) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
-    auto const type = vm_get(vm, STATIC_TYPE_ERROR_NAME);
+    auto const default_error = vm_get(vm, STATIC_TYPE_ERROR_DEFAULT);
+    auto const error_type = object_as_cons(default_error).first;
 
     auto field_index = 0;
     auto ok =
             object_try_make_list(
                     a, vm_error(vm),
-                    type,
+                    error_type,
                     object_nil(),
                     object_nil(),
                     object_nil()
             )
             &&
             try_create_string_field(vm, FIELD_MESSAGE, "cannot unpack", object_list_nth(++field_index, *vm_error(vm)))
-            && try_create_string_field(vm, "type", object_type_str(value_type),
-                                       object_list_nth(++field_index, *vm_error(vm)))
+            && try_create_atom_field(
+                    vm,
+                    "type",
+                    object_type_str(value_type),
+                    object_list_nth(++field_index, *vm_error(vm))
+            )
             && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }
 
-    *vm_error(vm) = type;
-    report_out_of_memory(vm, type);
+    *vm_error(vm) = default_error;
+    report_out_of_memory(vm, error_type);
 }
 
 void create_binding_target_error(VirtualMachine *vm, Object_Type target_type) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
-    auto const type = vm_get(vm, STATIC_TYPE_ERROR_NAME);
+    auto const default_error = vm_get(vm, STATIC_TYPE_ERROR_DEFAULT);
+    auto const error_type = object_as_cons(default_error).first;
 
     auto field_index = 0;
     auto ok =
             object_try_make_list(
                     a, vm_error(vm),
-                    type,
+                    error_type,
                     object_nil(),
                     object_nil(),
                     object_nil()
@@ -417,21 +431,22 @@ void create_binding_target_error(VirtualMachine *vm, Object_Type target_type) {
         return;
     }
 
-    *vm_error(vm) = type;
-    report_out_of_memory(vm, type);
+    *vm_error(vm) = default_error;
+    report_out_of_memory(vm, error_type);
 }
 
 void create_binding_varargs_error(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
-    auto const type = vm_get(vm, STATIC_TYPE_ERROR_NAME);
+    auto const default_error = vm_get(vm, STATIC_TYPE_ERROR_DEFAULT);
+    auto const error_type = object_as_cons(default_error).first;
 
     auto field_index = 0;
     auto ok =
             object_try_make_list(
                     a, vm_error(vm),
-                    type,
+                    error_type,
                     object_nil(),
                     object_nil()
             )
@@ -443,6 +458,6 @@ void create_binding_varargs_error(VirtualMachine *vm) {
         return;
     }
 
-    *vm_error(vm) = type;
-    report_out_of_memory(vm, type);
+    *vm_error(vm) = default_error;
+    report_out_of_memory(vm, error_type);
 }

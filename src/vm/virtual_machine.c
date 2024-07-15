@@ -34,6 +34,15 @@ struct VirtualMachine {
 //    STATIC_STACK_OVERFLOW_ERROR,
 //    STATIC_SYNTAX_ERROR,
 
+static bool try_wrap_atom(ObjectAllocator *a, char const *name, Object **value) {
+    guard_is_not_null(a);
+    guard_is_not_null(name);
+    guard_is_not_null(value);
+
+    return object_try_make_cons(a, object_nil(), object_nil(), value)
+           && object_try_make_atom(a, name, &(*value)->as_cons.first);
+}
+
 static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
     guard_is_not_null(a);
     guard_is_not_null(constants);
@@ -41,16 +50,17 @@ static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
 
     return object_try_make_atom(a, "true", slice_at(*constants, STATIC_TRUE))
            && (*slice_at(*constants, STATIC_FALSE) = object_nil())
-           && object_try_make_atom(a, "OSError", slice_at(*constants, STATIC_OS_ERROR_NAME))
-           && object_try_make_atom(a, "TypeError", slice_at(*constants, STATIC_TYPE_ERROR_NAME))
-           && object_try_make_atom(a, "CallError", slice_at(*constants, STATIC_CALL_ERROR_NAME))
-           && object_try_make_atom(a, "NameError", slice_at(*constants, STATIC_NAME_ERROR_NAME))
-           && object_try_make_atom(a, "ZeroDivisionError", slice_at(*constants, STATIC_ZERO_DIVISION_ERROR_NAME))
-           && object_try_make_atom(a, "OutOfMemoryError", slice_at(*constants, STATIC_OUT_OF_MEMORY_ERROR_NAME))
-           && object_try_make_atom(a, "StackOverflowError", slice_at(*constants, STATIC_STACK_OVERFLOW_ERROR_NAME))
-           && object_try_make_atom(a, "SyntaxError", slice_at(*constants, STATIC_SYNTAX_ERROR_NAME))
-           && object_try_make_atom(a, "ImportError", slice_at(*constants, STATIC_TOO_MANY_IMPORTS))
-           && object_try_make_atom(a, "BindError", slice_at(*constants, STATIC_BIND_ERROR));
+           && try_wrap_atom(a, "OSError", slice_at(*constants, STATIC_OS_ERROR_DEFAULT))
+           && try_wrap_atom(a, "TypeError", slice_at(*constants, STATIC_TYPE_ERROR_DEFAULT))
+           && try_wrap_atom(a, "CallError", slice_at(*constants, STATIC_CALL_ERROR_DEFAULT))
+           && try_wrap_atom(a, "NameError", slice_at(*constants, STATIC_NAME_ERROR_DEFAULT))
+           && try_wrap_atom(a, "ZeroDivisionError", slice_at(*constants, STATIC_ZERO_DIVISION_ERROR_DEFAULT))
+           && try_wrap_atom(a, "OutOfMemoryError", slice_at(*constants, STATIC_OUT_OF_MEMORY_ERROR_DEFAULT))
+           && try_wrap_atom(a, "StackOverflowError", slice_at(*constants, STATIC_STACK_OVERFLOW_ERROR_DEFAULT))
+           && try_wrap_atom(a, "SyntaxError", slice_at(*constants, STATIC_SYNTAX_ERROR_DEFAULT))
+           && try_wrap_atom(a, "SpecialFormError", slice_at(*constants, STATIC_SPECIAL_ERROR_DEFAULT))
+           && try_wrap_atom(a, "ImportError", slice_at(*constants, STATIC_TOO_MANY_DEFAULT))
+           && try_wrap_atom(a, "BindError", slice_at(*constants, STATIC_BIND_DEFAULT));
 }
 
 VirtualMachine *vm_new(VirtualMachine_Config config) {

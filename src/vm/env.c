@@ -110,7 +110,12 @@ static bool validate_binding(Object *target, Object *value, Env_BindingError *er
             }
 
             if (TYPE_CONS != value->type) {
-                *error = (Env_BindingError) {.type = Env_CannotUnpack};
+                *error = (Env_BindingError) {
+                    .type = Env_CannotUnpack,
+                    .as_cannot_unpack = {
+                            .value_type = value->type
+                    }
+                };
                 return false;
             }
 
@@ -128,7 +133,12 @@ static bool validate_binding(Object *target, Object *value, Env_BindingError *er
         }
         case TYPE_CONS: {
             if (TYPE_CONS != value->type) {
-                *error = (Env_BindingError) {.type = Env_CannotUnpack};
+                *error = (Env_BindingError) {
+                        .type = Env_CannotUnpack,
+                        .as_cannot_unpack = {
+                                .value_type = value->type
+                        }
+                };
                 return false;
             }
 
@@ -195,7 +205,7 @@ static bool env_try_bind_(ObjectAllocator *a, Object *env, Object *target, Objec
 
     switch (target->type) {
         case TYPE_NIL: {
-            guard_is_equal(object_nil(), value);
+            guard_is_equal(value, object_nil());
             return true;
         }
         case TYPE_ATOM: {

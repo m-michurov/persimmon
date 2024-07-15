@@ -23,8 +23,8 @@
       (reverse acc)))
   (__seconds nil col-of-cols))
 
-(defmacro let (bindings body)
+(defmacro let (bindings . body)
   (concat
-    (list (list 'fn (_firsts bindings) body))
+    (list (concat (list 'fn (_firsts bindings)) body))
     (_seconds bindings)))
 
