@@ -4,6 +4,7 @@
 
 #include "utility/slice.h"
 #include "utility/guards.h"
+#include "utility/exchange.h"
 #include "object/lists.h"
 #include "object/accessors.h"
 #include "object/constructors.h"
@@ -11,8 +12,6 @@
 #include "env.h"
 #include "stack.h"
 #include "errors.h"
-
-#undef printf
 
 typedef enum : bool {
     EVAL_FRAME_KEEP,
@@ -93,6 +92,11 @@ static bool try_get_special_type(Object *expr, Stack_FrameType *type) {
 
     if (0 == strcmp("quote", atom_name)) {
         *type = FRAME_QUOTE;
+        return true;
+    }
+
+    if (0 == strcmp("try", atom_name)) {
+        *type = FRAME_TRY;
         return true;
     }
 
@@ -537,6 +541,51 @@ static bool try_step(VirtualMachine *vm) {
             auto const value = object_as_cons(frame->unevaluated).first;
             return try_save_result_and_pop(vm, frame->results_list, value);
         }
+        case FRAME_TRY: {
+            if (object_nil() == frame->evaluated && object_nil() == *vm_error(vm)) {
+                guard_is_equal(object_list_count(frame->unevaluated), 1);
+
+                auto const next = object_as_cons(frame->unevaluated).first;
+                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
+                object_list_shift(&frame->unevaluated);
+                return ok;
+            }
+
+            if (object_nil() != *vm_error(vm)) {
+                Object **error, **result;
+                if (false == stack_try_create_local(s, &error)
+                    || false == stack_try_create_local(s, &result)) {
+                    stack_overflow_error(vm);
+                }
+
+                *error = exchange(*vm_error(vm), object_nil());
+
+                if (false == object_try_make_list(a, result, object_nil(), error)) {
+                    out_of_memory_error(vm);
+                }
+//                if (false == object_try_make_list(a, result, object_nil(), object_nil())) {
+//                    out_of_memory_error(vm);
+//                }
+
+                return try_save_result_and_pop(vm, frame->results_list, *result);
+//                return try_save_result_and_pop(vm, frame->results_list, object_nil());
+            }
+
+            Object **result;
+            if (false == stack_try_create_local(s, &result)) {
+                stack_overflow_error(vm);
+            }
+
+            if (false == object_try_make_list(a, result, object_as_cons(frame->evaluated).first, object_nil())) {
+                out_of_memory_error(vm);
+            }
+//            if (false == object_try_make_list(a, result, object_nil(), object_nil())) {
+//                out_of_memory_error(vm);
+//            }
+
+            return try_save_result_and_pop(vm, frame->results_list, *result);
+//            return try_save_result_and_pop(vm, frame->results_list, object_nil());
+        }
     }
 
     guard_unreachable();
@@ -546,28 +595,37 @@ bool try_eval(VirtualMachine *vm, Object *env, Object *expr) {
     guard_is_not_null(vm);
     guard_is_not_null(env);
     guard_is_not_null(expr);
-    guard_is_true(stack_is_empty(vm_stack(vm)));
 
-    auto result = object_nil();
-    if (false == try_begin_eval(vm, EVAL_FRAME_KEEP, env, expr, &result)) {
+    auto const s = vm_stack(vm);
+    guard_is_true(stack_is_empty(s));
+
+    if (false == try_begin_eval(vm, EVAL_FRAME_KEEP, env, expr, vm_value(vm))) {
         return false;
     }
 
-    while (false == stack_is_empty(vm_stack(vm))) {
+    while (false == stack_is_empty(s)) {
         if (try_step(vm)) {
             continue;
         }
 
         guard_is_not_equal(*vm_error(vm), object_nil());
 
-        while (false == stack_is_empty(vm_stack(vm))) {
-            stack_pop(vm_stack(vm));
+        while (false == stack_is_empty(s) && FRAME_TRY != stack_top(s)->type) {
+            stack_pop(s);
         }
 
-        return false;
-    }
-    guard_is_true(stack_is_empty(vm_stack(vm)));
+        if (stack_is_empty(s)) {
+            return false;
+        }
 
-    *vm_value(vm) = object_as_cons(result).first;
+        if (FRAME_TRY == stack_top(s)->type) {
+            continue;
+        }
+
+        guard_unreachable();
+    }
+    guard_is_true(stack_is_empty(s));
+
+    *vm_value(vm) = object_as_cons(*vm_value(vm)).first;
     return true;
 }

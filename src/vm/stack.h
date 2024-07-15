@@ -10,7 +10,8 @@ typedef enum {
     FRAME_DO,
     FRAME_DEFINE,
     FRAME_IMPORT,
-    FRAME_QUOTE
+    FRAME_QUOTE,
+    FRAME_TRY
 } Stack_FrameType;
 
 typedef struct {

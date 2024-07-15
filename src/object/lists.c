@@ -40,7 +40,7 @@ bool object_try_make_list_(ObjectAllocator *a, Object **list, ...) {
             break;
         }
 
-        if (false == object_try_make_cons(a, arg, *list, list)) {
+        if (false == object_list_try_prepend(a, arg, list)) {
             return false;
         }
     }

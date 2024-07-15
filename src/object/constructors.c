@@ -62,6 +62,9 @@ static Object *init_cons(Object *obj, Object *first, Object *rest) {
     guard_is_not_null(obj);
     guard_is_not_null(first);
     guard_is_not_null(rest);
+    if (TYPE_CONS != rest->type && TYPE_NIL != rest->type) {
+        printf("%d\n", rest->type);
+    }
     guard_is_one_of(rest->type, TYPE_CONS, TYPE_NIL);
 
     obj->type = TYPE_CONS;
