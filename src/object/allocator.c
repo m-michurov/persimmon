@@ -140,7 +140,6 @@ static void mark(ObjectAllocator *a) {
         if (nullptr != frame->results_list) {
             mark_gray_if_white(&gray, *frame->results_list);
         }
-        mark_gray_if_white(&gray, frame->error);
 
         slice_for(it, frame_locals(frame)) {
             mark_gray_if_white(&gray, *it);

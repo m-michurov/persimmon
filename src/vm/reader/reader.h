@@ -29,6 +29,6 @@ struct Parser_ExpressionsStack const *reader_parser_stack(Reader const *r);
 
 Object *const *reader_parser_expr(Reader const *r);
 
-bool reader_try_prompt(Reader *r, NamedFile file, Object **exprs, Object **error);
+bool reader_try_prompt(Reader *r, NamedFile file, Object **exprs);
 
-bool reader_try_read_all(Reader *r, NamedFile file, Object **exprs, Object **error);
+bool reader_try_read_all(Reader *r, NamedFile file, Object **exprs);

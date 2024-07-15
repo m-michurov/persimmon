@@ -54,7 +54,7 @@ static bool try_eval_input(VirtualMachine *vm) {
     auto const named_stdin = (NamedFile) {.name = "<stdin>", .handle = stdin};
 
     slice_try_append(vm_expressions_stack(vm), object_nil());
-    if (false == reader_try_prompt(vm_reader(vm), named_stdin, slice_last(*vm_expressions_stack(vm)), vm_error(vm))) {
+    if (false == reader_try_prompt(vm_reader(vm), named_stdin, slice_last(*vm_expressions_stack(vm)))) {
         slice_try_pop(vm_expressions_stack(vm), nullptr);
         print_error(*vm_error(vm));
         return true;
@@ -93,7 +93,7 @@ static void run_repl(VirtualMachine *vm) {
 
 static bool try_eval_file(VirtualMachine *vm, NamedFile file) {
     slice_try_append(vm_expressions_stack(vm), object_nil());
-    if (false == reader_try_read_all(vm_reader(vm), file, slice_last(*vm_expressions_stack(vm)), vm_error(vm))) {
+    if (false == reader_try_read_all(vm_reader(vm), file, slice_last(*vm_expressions_stack(vm)))) {
         slice_try_pop(vm_expressions_stack(vm), nullptr);
         print_error(*vm_error(vm));
         return false;

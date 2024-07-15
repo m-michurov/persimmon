@@ -33,7 +33,7 @@ typedef struct {
 
 struct VirtualMachine;
 
-typedef bool (*Object_Primitive)(struct VirtualMachine *, Object *args, Object **value, Object **error);
+typedef bool (*Object_Primitive)(struct VirtualMachine *, Object *args, Object **value);
 
 typedef struct Object_Closure {
     Object *env;

@@ -20,7 +20,6 @@ typedef struct {
     Object *unevaluated;
     Object *evaluated;
     Object **results_list;
-    Object *error;
 } Stack_Frame;
 
 Stack_Frame frame_make(

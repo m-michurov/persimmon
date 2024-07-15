@@ -72,8 +72,7 @@ static bool try_parse_line(
         char const *file_name,
         Lines lines,
         Line line,
-        Object **exprs,
-        Object **error
+        Object **exprs
 ) {
     guard_is_not_null(r);
     guard_is_not_null(exprs);
@@ -89,7 +88,7 @@ static bool try_parse_line(
         SyntaxError syntax_error;
         if (false == scanner_try_accept(r->s, char_pos, *it, &syntax_error)) {
             auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
-            syntax_error(r->vm, syntax_error, file_name, erroneous_line, error);
+            syntax_error(r->vm, syntax_error, file_name, erroneous_line);
         }
 
         auto token = scanner_peek(r->s);
@@ -103,10 +102,10 @@ static bool try_parse_line(
             }
             case PARSER_SYNTAX_ERROR: {
                 auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
-                syntax_error(r->vm, syntax_error, file_name, erroneous_line, error);
+                syntax_error(r->vm, syntax_error, file_name, erroneous_line);
             }
             case PARSER_ALLOCATION_ERROR: {
-                out_of_memory_error(r->vm, error);
+                out_of_memory_error(r->vm);
             }
         }
 
@@ -119,7 +118,7 @@ static bool try_parse_line(
             continue;
         }
 
-        out_of_memory_error(r->vm, error);
+        out_of_memory_error(r->vm);
     }
 
     return true;
@@ -133,8 +132,7 @@ static bool try_prompt(
         LineReader *line_reader,
         Arena *lines_arena,
         char const *file_name,
-        Object **exprs,
-        Object **error
+        Object **exprs
 ) {
     guard_is_not_null(r);
     guard_is_not_null(exprs);
@@ -155,7 +153,7 @@ static bool try_prompt(
             continue;
         }
 
-        if (try_parse_line(r, file_name, lines, line, exprs, error)) {
+        if (try_parse_line(r, file_name, lines, line, exprs)) {
             continue;
         }
 
@@ -170,8 +168,7 @@ static bool try_read_all(
         LineReader *line_reader,
         Arena *lines_arena,
         char const *file_name,
-        Object **exprs,
-        Object **error
+        Object **exprs
 ) {
     guard_is_not_null(r);
 
@@ -182,7 +179,7 @@ static bool try_read_all(
     while (line_try_read(line_reader, lines_arena, &line)) {
         arena_append(lines_arena, &lines, line);
 
-        if (false == try_parse_line(r, file_name, lines, line, exprs, error)) {
+        if (false == try_parse_line(r, file_name, lines, line, exprs)) {
             return false;
         }
     }
@@ -194,10 +191,10 @@ static bool try_read_all(
         }
         case PARSER_SYNTAX_ERROR: {
             auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
-            syntax_error(r->vm, syntax_error, file_name, erroneous_line, error);
+            syntax_error(r->vm, syntax_error, file_name, erroneous_line);
         }
         case PARSER_ALLOCATION_ERROR: {
-            out_of_memory_error(r->vm, error);
+            out_of_memory_error(r->vm);
         }
     }
 
@@ -208,13 +205,12 @@ static bool reader_call(
         Reader *r,
         NamedFile file,
         Object **exprs,
-        Object **error,
-        bool (*fn)(Reader *, LineReader *, Arena *, char const *, Object **, Object **)
+        bool (*fn)(Reader *, LineReader *, Arena *, char const *, Object **)
 ) {
     auto lines_arena = (Arena) {0};
     auto line_reader = line_reader_new(file.handle);
 
-    auto const ok = fn(r, line_reader, &lines_arena, file.name, exprs, error);
+    auto const ok = fn(r, line_reader, &lines_arena, file.name, exprs);
     object_list_reverse(exprs);
 
     arena_free(&lines_arena);
@@ -223,10 +219,10 @@ static bool reader_call(
     return ok;
 }
 
-bool reader_try_prompt(Reader *r, NamedFile file, Object **exprs, Object **error) {
-    return reader_call(r, file, exprs, error, try_prompt);
+bool reader_try_prompt(Reader *r, NamedFile file, Object **exprs) {
+    return reader_call(r, file, exprs, try_prompt);
 }
 
-bool reader_try_read_all(Reader *r, NamedFile file, Object **exprs, Object **error) {
-    return reader_call(r, file, exprs, error, try_read_all);
+bool reader_try_read_all(Reader *r, NamedFile file, Object **exprs) {
+    return reader_call(r, file, exprs, try_read_all);
 }

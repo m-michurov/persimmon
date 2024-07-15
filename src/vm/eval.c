@@ -21,9 +21,8 @@ typedef enum : bool {
 
 //#define EVAL_TRACE
 
-static bool try_save_result(VirtualMachine *vm, Object **results_list, Object *value, Object **error) {
+static bool try_save_result(VirtualMachine *vm, Object **results_list, Object *value) {
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
     if (nullptr == results_list) {
         return true;
@@ -34,13 +33,12 @@ static bool try_save_result(VirtualMachine *vm, Object **results_list, Object *v
         return true;
     }
 
-    out_of_memory_error(vm, error);
+    out_of_memory_error(vm);
 }
 
-static bool try_save_result_and_pop(VirtualMachine *vm, Object **results_list, Object *value, Object **error) {
+static bool try_save_result_and_pop(VirtualMachine *vm, Object **results_list, Object *value) {
     guard_is_not_null(vm);
     guard_is_not_null(value);
-    guard_is_not_null(error);
 
     auto const frame = stack_top(vm_stack(vm));
     if (nullptr == frame->results_list) {
@@ -48,7 +46,7 @@ static bool try_save_result_and_pop(VirtualMachine *vm, Object **results_list, O
         return true;
     }
 
-    if (try_save_result(vm, results_list, value, error)) {
+    if (try_save_result(vm, results_list, value)) {
         stack_pop(vm_stack(vm));
         return true;
     }
@@ -106,8 +104,7 @@ static bool try_begin_eval(
         EvalFrameKeepOrRemove current,
         Object *env,
         Object *expr,
-        Object **results_list,
-        Object **error
+        Object **results_list
 ) {
     guard_is_not_null(vm);
     guard_is_not_null(env);
@@ -127,22 +124,22 @@ static bool try_begin_eval(
         case TYPE_MACRO:
         case TYPE_NIL: {
             if (EVAL_FRAME_REMOVE == current) {
-                return try_save_result_and_pop(vm, results_list, expr, error);
+                return try_save_result_and_pop(vm, results_list, expr);
             }
 
-            return try_save_result(vm, results_list, expr, error);
+            return try_save_result(vm, results_list, expr);
         }
         case TYPE_ATOM: {
             Object *value;
             if (false == env_try_find(env, expr, &value)) {
-                name_error(vm, object_as_atom(expr), error);
+                name_error(vm, object_as_atom(expr));
             }
 
             if (EVAL_FRAME_REMOVE == current) {
-                return try_save_result_and_pop(vm, results_list, value, error);
+                return try_save_result_and_pop(vm, results_list, value);
             }
 
-            return try_save_result(vm, results_list, value, error);
+            return try_save_result(vm, results_list, value);
         }
         case TYPE_CONS: {
             Stack_FrameType type;
@@ -168,7 +165,7 @@ static bool try_begin_eval(
                 return true;
             }
 
-            stack_overflow_error(vm, error);
+            stack_overflow_error(vm);
         }
     }
 
@@ -180,7 +177,7 @@ static bool validate_args(Object *args) {
            && (TYPE_CONS == args->type || TYPE_NIL == args->type);
 }
 
-static bool try_bind(VirtualMachine *vm, Object *env, Object *target, Object *value, Object **error) {
+static bool try_bind(VirtualMachine *vm, Object *env, Object *target, Object *value) {
     Env_BindingError binding_error;
     if (env_try_bind(vm_allocator(vm), env, target, value, &binding_error)) {
         return true;
@@ -188,25 +185,24 @@ static bool try_bind(VirtualMachine *vm, Object *env, Object *target, Object *va
 
     switch (binding_error.type) {
         case Env_CannotUnpack: {
-            binding_unpack_error(vm, binding_error.as_cannot_unpack.value_type, error);
+            binding_unpack_error(vm, binding_error.as_cannot_unpack.value_type);
         }
         case Env_CountMismatch: {
             binding_count_error(
                     vm,
                     binding_error.as_count_mismatch.expected,
                     binding_error.as_count_mismatch.is_varargs,
-                    binding_error.as_count_mismatch.got,
-                    error
+                    binding_error.as_count_mismatch.got
             );
         }
         case Env_InvalidTarget: {
-            binding_target_error(vm, binding_error.as_invalid_target.target_type, error);
+            binding_target_error(vm, binding_error.as_invalid_target.target_type);
         }
         case Env_InvalidVarargsFormat: {
-            binding_varargs_error(vm, error);
+            binding_varargs_error(vm);
         }
         case Env_AllocationError: {
-            out_of_memory_error(vm, error);
+            out_of_memory_error(vm);
         }
     }
 
@@ -230,33 +226,33 @@ static bool try_step(VirtualMachine *vm) {
 
                 Object **arg_bindings;
                 if (false == stack_try_create_local(s, &arg_bindings)) {
-                    stack_overflow_error(vm, &frame->error);
+                    stack_overflow_error(vm);
                 }
 
                 if (false == env_try_create(a, fn->as_closure.env, arg_bindings)) {
-                    out_of_memory_error(vm, &frame->error);
+                    out_of_memory_error(vm);
                 }
 
-                if (false == try_bind(vm, *arg_bindings, formal_args, actual_args, &frame->error)) {
+                if (false == try_bind(vm, *arg_bindings, formal_args, actual_args)) {
                     return false;
                 }
 
                 Object **do_atom;
                 if (false == stack_try_create_local(s, &do_atom)) {
-                    stack_overflow_error(vm, &frame->error);
+                    stack_overflow_error(vm);
                 }
 
                 if (false == object_try_make_atom(a, "do", do_atom)) {
-                    out_of_memory_error(vm, &frame->error);
+                    out_of_memory_error(vm);
                 }
 
                 Object **body;
                 if (false == stack_try_create_local(s, &body)) {
-                    stack_overflow_error(vm, &frame->error);
+                    stack_overflow_error(vm);
                 }
 
                 if (false == object_try_make_cons(a, *do_atom, fn->as_closure.body, body)) {
-                    out_of_memory_error(vm, &frame->error);
+                    out_of_memory_error(vm);
                 }
 
                 stack_swap_top(s, frame_make(
@@ -270,13 +266,13 @@ static bool try_step(VirtualMachine *vm) {
                 return try_begin_eval(
                         vm, EVAL_FRAME_KEEP,
                         *arg_bindings, *body,
-                        &frame->unevaluated, &frame->error
+                        &frame->unevaluated
                 );
             }
 
             if (object_nil() != frame->unevaluated) {
                 auto const next = object_as_cons(frame->unevaluated).first;
-                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated, &frame->error);
+                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
                 object_list_shift(&frame->unevaluated);
                 return ok;
             }
@@ -290,50 +286,50 @@ static bool try_step(VirtualMachine *vm) {
             if (TYPE_PRIMITIVE == fn->type) {
                 Object **value;
                 if (false == stack_try_create_local(s, &value)) {
-                    stack_overflow_error(vm, &frame->error);
+                    stack_overflow_error(vm);
                 }
 
-                if (false == fn->as_primitive(vm, actual_args, value, &frame->error)) {
+                if (false == fn->as_primitive(vm, actual_args, value)) {
                     return false;
                 }
 
-                return try_save_result_and_pop(vm, frame->results_list, *value, &frame->error);
+                return try_save_result_and_pop(vm, frame->results_list, *value);
             }
 
             if (TYPE_CLOSURE != fn->type) {
-                type_error(vm, &frame->error, fn->type, TYPE_CLOSURE, TYPE_MACRO, TYPE_PRIMITIVE);
+                type_error(vm, fn->type, TYPE_CLOSURE, TYPE_MACRO, TYPE_PRIMITIVE);
             }
             auto const formal_args = fn->as_closure.args;
 
             Object **arg_bindings;
             if (false == stack_try_create_local(s, &arg_bindings)) {
-                stack_overflow_error(vm, &frame->error);
+                stack_overflow_error(vm);
             }
 
             if (false == env_try_create(a, fn->as_closure.env, arg_bindings)) {
-                out_of_memory_error(vm, &frame->error);
+                out_of_memory_error(vm);
             }
 
-            if (false == try_bind(vm, *arg_bindings, formal_args, actual_args, &frame->error)) {
+            if (false == try_bind(vm, *arg_bindings, formal_args, actual_args)) {
                 return false;
             }
 
             Object **do_atom;
             if (false == stack_try_create_local(s, &do_atom)) {
-                stack_overflow_error(vm, &frame->error);
+                stack_overflow_error(vm);
             }
 
             if (false == object_try_make_atom(a, "do", do_atom)) {
-                out_of_memory_error(vm, &frame->error);
+                out_of_memory_error(vm);
             }
 
             Object **body;
             if (false == stack_try_create_local(s, &body)) {
-                stack_overflow_error(vm, &frame->error);
+                stack_overflow_error(vm);
             }
 
             if (false == object_try_make_cons(a, *do_atom, fn->as_closure.body, body)) {
-                out_of_memory_error(vm, &frame->error);
+                out_of_memory_error(vm);
             }
 
             stack_swap_top(s, frame_make(
@@ -348,70 +344,70 @@ static bool try_step(VirtualMachine *vm) {
         case FRAME_FN: {
             auto const len = object_list_count(frame->unevaluated);
             if (len < 2) {
-                too_few_args_error(vm, "fn", &frame->error);
+                too_few_args_error(vm, "fn");
             }
 
             auto const args = object_as_cons(frame->unevaluated).first;
             if (false == validate_args(args)) {
-                parameters_type_error(vm, &frame->error);
+                parameters_type_error(vm);
             }
 
             auto const body = object_as_cons(frame->unevaluated).rest;
 
             Object **closure;
             if (false == stack_try_create_local(s, &closure)) {
-                stack_overflow_error(vm, &frame->error);
+                stack_overflow_error(vm);
             }
             if (object_try_make_closure(a, frame->env, args, body, closure)) {
-                if (try_save_result_and_pop(vm, frame->results_list, *closure, &frame->error)) {
+                if (try_save_result_and_pop(vm, frame->results_list, *closure)) {
                     return true;
                 }
 
-                out_of_memory_error(vm, &frame->error);
+                out_of_memory_error(vm);
             }
 
-            out_of_memory_error(vm, &frame->error);
+            out_of_memory_error(vm);
         }
         case FRAME_MACRO: {
             auto const len = object_list_count(frame->unevaluated);
             if (len < 2) {
-                too_few_args_error(vm, "macro", &frame->error);
+                too_few_args_error(vm, "macro");
             }
 
             auto const args = object_as_cons(frame->unevaluated).first;
             if (false == validate_args(args)) {
-                parameters_type_error(vm, &frame->error);
+                parameters_type_error(vm);
             }
 
             auto const body = object_as_cons(frame->unevaluated).rest;
 
             Object **closure;
             if (false == stack_try_create_local(s, &closure)) {
-                stack_overflow_error(vm, &frame->error);
+                stack_overflow_error(vm);
             }
             if (object_try_make_macro(a, frame->env, args, body, closure)) {
-                if (try_save_result_and_pop(vm, frame->results_list, *closure, &frame->error)) {
+                if (try_save_result_and_pop(vm, frame->results_list, *closure)) {
                     return true;
                 }
 
-                out_of_memory_error(vm, &frame->error);
+                out_of_memory_error(vm);
             }
 
-            out_of_memory_error(vm, &frame->error);
+            out_of_memory_error(vm);
         }
         case FRAME_IF: {
             if (object_nil() == frame->evaluated) {
                 auto const len = object_list_count(frame->unevaluated);
                 if (len < 2) {
-                    too_few_args_error(vm, "if", &frame->error);
+                    too_few_args_error(vm, "if");
                 }
 
                 if (len > 3) {
-                    too_many_args_error(vm, "if", &frame->error);
+                    too_many_args_error(vm, "if");
                 }
 
                 auto const cond = object_as_cons(frame->unevaluated).first;
-                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, cond, &frame->evaluated, &frame->error);
+                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, cond, &frame->evaluated);
                 object_list_shift(&frame->unevaluated);
                 return ok;
             }
@@ -421,36 +417,36 @@ static bool try_step(VirtualMachine *vm) {
                 return try_begin_eval(
                         vm, EVAL_FRAME_REMOVE,
                         frame->env, object_as_cons(frame->unevaluated).first,
-                        frame->results_list, &frame->error
+                        frame->results_list
                 );
             }
 
             frame->unevaluated = object_as_cons(frame->unevaluated).rest; // skip `then`
             if (object_nil() == frame->unevaluated) {
-                return try_save_result_and_pop(vm, frame->results_list, object_nil(), &frame->error);
+                return try_save_result_and_pop(vm, frame->results_list, object_nil());
             }
 
             return try_begin_eval(
                     vm, EVAL_FRAME_REMOVE,
                     frame->env, object_as_cons(frame->unevaluated).first,
-                    frame->results_list, &frame->error
+                    frame->results_list
             );
         }
         case FRAME_DO: {
             if (object_nil() == frame->unevaluated) {
-                return try_save_result_and_pop(vm, frame->results_list, object_nil(), &frame->error);
+                return try_save_result_and_pop(vm, frame->results_list, object_nil());
             }
 
             if (object_nil() == object_as_cons(frame->unevaluated).rest) {
                 return try_begin_eval(
                         vm, EVAL_FRAME_REMOVE,
                         frame->env, frame->unevaluated->as_cons.first,
-                        frame->results_list, &frame->error
+                        frame->results_list
                 );
             }
 
             auto const next = object_as_cons(frame->unevaluated).first;
-            auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, nullptr, &frame->error);
+            auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, nullptr);
             object_list_shift(&frame->unevaluated);
             return ok;
         }
@@ -458,48 +454,48 @@ static bool try_step(VirtualMachine *vm) {
             if (object_nil() == frame->evaluated) {
                 size_t const expected = 2;
                 if (expected != object_list_count(frame->unevaluated)) {
-                    args_count_error(vm, "define", expected, &frame->error);
+                    args_count_error(vm, "define", expected);
                 }
 
                 return try_begin_eval(
                         vm, EVAL_FRAME_KEEP,
                         frame->env, *object_list_nth(1, frame->unevaluated),
-                        &frame->evaluated, &frame->error
+                        &frame->evaluated
                 );
             }
 
             auto const target = object_as_cons(frame->unevaluated).first;
             auto const value = object_as_cons(frame->evaluated).first;
-            if (false == try_bind(vm, frame->env, target, value, &frame->error)) {
+            if (false == try_bind(vm, frame->env, target, value)) {
                 return false;
             }
 
-            return try_save_result_and_pop(vm, frame->results_list, value, &frame->error);
+            return try_save_result_and_pop(vm, frame->results_list, value);
         }
         case FRAME_IMPORT: {
             size_t const expected = 1;
             if (expected != object_list_count(frame->unevaluated)) {
-                args_count_error(vm, "import", expected, &frame->error);
+                args_count_error(vm, "import", expected);
             }
 
             auto const file_name = object_as_cons(frame->unevaluated).first;
             if (TYPE_STRING != file_name->type) {
-                import_path_type_error(vm, &frame->error);
+                import_path_type_error(vm);
             }
 
             if (false == slice_try_append(vm_expressions_stack(vm), object_nil())) {
-                import_nesting_too_deep_error(vm, &frame->error);
+                import_nesting_too_deep_error(vm);
             }
 
             NamedFile file;
             if (false == named_file_try_open(file_name->as_string, "rb", &file)) {
                 slice_try_pop(vm_expressions_stack(vm), nullptr);
-                os_error(vm, errno, &frame->error);
+                os_error(vm, errno);
             }
 
             auto const exprs = slice_last(*vm_expressions_stack(vm));
 
-            auto const read_ok = reader_try_read_all(vm_reader(vm), file, exprs, &frame->error);
+            auto const read_ok = reader_try_read_all(vm_reader(vm), file, exprs);
             named_file_close(&file);
             if (false == read_ok) {
                 slice_try_pop(vm_expressions_stack(vm), nullptr);
@@ -508,14 +504,14 @@ static bool try_step(VirtualMachine *vm) {
 
             object_list_reverse(exprs);
             if (false == object_try_make_cons(a, object_nil(), *exprs, exprs)) {
-                out_of_memory_error(vm, &frame->error);
+                out_of_memory_error(vm);
                 slice_try_pop(vm_expressions_stack(vm), nullptr);
             }
             object_list_reverse(exprs);
 
             Object **exprs_list;
             if (false == stack_try_create_local(s, &exprs_list)) {
-                stack_overflow_error(vm, &frame->error);
+                stack_overflow_error(vm);
             }
 
             object_list_for(it, *exprs) {
@@ -523,7 +519,7 @@ static bool try_step(VirtualMachine *vm) {
                     continue;
                 }
 
-                out_of_memory_error(vm, &frame->error);
+                out_of_memory_error(vm);
                 slice_try_pop(vm_expressions_stack(vm), nullptr);
             }
             object_list_reverse(exprs_list);
@@ -535,11 +531,11 @@ static bool try_step(VirtualMachine *vm) {
         case FRAME_QUOTE: {
             size_t const expected = 1;
             if (expected != object_list_count(frame->unevaluated)) {
-                args_count_error(vm, "quote", expected, &frame->error);
+                args_count_error(vm, "quote", expected);
             }
 
             auto const value = object_as_cons(frame->unevaluated).first;
-            return try_save_result_and_pop(vm, frame->results_list, value, &frame->error);
+            return try_save_result_and_pop(vm, frame->results_list, value);
         }
     }
 
@@ -553,7 +549,7 @@ bool try_eval(VirtualMachine *vm, Object *env, Object *expr) {
     guard_is_true(stack_is_empty(vm_stack(vm)));
 
     auto result = object_nil();
-    if (false == try_begin_eval(vm, EVAL_FRAME_KEEP, env, expr, &result, vm_error(vm))) {
+    if (false == try_begin_eval(vm, EVAL_FRAME_KEEP, env, expr, &result)) {
         return false;
     }
 
@@ -562,8 +558,7 @@ bool try_eval(VirtualMachine *vm, Object *env, Object *expr) {
             continue;
         }
 
-        guard_is_not_equal(stack_top(vm_stack(vm))->error, object_nil());
-        *vm_error(vm) = stack_top(vm_stack(vm))->error;
+        guard_is_not_equal(*vm_error(vm), object_nil());
 
         while (false == stack_is_empty(vm_stack(vm))) {
             stack_pop(vm_stack(vm));
