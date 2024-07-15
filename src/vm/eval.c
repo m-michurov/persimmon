@@ -570,8 +570,11 @@ static bool try_step(VirtualMachine *vm) {
             }
 
             if (object_nil() == frame->evaluated) {
-                guard_is_equal(object_list_count(frame->unevaluated), 1);
                 guard_is_equal(*vm_error(vm), object_nil());
+
+                if (1 != object_list_count(frame->unevaluated)) {
+                    args_count_error(vm, "try", 1);
+                }
 
                 auto const next = object_as_cons(frame->unevaluated).first;
                 auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
@@ -614,13 +617,19 @@ bool try_eval(VirtualMachine *vm, Object *env, Object *expr) {
     }
 
     while (false == stack_is_empty(s)) {
+        auto const frame = stack_top(s);
         if (try_step(vm)) {
             continue;
         }
 
         guard_is_not_equal(*vm_error(vm), object_nil());
 
-        while (false == stack_is_empty(s) && FRAME_TRY != stack_top(s)->type) {
+        while (false == stack_is_empty(s)) {
+            auto const top = stack_top(s);
+            if (FRAME_TRY == top->type && frame != top) {
+                break;
+            }
+
             stack_pop(s);
         }
 
