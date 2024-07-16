@@ -2,7 +2,7 @@
 (import "demos/let.scm")
 (import "demos/functional.scm")
 
-(defn main ()
+(defn main () ; comment
   (let (square (fn (x) (* x x))
          square-pair (fn (x) (list x (square x)))
          format (fn ((num squared)) (list num 'squared 'is squared)))

@@ -9,6 +9,13 @@
 #include "utility/guards.h"
 #include "utility/strings.h"
 
+#define SINGLE_QUOTE    '\''
+#define DOUBLE_QUOTE    '"'
+#define OPEN_PAREN      '('
+#define CLOSE_PAREN     ')'
+#define SEMICOLON       ';'
+#define BACKSLASH       '\\'
+
 typedef enum {
     TOKENIZER_WS,
     TOKENIZER_INT,
@@ -16,7 +23,8 @@ typedef enum {
     TOKENIZER_ATOM,
     TOKENIZER_OPEN_PAREN,
     TOKENIZER_CLOSE_PAREN,
-    TOKENIZER_QUOTE
+    TOKENIZER_QUOTE,
+    TOKENIZER_COMMENT
 } State;
 
 struct Scanner {
@@ -65,70 +73,79 @@ static bool is_whitespace(int c) {
     return isspace(c) || ',' == c || EOF == c;
 }
 
-static void tokenizer_clear(Scanner *t) {
-    sb_clear(t->sb);
-    t->escape_sequence = false;
-    t->int_value = 0;
+static bool is_printable(int c) {
+    return isprint(c) || ' ' == c;
 }
 
-static void tokenizer_transition(Scanner *t, Position pos, State new_state) {
-    auto const state = exchange(t->state, new_state);
-    auto const token_pos = exchange(t->token_pos, pos);
+static bool is_newline(int c) {
+    return '\r' == c || '\n' ==c;
+}
+
+static void clear(Scanner *s) {
+    sb_clear(s->sb);
+    s->escape_sequence = false;
+    s->int_value = 0;
+}
+
+static void transition(Scanner *s, Position pos, State new_state) {
+    auto const state = exchange(s->state, new_state);
+    auto const token_pos = exchange(s->token_pos, pos);
 
     switch (state) {
-        case TOKENIZER_WS: {
-            t->has_token = false;
-            tokenizer_clear(t);
+        case TOKENIZER_WS:
+        case TOKENIZER_COMMENT: {
+            s->has_token = false;
+            clear(s);
             return;
         }
         case TOKENIZER_INT: {
-            t->has_token = true;
-            t->token = (Token) {
+            s->has_token = true;
+            s->token = (Token) {
                     .type = TOKEN_INT,
                     .pos = token_pos,
-                    .as_int = t->int_value
+                    .as_int = s->int_value
             };
-            tokenizer_clear(t);
+            clear(s);
             return;
         }
         case TOKENIZER_STRING: {
-            t->has_token = true;
-            t->token = (Token) {
+            s->has_token = true;
+            s->token = (Token) {
                     .type = TOKEN_STRING,
                     .pos = token_pos,
-                    .as_string = sb_str(t->sb)
+                    .as_string = sb_str(s->sb)
             };
 //            tokenizer_clear(t);
             return;
         }
         case TOKENIZER_ATOM: {
-            guard_is_greater(sb_length(t->sb), 0);
+            guard_is_greater(sb_length(s->sb), 0);
 
-            t->has_token = true;
-            t->token = (Token) {
+            s->has_token = true;
+            s->token = (Token) {
                     .type = TOKEN_ATOM,
                     .pos = token_pos,
-                    .as_atom = sb_str(t->sb)
+                    .as_atom = sb_str(s->sb)
             };
 //            tokenizer_clear(t);
             return;
         }
         case TOKENIZER_OPEN_PAREN: {
-            t->has_token = true;
-            t->token = (Token) {.type = TOKEN_OPEN_PAREN, .pos = token_pos};
-            tokenizer_clear(t);
+            s->has_token = true;
+            s->token = (Token) {.type = TOKEN_OPEN_PAREN, .pos = token_pos};
+            clear(s);
             return;
         }
         case TOKENIZER_CLOSE_PAREN: {
-            t->has_token = true;
-            t->token = (Token) {.type = TOKEN_CLOSE_PAREN, .pos = token_pos};
-            tokenizer_clear(t);
+            s->has_token = true;
+            s->token = (Token) {.type = TOKEN_CLOSE_PAREN, .pos = token_pos};
+            clear(s);
             return;
         }
         case TOKENIZER_QUOTE: {
-            t->has_token = true;
-            t->token = (Token) {.type = TOKEN_QUOTE, .pos = token_pos};
-            tokenizer_clear(t);
+            s->has_token = true;
+            s->token = (Token) {.type = TOKEN_QUOTE, .pos = token_pos};
+            clear(s);
             return;
         }
     }
@@ -152,41 +169,46 @@ static bool try_add_digit(int64_t int_value, int64_t digit, int64_t *result) {
     return false == __builtin_add_overflow(shifted, signed_digit, result);
 }
 
-static bool tokenizer_any_accept(Scanner *t, Position pos, int c, SyntaxError *error) {
-    if ('\'' == c) {
-        tokenizer_transition(t, pos, TOKENIZER_QUOTE);
+static bool any_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
+    if (SINGLE_QUOTE == c) {
+        transition(s, pos, TOKENIZER_QUOTE);
         return true;
     }
 
     if (isdigit(c)) {
-        tokenizer_transition(t, pos, TOKENIZER_INT);
-        t->int_value = c - '0';
+        transition(s, pos, TOKENIZER_INT);
+        s->int_value = c - '0';
         return true;
     }
 
     if (is_name_char(c)) {
-        tokenizer_transition(t, pos, TOKENIZER_ATOM);
-        sb_append_char(t->sb, (char) c);
+        transition(s, pos, TOKENIZER_ATOM);
+        sb_append_char(s->sb, (char) c);
         return true;
     }
 
     if (is_whitespace(c)) {
-        tokenizer_transition(t, pos, TOKENIZER_WS);
+        transition(s, pos, TOKENIZER_WS);
         return true;
     }
 
-    if ('(' == c) {
-        tokenizer_transition(t, pos, TOKENIZER_OPEN_PAREN);
+    if (OPEN_PAREN == c) {
+        transition(s, pos, TOKENIZER_OPEN_PAREN);
         return true;
     }
 
-    if (')' == c) {
-        tokenizer_transition(t, pos, TOKENIZER_CLOSE_PAREN);
+    if (CLOSE_PAREN == c) {
+        transition(s, pos, TOKENIZER_CLOSE_PAREN);
         return true;
     }
 
-    if ('"' == c) {
-        tokenizer_transition(t, pos, TOKENIZER_STRING);
+    if (DOUBLE_QUOTE == c) {
+        transition(s, pos, TOKENIZER_STRING);
+        return true;
+    }
+
+    if (SEMICOLON == c) {
+        transition(s, pos, TOKENIZER_COMMENT);
         return true;
     }
 
@@ -195,33 +217,33 @@ static bool tokenizer_any_accept(Scanner *t, Position pos, int c, SyntaxError *e
             .pos = pos,
             .bad_chr = c
     };
-    scanner_reset(t);
+    scanner_reset(s);
     return false;
 }
 
-static bool tokenizer_int_accept(Scanner *t, Position pos, int c, SyntaxError *error) {
-    guard_is_equal(t->state, TOKENIZER_INT);
+static bool int_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
+    guard_is_equal(s->state, TOKENIZER_INT);
 
     if (isdigit(c)) {
         auto const digit = c - '0';
-        if (0 == t->int_value) {
+        if (0 == s->int_value) {
             *error = (SyntaxError) {
                     .code = SYNTAX_ERROR_INTEGER_LEADING_ZERO,
-                    .pos = {.lineno = pos.lineno, t->token_pos.col, pos.end_col},
+                    .pos = {.lineno = pos.lineno, s->token_pos.col, pos.end_col},
                     .bad_chr = c
             };
-            scanner_reset(t);
+            scanner_reset(s);
             return false;
         }
 
-        t->token_pos.end_col = pos.end_col;
-        if (false == try_add_digit(t->int_value, digit, &t->int_value)) {
+        s->token_pos.end_col = pos.end_col;
+        if (false == try_add_digit(s->int_value, digit, &s->int_value)) {
             *error = (SyntaxError) {
                     .code = SYNTAX_ERROR_INTEGER_TOO_LARGE,
-                    .pos = {.lineno = pos.lineno, t->token_pos.col, pos.end_col},
+                    .pos = {.lineno = pos.lineno, s->token_pos.col, pos.end_col},
                     .bad_chr = c
             };
-            scanner_reset(t);
+            scanner_reset(s);
             return false;
         }
 
@@ -229,38 +251,43 @@ static bool tokenizer_int_accept(Scanner *t, Position pos, int c, SyntaxError *e
     }
 
     if (is_whitespace(c)) {
-        tokenizer_transition(t, pos, TOKENIZER_WS);
+        transition(s, pos, TOKENIZER_WS);
         return true;
     }
 
-    if ('(' == c) {
-        tokenizer_transition(t, pos, TOKENIZER_OPEN_PAREN);
+    if (OPEN_PAREN == c) {
+        transition(s, pos, TOKENIZER_OPEN_PAREN);
         return true;
     }
 
-    if (')' == c) {
-        tokenizer_transition(t, pos, TOKENIZER_CLOSE_PAREN);
+    if (CLOSE_PAREN == c) {
+        transition(s, pos, TOKENIZER_CLOSE_PAREN);
+        return true;
+    }
+
+    if (SEMICOLON == c) {
+        transition(s, pos, TOKENIZER_COMMENT);
         return true;
     }
 
     *error = (SyntaxError) {
             .code = SYNTAX_ERROR_INTEGER_INVALID,
-            .pos = {.lineno = pos.lineno, t->token_pos.col, pos.end_col},
+            .pos = {.lineno = pos.lineno, s->token_pos.col, pos.end_col},
             .bad_chr = c
     };
-    scanner_reset(t);
+    scanner_reset(s);
     return false;
 }
 
-static bool tokenizer_string_accept(Scanner *t, Position pos, int c, SyntaxError *error) {
-    guard_is_equal(t->state, TOKENIZER_STRING);
+static bool string_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
+    guard_is_equal(s->state, TOKENIZER_STRING);
 
-    if (t->escape_sequence) {
-        t->escape_sequence = false;
+    if (s->escape_sequence) {
+        s->escape_sequence = false;
 
         char represented_char;
         if (string_try_get_escape_seq_value((char) c, &represented_char)) {
-            sb_append_char(t->sb, represented_char);
+            sb_append_char(s->sb, represented_char);
             return true;
         }
 
@@ -269,35 +296,40 @@ static bool tokenizer_string_accept(Scanner *t, Position pos, int c, SyntaxError
                 .pos = {.lineno = pos.lineno, .col = pos.col - 1, .end_col = pos.end_col},
                 .bad_chr = c
         };
-        scanner_reset(t);
+        scanner_reset(s);
         return false;
     }
 
-    if ('\\' == c) {
-        t->escape_sequence = true;
+    if (BACKSLASH == c) {
+        s->escape_sequence = true;
         return true;
     }
 
-    if ('"' == c) {
-        t->token_pos.end_col = pos.end_col;
-        tokenizer_transition(t, pos, TOKENIZER_WS);
+    if (DOUBLE_QUOTE == c) {
+        s->token_pos.end_col = pos.end_col;
+        transition(s, pos, TOKENIZER_WS);
         return true;
     }
 
-    if (isprint(c) || ' ' == c) {
-        t->token_pos.end_col = pos.end_col;
-        sb_append_char(t->sb, (char) c);
+    if (is_printable(c)) {
+        s->token_pos.end_col = pos.end_col;
+        sb_append_char(s->sb, (char) c);
         return true;
     }
 
-    if ('\n' == c || '\r' == c) {
+    if (is_newline(c)) {
         *error = (SyntaxError) {
                 .code = SYNTAX_ERROR_STRING_UNTERMINATED,
                 .pos = pos,
                 .bad_chr = c
         };
-        scanner_reset(t);
+        scanner_reset(s);
         return false;
+    }
+
+    if (SEMICOLON == c) {
+        transition(s, pos, TOKENIZER_COMMENT);
+        return true;
     }
 
     *error = (SyntaxError) {
@@ -305,57 +337,62 @@ static bool tokenizer_string_accept(Scanner *t, Position pos, int c, SyntaxError
             .pos = pos,
             .bad_chr = c
     };
-    scanner_reset(t);
+    scanner_reset(s);
     return false;
 }
 
-static bool tokenizer_name_accept(Scanner *t, Position pos, int c, SyntaxError *error) {
-    guard_is_equal(t->state, TOKENIZER_ATOM);
+static bool name_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
+    guard_is_equal(s->state, TOKENIZER_ATOM);
 
-    if (isdigit(c) && 1 == sb_length(t->sb)) {
+    if (isdigit(c) && 1 == sb_length(s->sb)) {
         auto digit = c - '0';
         if (0 == digit) {
             *error = (SyntaxError) {
                     .code = SYNTAX_ERROR_INTEGER_LEADING_ZERO,
-                    .pos = {.lineno = pos.lineno, .col = t->token_pos.col, .end_col = pos.end_col},
+                    .pos = {.lineno = pos.lineno, .col = s->token_pos.col, .end_col = pos.end_col},
                     .bad_chr = c
             };
-            scanner_reset(t);
+            scanner_reset(s);
             return false;
         }
 
-        switch (sb_str(t->sb)[0]) {
+        switch (sb_str(s->sb)[0]) {
             case '-': {
                 digit = -digit;
                 [[fallthrough]];
             }
             case '+': {
-                t->int_value = digit;
-                t->token_pos.end_col = pos.end_col;
-                t->state = TOKENIZER_INT;
+                s->int_value = digit;
+                s->token_pos.end_col = pos.end_col;
+                s->state = TOKENIZER_INT;
                 return true;
             }
         }
     }
 
     if (is_name_char(c)) {
-        t->token_pos.end_col = pos.end_col;
-        sb_append_char(t->sb, (char) c);
+        s->token_pos.end_col = pos.end_col;
+        sb_append_char(s->sb, (char) c);
         return true;
     }
 
     if (is_whitespace(c)) {
-        tokenizer_transition(t, pos, TOKENIZER_WS);
+        transition(s, pos, TOKENIZER_WS);
         return true;
     }
 
-    if ('(' == c) {
-        tokenizer_transition(t, pos, TOKENIZER_OPEN_PAREN);
+    if (OPEN_PAREN == c) {
+        transition(s, pos, TOKENIZER_OPEN_PAREN);
         return true;
     }
 
-    if (')' == c) {
-        tokenizer_transition(t, pos, TOKENIZER_CLOSE_PAREN);
+    if (CLOSE_PAREN == c) {
+        transition(s, pos, TOKENIZER_CLOSE_PAREN);
+        return true;
+    }
+
+    if (SEMICOLON == c) {
+        transition(s, pos, TOKENIZER_COMMENT);
         return true;
     }
 
@@ -364,11 +401,32 @@ static bool tokenizer_name_accept(Scanner *t, Position pos, int c, SyntaxError *
             .pos = pos,
             .bad_chr = c
     };
-    scanner_reset(t);
+    scanner_reset(s);
     return false;
 }
 
-// FIXME handle comments
+static bool comment_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
+    guard_is_equal(s->state, TOKENIZER_COMMENT);
+
+    if (is_newline(c)) {
+        transition(s, pos, TOKENIZER_WS);
+        return true;
+    }
+
+    if (is_printable(c)) {
+        transition(s, pos, TOKENIZER_COMMENT);
+        return true;
+    }
+
+    *error = (SyntaxError) {
+            .code = SYNTAX_ERROR_INVALID_CHARACTER,
+            .pos = pos,
+            .bad_chr = c
+    };
+    scanner_reset(s);
+    return false;
+}
+
 bool scanner_try_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
     guard_is_not_null(s);
     guard_is_not_null(error);
@@ -382,19 +440,22 @@ bool scanner_try_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
         case TOKENIZER_OPEN_PAREN:
         case TOKENIZER_CLOSE_PAREN:
         case TOKENIZER_WS: {
-            return tokenizer_any_accept(s, pos, c, error);
+            return any_accept(s, pos, c, error);
         }
         case TOKENIZER_INT: {
-            return tokenizer_int_accept(s, pos, c, error);
+            return int_accept(s, pos, c, error);
         }
         case TOKENIZER_STRING: {
-            return tokenizer_string_accept(s, pos, c, error);
+            return string_accept(s, pos, c, error);
         }
         case TOKENIZER_ATOM: {
-            return tokenizer_name_accept(s, pos, c, error);
+            return name_accept(s, pos, c, error);
         }
         case TOKENIZER_QUOTE: {
-            return tokenizer_any_accept(s, pos, c, error);
+            return any_accept(s, pos, c, error);
+        }
+        case TOKENIZER_COMMENT: {
+            return comment_accept(s, pos, c, error);
         }
     }
 
@@ -417,7 +478,7 @@ void scanner_free(Scanner **s) {
 }
 
 void scanner_reset(Scanner *s) {
-    tokenizer_clear(s);
+    clear(s);
     s->state = TOKENIZER_WS;
 }
 
