@@ -37,7 +37,7 @@ static bool try_save_result(VirtualMachine *vm, Object **results_list, Object *v
 
 static bool try_save_result_and_pop(
         VirtualMachine *vm,
-        Object **results_list, // TODO this is always frame->results_list of the top frame
+        Object **results_list,
         Object *value
 ) {
     guard_is_not_null(vm);
