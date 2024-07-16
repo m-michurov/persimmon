@@ -619,16 +619,16 @@ bool try_eval(VirtualMachine *vm, Object *env, Object *expr) {
     }
 
     while (false == stack_is_empty(s)) {
-        auto const frame = stack_top(s); // FIXME naming
         if (try_step(vm)) {
             continue;
         }
 
+        auto const error_frame = stack_top(s);
         guard_is_not_equal(*vm_error(vm), object_nil());
 
         while (false == stack_is_empty(s)) {
-            auto const top = stack_top(s);
-            if (FRAME_TRY == top->type && frame != top) {
+            auto const current_frame = stack_top(s);
+            if (FRAME_TRY == current_frame->type && error_frame != current_frame) {
                 break;
             }
 
