@@ -297,6 +297,23 @@ static bool prim_list_concat(VirtualMachine *vm, Object *args, Object **value) {
     return true;
 }
 
+static bool prim_not(VirtualMachine *vm, Object *args, Object **value) {
+    guard_is_not_null(vm);
+    guard_is_not_null(args);
+    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_not_null(value);
+
+    auto const got = object_list_count(args);
+    typeof(got) expected = 1;
+    if (expected != got) {
+        call_error(vm, "not", expected, got);
+    }
+
+    *value = vm_get(vm, object_nil() == args->as_cons.first ? STATIC_TRUE : STATIC_FALSE);
+
+    return true;
+}
+
 static bool try_define(ObjectAllocator *a, Object *env, char const *name, Object_Primitive value) {
     Object *binding;
     return env_try_define(a, env, object_nil(), object_nil(), &binding)
@@ -317,6 +334,7 @@ bool try_define_primitives(ObjectAllocator *a, Object *env) {
            && try_define(a, env, "prepend", prim_list_prepend)
            && try_define(a, env, "reverse", prim_list_reverse)
            && try_define(a, env, "concat", prim_list_concat)
-           && try_define(a, env, "eq?", prim_eq);
+           && try_define(a, env, "eq?", prim_eq)
+           && try_define(a, env, "not", prim_not);
 }
 

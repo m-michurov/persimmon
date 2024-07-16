@@ -104,6 +104,16 @@ static bool try_get_special_type(Object *expr, Stack_FrameType *type) {
         return true;
     }
 
+    if (0 == strcmp("and", atom_name)) {
+        *type = FRAME_AND;
+        return true;
+    }
+
+    if (0 == strcmp("or", atom_name)) {
+        *type = FRAME_OR;
+        return true;
+    }
+
     return false;
 }
 
@@ -545,6 +555,56 @@ static bool try_step(VirtualMachine *vm) {
             }
 
             return try_save_result_and_pop(vm, frame->results_list, *result);
+        }
+        case FRAME_AND: {
+            if (object_nil() == frame->evaluated) {
+                if (object_nil() == frame->unevaluated) {
+                    return try_save_result_and_pop(vm, frame->results_list, object_nil());
+                }
+
+                if (1 == object_list_count(frame->unevaluated)) {
+                    auto const result = object_as_cons(frame->unevaluated).first;
+                    return try_begin_eval(vm, EVAL_FRAME_REMOVE, frame->env, result, frame->results_list);
+                }
+
+                auto const next = object_as_cons(frame->unevaluated).first;
+                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
+                object_list_shift(&frame->unevaluated);
+                return ok;
+            }
+
+            auto const value = object_as_cons(frame->evaluated).first;
+            if (object_nil() == value) {
+                return try_save_result_and_pop(vm, frame->results_list, object_nil());
+            }
+
+            frame->evaluated = object_nil();
+            return true;
+        }
+        case FRAME_OR: {
+            if (object_nil() == frame->evaluated) {
+                if (object_nil() == frame->unevaluated) {
+                    return try_save_result_and_pop(vm, frame->results_list, object_nil());
+                }
+
+                if (1 == object_list_count(frame->unevaluated)) {
+                    auto const result = object_as_cons(frame->unevaluated).first;
+                    return try_begin_eval(vm, EVAL_FRAME_REMOVE, frame->env, result, frame->results_list);
+                }
+
+                auto const next = object_as_cons(frame->unevaluated).first;
+                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
+                object_list_shift(&frame->unevaluated);
+                return ok;
+            }
+
+            auto const value = object_as_cons(frame->evaluated).first;
+            if (object_nil() != value) {
+                return try_save_result_and_pop(vm, frame->results_list, value);
+            }
+
+            frame->evaluated = object_nil();
+            return true;
         }
     }
 
