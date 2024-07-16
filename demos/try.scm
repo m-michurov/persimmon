@@ -15,15 +15,12 @@
     (apply print (error-get 'traceback fields))))
 
 (defmacro run-catching (. code)
-  (let (result
-         (list 'let (list '(val err) (list 'try (concat '(do) code)))
-           '(if err
-              (let ((type . fields) err)
-                (print 'ERROR type '- (error-get 'message fields))
-                (print-traceback err))
-              (print 'VALUE val))))
-    (print result)
-    result))
+  (list 'let (list '(val err) (list 'try (concat '(do) code)))
+        '(if err
+           (let ((type . fields) err)
+             (print 'ERROR type '- (error-get 'message fields))
+             (print-traceback err))
+           (print 'VALUE val))))
 
 (run-catching (/ 10 0))
 (run-catching (/ 10 3))

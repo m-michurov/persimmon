@@ -217,7 +217,6 @@ static bool try_bind(VirtualMachine *vm, Object *env, Object *target, Object *va
     guard_unreachable();
 }
 
-// FIXME make try an implicit do
 static bool try_step(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
@@ -518,14 +517,18 @@ static bool try_step(VirtualMachine *vm) {
             if (object_nil() == frame->evaluated) {
                 guard_is_equal(*vm_error(vm), object_nil());
 
-                if (1 != object_list_count(frame->unevaluated)) {
-                    args_count_error(vm, "try", 1);
+                Object **body;
+                if (false == stack_try_create_local(s, &body)) {
+                    stack_overflow_error(vm);
                 }
 
-                auto const next = object_as_cons(frame->unevaluated).first;
-                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
-                object_list_shift(&frame->unevaluated);
-                return ok;
+                if (false == object_try_make_cons(a, vm_get(vm, STATIC_ATOM_DO), frame->unevaluated, body)) {
+                    out_of_memory_error(vm);
+                }
+
+                frame->unevaluated = object_nil();
+
+                return try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, *body, &frame->evaluated);
             }
 
             guard_is_equal(*vm_error(vm), object_nil());
