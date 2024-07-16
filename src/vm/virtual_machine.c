@@ -50,6 +50,7 @@ static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
 
     return object_try_make_atom(a, "true", slice_at(*constants, STATIC_TRUE))
            && (*slice_at(*constants, STATIC_FALSE) = object_nil())
+           && object_try_make_atom(a, "do", slice_at(*constants, STATIC_ATOM_DO))
            && try_wrap_atom(a, "OSError", slice_at(*constants, STATIC_OS_ERROR_DEFAULT))
            && try_wrap_atom(a, "TypeError", slice_at(*constants, STATIC_TYPE_ERROR_DEFAULT))
            && try_wrap_atom(a, "CallError", slice_at(*constants, STATIC_CALL_ERROR_DEFAULT))

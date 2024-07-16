@@ -217,7 +217,6 @@ static bool try_bind(VirtualMachine *vm, Object *env, Object *target, Object *va
     guard_unreachable();
 }
 
-// FIXME for fn and macro, convert body expressions into (do ...) on creation
 // FIXME make try an implicit do
 static bool try_step(VirtualMachine *vm) {
     guard_is_not_null(vm);
@@ -247,24 +246,6 @@ static bool try_step(VirtualMachine *vm) {
                     return false;
                 }
 
-                Object **do_atom;
-                if (false == stack_try_create_local(s, &do_atom)) {
-                    stack_overflow_error(vm);
-                }
-
-                if (false == object_try_make_atom(a, "do", do_atom)) {
-                    out_of_memory_error(vm);
-                }
-
-                Object **body;
-                if (false == stack_try_create_local(s, &body)) {
-                    stack_overflow_error(vm);
-                }
-
-                if (false == object_try_make_cons(a, *do_atom, fn->as_closure.body, body)) {
-                    out_of_memory_error(vm);
-                }
-
                 stack_swap_top(s, frame_make(
                         FRAME_DO,
                         frame->expr,
@@ -275,7 +256,7 @@ static bool try_step(VirtualMachine *vm) {
 
                 return try_begin_eval(
                         vm, EVAL_FRAME_KEEP,
-                        *arg_bindings, *body,
+                        *arg_bindings, fn->as_closure.body,
                         &frame->unevaluated
                 );
             }
@@ -324,34 +305,10 @@ static bool try_step(VirtualMachine *vm) {
                 return false;
             }
 
-            Object **do_atom;
-            if (false == stack_try_create_local(s, &do_atom)) {
-                stack_overflow_error(vm);
-            }
-
-            if (false == object_try_make_atom(a, "do", do_atom)) {
-                out_of_memory_error(vm);
-            }
-
-            Object **body;
-            if (false == stack_try_create_local(s, &body)) {
-                stack_overflow_error(vm);
-            }
-
-            if (false == object_try_make_cons(a, *do_atom, fn->as_closure.body, body)) {
-                out_of_memory_error(vm);
-            }
-
-            stack_swap_top(s, frame_make(
-                    FRAME_DO,
-                    *body,
-                    *arg_bindings,
-                    frame->results_list,
-                    (*body)->as_cons.rest
-            ));
-            return true;
+            return try_begin_eval(vm, EVAL_FRAME_REMOVE, *arg_bindings, fn->as_closure.body, frame->results_list);
         }
-        case FRAME_FN: {
+        case FRAME_FN:
+        case FRAME_MACRO: {
             auto const len = object_list_count(frame->unevaluated);
             if (len < 2) {
                 too_few_args_error(vm, "fn");
@@ -362,40 +319,27 @@ static bool try_step(VirtualMachine *vm) {
                 parameters_type_error(vm);
             }
 
-            auto const body = object_as_cons(frame->unevaluated).rest;
+            auto const body_items = object_as_cons(frame->unevaluated).rest;
 
-            Object **closure;
-            if (false == stack_try_create_local(s, &closure)) {
+            Object **body;
+            if (false == stack_try_create_local(s, &body)) {
                 stack_overflow_error(vm);
             }
-            if (object_try_make_closure(a, frame->env, args, body, closure)) {
-                if (try_save_result_and_pop(vm, frame->results_list, *closure)) {
-                    return true;
-                }
 
+            if (false == object_try_make_cons(a, vm_get(vm, STATIC_ATOM_DO), body_items, body)) {
                 out_of_memory_error(vm);
             }
 
-            out_of_memory_error(vm);
-        }
-        case FRAME_MACRO: {
-            auto const len = object_list_count(frame->unevaluated);
-            if (len < 2) {
-                too_few_args_error(vm, "macro");
-            }
-
-            auto const args = object_as_cons(frame->unevaluated).first;
-            if (false == validate_args(args)) {
-                parameters_type_error(vm);
-            }
-
-            auto const body = object_as_cons(frame->unevaluated).rest;
-
             Object **closure;
             if (false == stack_try_create_local(s, &closure)) {
                 stack_overflow_error(vm);
             }
-            if (object_try_make_macro(a, frame->env, args, body, closure)) {
+
+            auto constructor =
+                    FRAME_MACRO == frame->type
+                    ? object_try_make_macro
+                    : object_try_make_closure;
+            if (constructor(a, frame->env, args, *body, closure)) {
                 if (try_save_result_and_pop(vm, frame->results_list, *closure)) {
                     return true;
                 }
