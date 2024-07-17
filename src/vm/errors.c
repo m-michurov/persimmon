@@ -412,10 +412,6 @@ void create_stack_overflow_error(VirtualMachine *vm) {
     create_error_with_message(vm, vm_get(vm, STATIC_STACK_OVERFLOW_ERROR_DEFAULT), "stack capacity exceeded");
 }
 
-void create_import_nesting_too_deep_error(VirtualMachine *vm) {
-    create_error_with_message(vm, vm_get(vm, STATIC_TOO_MANY_DEFAULT), "too many nested imports");
-}
-
 void create_too_few_args_error(VirtualMachine *vm, char const *name) {
     char message[MESSAGE_MIN_CAPACITY] = {0};
     auto capacity = sizeof(message);

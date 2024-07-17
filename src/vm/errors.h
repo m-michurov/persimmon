@@ -57,10 +57,6 @@ void create_stack_overflow_error(VirtualMachine *vm);
 
 #define stack_overflow_error(VM) ERRORS__error(create_stack_overflow_error, (VM))
 
-void create_import_nesting_too_deep_error(VirtualMachine *vm);
-
-#define import_nesting_too_deep_error(VM) ERRORS__error(create_import_nesting_too_deep_error, (VM))
-
 void create_too_few_args_error(VirtualMachine *vm, char const *name);
 
 #define too_few_args_error(VM, Name) ERRORS__error(create_too_few_args_error, (VM), (Name))

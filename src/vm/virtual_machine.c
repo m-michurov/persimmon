@@ -22,18 +22,6 @@ struct VirtualMachine {
     Objects constants;
 };
 
-//    STATIC_NIL = 0,
-//    STATIC_TRUE,
-//    STATIC_FALSE,
-//    STATIC_IO_ERROR,
-//    STATIC_TYPE_ERROR,
-//    STATIC_CALL_ERROR,
-//    STATIC_NAME_ERROR,
-//    STATIC_ZERO_DIVISION_ERROR,
-//    STATIC_OUT_OF_MEMORY_ERROR,
-//    STATIC_STACK_OVERFLOW_ERROR,
-//    STATIC_SYNTAX_ERROR,
-
 static bool try_wrap_atom(ObjectAllocator *a, char const *name, Object **value) {
     guard_is_not_null(a);
     guard_is_not_null(name);
@@ -60,7 +48,6 @@ static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
            && try_wrap_atom(a, "StackOverflowError", slice_at(*constants, STATIC_STACK_OVERFLOW_ERROR_DEFAULT))
            && try_wrap_atom(a, "SyntaxError", slice_at(*constants, STATIC_SYNTAX_ERROR_DEFAULT))
            && try_wrap_atom(a, "SpecialFormError", slice_at(*constants, STATIC_SPECIAL_ERROR_DEFAULT))
-           && try_wrap_atom(a, "ImportError", slice_at(*constants, STATIC_TOO_MANY_DEFAULT))
            && try_wrap_atom(a, "BindingError", slice_at(*constants, STATIC_BINDING_ERROR_DEFAULT));
 }
 
