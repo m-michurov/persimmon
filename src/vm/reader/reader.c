@@ -138,6 +138,7 @@ static bool try_prompt(
     guard_is_not_null(exprs);
 
     reader_reset(r);
+    *exprs = object_nil();
 
     auto line = (Line) {0};
     auto lines = (Lines) {0};

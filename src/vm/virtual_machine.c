@@ -17,7 +17,7 @@ struct VirtualMachine {
     Object *globals;
     Object *value;
     Object *error;
-    VM_ExpressionsStack expressions_stack;
+    Object *exprs;
 
     Objects constants;
 };
@@ -90,10 +90,7 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
             .globals = object_nil(),
             .value = object_nil(),
             .error = object_nil(),
-            .expressions_stack = {
-                    .data = guard_succeeds(calloc, (config.import_stack_size, sizeof(Object *))),
-                    .capacity = config.import_stack_size
-            },
+            .exprs = object_nil(),
             .constants = constants
     }, sizeof(VirtualMachine));
 
@@ -104,7 +101,7 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
             .globals = &vm->globals,
             .value = &vm->value,
             .error = &vm->error,
-            .vm_expressions_stack = &vm->expressions_stack,
+            .exprs = &vm->exprs,
             .constants = &vm->constants
     });
 
@@ -134,18 +131,6 @@ ObjectAllocator *vm_allocator(VirtualMachine *vm) {
     return vm->allocator;
 }
 
-Object **vm_value(VirtualMachine *vm) {
-    guard_is_not_null(vm);
-
-    return &vm->value;
-}
-
-Object **vm_error(VirtualMachine *vm) {
-    guard_is_not_null(vm);
-
-    return &vm->error;
-}
-
 Stack *vm_stack(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
@@ -158,16 +143,28 @@ Reader *vm_reader(VirtualMachine *vm) {
     return vm->reader;
 }
 
+Object **vm_value(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    return &vm->value;
+}
+
+Object **vm_error(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    return &vm->error;
+}
+
 Object **vm_globals(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
     return &vm->globals;
 }
 
-VM_ExpressionsStack *vm_expressions_stack(VirtualMachine *vm) {
+Object **vm_exprs(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    return &vm->expressions_stack;
+    return &vm->exprs;
 }
 
 Object *vm_get(VirtualMachine const *vm, StaticConstantName name) {

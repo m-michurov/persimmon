@@ -28,7 +28,6 @@ void allocator_free(ObjectAllocator **a);
 
 struct Stack;
 struct Parser_ExpressionsStack;
-struct VM_ExpressionsStack;
 
 typedef struct {
     struct Stack const *stack;
@@ -37,7 +36,7 @@ typedef struct {
     Object *const *globals;
     Object *const *value;
     Object *const *error;
-    struct VM_ExpressionsStack const *vm_expressions_stack;
+    Object *const *exprs;
     Objects const *constants;
 } ObjectAllocator_Roots;
 

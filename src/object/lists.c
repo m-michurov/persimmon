@@ -16,6 +16,20 @@ bool object_list_try_prepend(ObjectAllocator *a, Object *value, Object **list) {
     return object_try_make_cons(a, value, *list, list);
 }
 
+bool object_list_try_append(ObjectAllocator *a, Object *value, Object **list) {
+    guard_is_not_null(a);
+    guard_is_not_null(value);
+    guard_is_not_null(list);
+    guard_is_not_null(*list);
+    guard_is_one_of((*list)->type, TYPE_NIL, TYPE_CONS);
+
+    while (object_nil() != *list) {
+        list = &(*list)->as_cons.rest;
+    }
+
+    return object_try_make_cons(a, value, object_nil(), list);
+}
+
 Object *object_list_shift(Object **list) {
     guard_is_not_null(list);
     guard_is_not_null(*list);

@@ -21,24 +21,17 @@ void vm_free(VirtualMachine **vm);
 
 ObjectAllocator *vm_allocator(VirtualMachine *vm);
 
-Object **vm_value(VirtualMachine *vm);
-
-Object **vm_error(VirtualMachine *vm);
-
 Stack *vm_stack(VirtualMachine *vm);
 
 Reader *vm_reader(VirtualMachine *vm);
 
+Object **vm_value(VirtualMachine *vm);
+
+Object **vm_error(VirtualMachine *vm);
+
 Object **vm_globals(VirtualMachine *vm);
 
-typedef struct VM_ExpressionsStack VM_ExpressionsStack;
-struct VM_ExpressionsStack {
-    Object **const data;
-    size_t count;
-    size_t const capacity;
-};
-
-VM_ExpressionsStack *vm_expressions_stack(VirtualMachine *vm);
+Object **vm_exprs(VirtualMachine *vm);
 
 typedef enum {
     STATIC_TRUE,

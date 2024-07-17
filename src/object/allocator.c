@@ -5,7 +5,6 @@
 #include "utility/dynamic_array.h"
 #include "utility/exchange.h"
 #include "utility/pointers.h"
-#include "vm/virtual_machine.h"
 #include "vm/stack.h"
 #include "vm/reader/parser.h"
 
@@ -63,7 +62,7 @@ void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots) {
     update_root(a->roots, roots, globals);
     update_root(a->roots, roots, value);
     update_root(a->roots, roots, error);
-    update_root(a->roots, roots, vm_expressions_stack);
+    update_root(a->roots, roots, exprs);
     update_root(a->roots, roots, constants);
 }
 
@@ -156,10 +155,7 @@ static void mark(ObjectAllocator *a) {
     mark_gray_if_white(&gray, *a->roots.globals);
     mark_gray_if_white(&gray, *a->roots.value);
     mark_gray_if_white(&gray, *a->roots.error);
-
-    slice_for(it, *a->roots.vm_expressions_stack) {
-        mark_gray_if_white(&gray, *it);
-    }
+    mark_gray_if_white(&gray, *a->roots.exprs);
 
     slice_for(it, *a->roots.constants) {
         mark_gray_if_white(&gray, *it);
@@ -256,7 +252,7 @@ static bool all_roots_set(ObjectAllocator const *a) {
            && nullptr != a->roots.globals
            && nullptr != a->roots.value
            && nullptr != a->roots.error
-           && nullptr != a->roots.vm_expressions_stack
+           && nullptr != a->roots.exprs
            && nullptr != a->roots.constants;
 }
 

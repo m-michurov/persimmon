@@ -2,7 +2,6 @@
 
 #include <string.h>
 
-#include "utility/slice.h"
 #include "utility/guards.h"
 #include "utility/exchange.h"
 #include "object/lists.h"
@@ -17,8 +16,6 @@ typedef enum : bool {
     EVAL_FRAME_KEEP,
     EVAL_FRAME_REMOVE
 } EvalFrameKeepOrRemove;
-
-//#define EVAL_TRACE
 
 static bool try_save_result(VirtualMachine *vm, Object **results_list, Object *value) {
     guard_is_not_null(value);
@@ -227,384 +224,455 @@ static bool try_bind(VirtualMachine *vm, Object *env, Object *target, Object *va
     guard_unreachable();
 }
 
-static bool try_step(VirtualMachine *vm) {
+static bool try_step_call(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
     auto const s = vm_stack(vm);
     auto const a = vm_allocator(vm);
     auto const frame = stack_top(s);
+    guard_is_equal(frame->type, FRAME_CALL);
 
-    switch (frame->type) {
+    if (1 == object_list_count(frame->evaluated) && TYPE_MACRO == frame->evaluated->as_cons.first->type) {
+        auto const fn = frame->evaluated->as_cons.first;
+        auto actual_args = frame->unevaluated;
+
+        auto const formal_args = fn->as_closure.args;
+
+        Object **arg_bindings;
+        if (false == stack_try_create_local(s, &arg_bindings)) {
+            stack_overflow_error(vm);
+        }
+
+        if (false == env_try_create(a, fn->as_closure.env, arg_bindings)) {
+            out_of_memory_error(vm);
+        }
+
+        if (false == try_bind(vm, *arg_bindings, formal_args, actual_args)) {
+            return false;
+        }
+
+        stack_swap_top(s, frame_make(
+                FRAME_DO,
+                frame->expr,
+                frame->env,
+                frame->results_list,
+                object_nil()
+        ));
+
+        return try_begin_eval(
+                vm, EVAL_FRAME_KEEP,
+                *arg_bindings, fn->as_closure.body,
+                &frame->unevaluated
+        );
+    }
+
+    if (object_nil() != frame->unevaluated) {
+        auto const next = object_as_cons(frame->unevaluated).first;
+        auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
+        object_list_shift(&frame->unevaluated);
+        return ok;
+    }
+
+    object_list_reverse(&frame->evaluated);
+    guard_is_not_equal(frame->evaluated, object_nil());
+
+    auto const fn = object_as_cons(frame->evaluated).first;
+    auto actual_args = object_as_cons(frame->evaluated).rest;
+
+    if (TYPE_PRIMITIVE == fn->type) {
+        Object **value;
+        if (false == stack_try_create_local(s, &value)) {
+            stack_overflow_error(vm);
+        }
+
+        if (false == fn->as_primitive(vm, actual_args, value)) {
+            return false;
+        }
+
+        return try_save_result_and_pop(vm, frame->results_list, *value);
+    }
+
+    if (TYPE_CLOSURE != fn->type) {
+        type_error(vm, fn->type, TYPE_CLOSURE, TYPE_MACRO, TYPE_PRIMITIVE);
+    }
+    auto const formal_args = fn->as_closure.args;
+
+    Object **arg_bindings;
+    if (false == stack_try_create_local(s, &arg_bindings)) {
+        stack_overflow_error(vm);
+    }
+
+    if (false == env_try_create(a, fn->as_closure.env, arg_bindings)) {
+        out_of_memory_error(vm);
+    }
+
+    if (false == try_bind(vm, *arg_bindings, formal_args, actual_args)) {
+        return false;
+    }
+
+    return try_begin_eval(vm, EVAL_FRAME_REMOVE, *arg_bindings, fn->as_closure.body, frame->results_list);
+}
+
+static bool try_step_macro_or_fn(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    auto const s = vm_stack(vm);
+    auto const a = vm_allocator(vm);
+    auto const frame = stack_top(s);
+    guard_is_one_of(frame->type, FRAME_MACRO, FRAME_FN);
+
+    auto const len = object_list_count(frame->unevaluated);
+    if (len < 2) {
+        too_few_args_error(vm, FRAME_MACRO == frame->type ? "macro" : "fn");
+    }
+
+    auto const args = object_as_cons(frame->unevaluated).first;
+    if (false == validate_args(args)) {
+        parameters_type_error(vm);
+    }
+
+    auto const body_items = object_as_cons(frame->unevaluated).rest;
+
+    Object **body;
+    if (false == stack_try_create_local(s, &body)) {
+        stack_overflow_error(vm);
+    }
+
+    if (false == object_try_make_cons(a, vm_get(vm, STATIC_ATOM_DO), body_items, body)) {
+        out_of_memory_error(vm);
+    }
+
+    Object **closure;
+    if (false == stack_try_create_local(s, &closure)) {
+        stack_overflow_error(vm);
+    }
+
+    auto const make_closure =
+            FRAME_MACRO == frame->type
+            ? object_try_make_macro
+            : object_try_make_closure;
+    if (false == make_closure(a, frame->env, args, *body, closure)) {
+        out_of_memory_error(vm);
+    }
+
+    return try_save_result_and_pop(vm, frame->results_list, *closure);
+}
+
+static bool try_step_if(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    auto const s = vm_stack(vm);
+    auto const frame = stack_top(s);
+    guard_is_equal(frame->type, FRAME_IF);
+
+    if (object_nil() == frame->evaluated) {
+        auto const len = object_list_count(frame->unevaluated);
+        if (len < 2) {
+            too_few_args_error(vm, "if");
+        }
+
+        if (len > 3) {
+            too_many_args_error(vm, "if");
+        }
+
+        auto const cond = object_as_cons(frame->unevaluated).first;
+        auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, cond, &frame->evaluated);
+        object_list_shift(&frame->unevaluated);
+        return ok;
+    }
+
+    auto const cond_value = object_as_cons(frame->evaluated).first;
+    if (object_nil() != cond_value) {
+        return try_begin_eval(
+                vm, EVAL_FRAME_REMOVE,
+                frame->env, object_as_cons(frame->unevaluated).first,
+                frame->results_list
+        );
+    }
+
+    frame->unevaluated = object_as_cons(frame->unevaluated).rest; // skip `then`
+    if (object_nil() == frame->unevaluated) {
+        return try_save_result_and_pop(vm, frame->results_list, object_nil());
+    }
+
+    return try_begin_eval(
+            vm, EVAL_FRAME_REMOVE,
+            frame->env, object_as_cons(frame->unevaluated).first,
+            frame->results_list
+    );
+}
+
+static bool try_step_do(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    auto const s = vm_stack(vm);
+    auto const frame = stack_top(s);
+    guard_is_equal(frame->type, FRAME_DO);
+
+    if (object_nil() == frame->unevaluated) {
+        return try_save_result_and_pop(vm, frame->results_list, object_nil());
+    }
+
+    if (object_nil() == object_as_cons(frame->unevaluated).rest) {
+        return try_begin_eval(
+                vm, EVAL_FRAME_REMOVE,
+                frame->env, frame->unevaluated->as_cons.first,
+                frame->results_list
+        );
+    }
+
+    auto const next = object_as_cons(frame->unevaluated).first;
+    auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, nullptr);
+    object_list_shift(&frame->unevaluated);
+    return ok;
+}
+
+static bool try_step_define(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    auto const s = vm_stack(vm);
+    auto const frame = stack_top(s);
+    guard_is_equal(frame->type, FRAME_DEFINE);
+
+    if (object_nil() == frame->evaluated) {
+        size_t const expected = 2;
+        if (expected != object_list_count(frame->unevaluated)) {
+            args_count_error(vm, "define", expected);
+        }
+
+        return try_begin_eval(
+                vm, EVAL_FRAME_KEEP,
+                frame->env, *object_list_nth(1, frame->unevaluated),
+                &frame->evaluated
+        );
+    }
+
+    auto const target = object_as_cons(frame->unevaluated).first;
+    auto const value = object_as_cons(frame->evaluated).first;
+    if (false == try_bind(vm, frame->env, target, value)) {
+        return false;
+    }
+
+    return try_save_result_and_pop(vm, frame->results_list, value);
+}
+
+static bool try_step_import(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    auto const a = vm_allocator(vm);
+    auto const s = vm_stack(vm);
+    auto const frame = stack_top(s);
+    guard_is_equal(frame->type, FRAME_IMPORT);
+
+    size_t const expected = 1;
+    if (expected != object_list_count(frame->unevaluated)) {
+        args_count_error(vm, "import", expected);
+    }
+
+    auto const file_name = object_as_cons(frame->unevaluated).first;
+    if (TYPE_STRING != file_name->type) {
+        import_path_type_error(vm);
+    }
+
+    Object **exprs;
+    if (false == stack_try_create_local(s, &exprs)) {
+        stack_overflow_error(vm);
+    }
+
+    NamedFile file;
+    if (false == named_file_try_open(file_name->as_string, "rb", &file)) {
+        os_error(vm, errno);
+    }
+
+    auto const read_ok = reader_try_read_all(vm_reader(vm), file, exprs);
+    named_file_close(&file);
+    if (false == read_ok) {
+        return false;
+    }
+
+    if (false == object_list_try_append(a, object_nil(), exprs)) {
+        out_of_memory_error(vm);
+    }
+
+    stack_swap_top(s, frame_make(FRAME_DO, frame->expr, frame->env, frame->results_list, *exprs));
+    return true;
+}
+
+static bool try_step_quote(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    auto const frame = stack_top(vm_stack(vm));
+    guard_is_equal(frame->type, FRAME_QUOTE);
+
+    size_t const expected = 1;
+    if (expected != object_list_count(frame->unevaluated)) {
+        args_count_error(vm, "quote", expected);
+    }
+
+    auto const value = object_as_cons(frame->unevaluated).first;
+    return try_save_result_and_pop(vm, frame->results_list, value);
+}
+
+static bool try_step_try(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    auto const s = vm_stack(vm);
+    auto const a = vm_allocator(vm);
+    auto const frame = stack_top(s);
+    guard_is_equal(frame->type, FRAME_TRY);
+
+    if (object_nil() != *vm_error(vm)) {
+        guard_is_equal(frame->unevaluated, object_nil());
+        guard_is_equal(frame->evaluated, object_nil());
+
+        Object **error;
+        if (false == stack_try_create_local(s, &error)) {
+            stack_overflow_error(vm);
+        }
+
+        Object **result;
+        if (false == stack_try_create_local(s, &result)) {
+            stack_overflow_error(vm);
+        }
+
+        *error = exchange(*vm_error(vm), object_nil());
+
+        if (false == object_try_make_list(a, result, object_nil(), *error)) {
+            out_of_memory_error(vm);
+        }
+
+        return try_save_result_and_pop(vm, frame->results_list, *result);
+    }
+
+    if (object_nil() == frame->evaluated) {
+        guard_is_equal(*vm_error(vm), object_nil());
+
+        Object **body;
+        if (false == stack_try_create_local(s, &body)) {
+            stack_overflow_error(vm);
+        }
+
+        if (false == object_try_make_cons(a, vm_get(vm, STATIC_ATOM_DO), frame->unevaluated, body)) {
+            out_of_memory_error(vm);
+        }
+
+        frame->unevaluated = object_nil();
+
+        return try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, *body, &frame->evaluated);
+    }
+
+    guard_is_equal(*vm_error(vm), object_nil());
+    guard_is_equal(frame->unevaluated, object_nil());
+    guard_is_equal(frame->unevaluated, object_nil());
+
+    Object **result;
+    if (false == stack_try_create_local(s, &result)) {
+        stack_overflow_error(vm);
+    }
+
+    if (false == object_try_make_list(a, result, object_as_cons(frame->evaluated).first, object_nil())) {
+        out_of_memory_error(vm);
+    }
+
+    return try_save_result_and_pop(vm, frame->results_list, *result);
+}
+
+static bool try_step_and(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    auto const frame = stack_top(vm_stack(vm));
+    guard_is_equal(frame->type, FRAME_AND);
+
+    if (object_nil() == frame->evaluated) {
+        if (object_nil() == frame->unevaluated) {
+            return try_save_result_and_pop(vm, frame->results_list, object_nil());
+        }
+
+        if (1 == object_list_count(frame->unevaluated)) {
+            auto const result = object_as_cons(frame->unevaluated).first;
+            return try_begin_eval(vm, EVAL_FRAME_REMOVE, frame->env, result, frame->results_list);
+        }
+
+        auto const next = object_as_cons(frame->unevaluated).first;
+        auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
+        object_list_shift(&frame->unevaluated);
+        return ok;
+    }
+
+    auto const value = object_as_cons(frame->evaluated).first;
+    if (object_nil() == value) {
+        return try_save_result_and_pop(vm, frame->results_list, object_nil());
+    }
+
+    frame->evaluated = object_nil();
+    return true;
+}
+
+static bool try_step_or(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    auto const frame = stack_top(vm_stack(vm));
+    guard_is_equal(frame->type, FRAME_OR);
+
+    if (object_nil() == frame->evaluated) {
+        if (object_nil() == frame->unevaluated) {
+            return try_save_result_and_pop(vm, frame->results_list, object_nil());
+        }
+
+        if (1 == object_list_count(frame->unevaluated)) {
+            auto const result = object_as_cons(frame->unevaluated).first;
+            return try_begin_eval(vm, EVAL_FRAME_REMOVE, frame->env, result, frame->results_list);
+        }
+
+        auto const next = object_as_cons(frame->unevaluated).first;
+        auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
+        object_list_shift(&frame->unevaluated);
+        return ok;
+    }
+
+    auto const value = object_as_cons(frame->evaluated).first;
+    if (object_nil() != value) {
+        return try_save_result_and_pop(vm, frame->results_list, value);
+    }
+
+    frame->evaluated = object_nil();
+    return true;
+}
+
+static bool try_step(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    switch (stack_top(vm_stack(vm))->type) {
         case FRAME_CALL: {
-            if (1 == object_list_count(frame->evaluated) && TYPE_MACRO == frame->evaluated->as_cons.first->type) {
-                auto const fn = frame->evaluated->as_cons.first;
-                auto actual_args = frame->unevaluated;
-
-                auto const formal_args = fn->as_closure.args;
-
-                Object **arg_bindings;
-                if (false == stack_try_create_local(s, &arg_bindings)) {
-                    stack_overflow_error(vm);
-                }
-
-                if (false == env_try_create(a, fn->as_closure.env, arg_bindings)) {
-                    out_of_memory_error(vm);
-                }
-
-                if (false == try_bind(vm, *arg_bindings, formal_args, actual_args)) {
-                    return false;
-                }
-
-                stack_swap_top(s, frame_make(
-                        FRAME_DO,
-                        frame->expr,
-                        frame->env,
-                        frame->results_list,
-                        object_nil()
-                ));
-
-                return try_begin_eval(
-                        vm, EVAL_FRAME_KEEP,
-                        *arg_bindings, fn->as_closure.body,
-                        &frame->unevaluated
-                );
-            }
-
-            if (object_nil() != frame->unevaluated) {
-                auto const next = object_as_cons(frame->unevaluated).first;
-                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
-                object_list_shift(&frame->unevaluated);
-                return ok;
-            }
-
-            object_list_reverse(&frame->evaluated);
-            guard_is_not_equal(frame->evaluated, object_nil());
-
-            auto const fn = object_as_cons(frame->evaluated).first;
-            auto actual_args = object_as_cons(frame->evaluated).rest;
-
-            if (TYPE_PRIMITIVE == fn->type) {
-                Object **value;
-                if (false == stack_try_create_local(s, &value)) {
-                    stack_overflow_error(vm);
-                }
-
-                if (false == fn->as_primitive(vm, actual_args, value)) {
-                    return false;
-                }
-
-                return try_save_result_and_pop(vm, frame->results_list, *value);
-            }
-
-            if (TYPE_CLOSURE != fn->type) {
-                type_error(vm, fn->type, TYPE_CLOSURE, TYPE_MACRO, TYPE_PRIMITIVE);
-            }
-            auto const formal_args = fn->as_closure.args;
-
-            Object **arg_bindings;
-            if (false == stack_try_create_local(s, &arg_bindings)) {
-                stack_overflow_error(vm);
-            }
-
-            if (false == env_try_create(a, fn->as_closure.env, arg_bindings)) {
-                out_of_memory_error(vm);
-            }
-
-            if (false == try_bind(vm, *arg_bindings, formal_args, actual_args)) {
-                return false;
-            }
-
-            return try_begin_eval(vm, EVAL_FRAME_REMOVE, *arg_bindings, fn->as_closure.body, frame->results_list);
+            return try_step_call(vm);
         }
         case FRAME_FN:
         case FRAME_MACRO: {
-            auto const len = object_list_count(frame->unevaluated);
-            if (len < 2) {
-                too_few_args_error(vm, "fn");
-            }
-
-            auto const args = object_as_cons(frame->unevaluated).first;
-            if (false == validate_args(args)) {
-                parameters_type_error(vm);
-            }
-
-            auto const body_items = object_as_cons(frame->unevaluated).rest;
-
-            Object **body;
-            if (false == stack_try_create_local(s, &body)) {
-                stack_overflow_error(vm);
-            }
-
-            if (false == object_try_make_cons(a, vm_get(vm, STATIC_ATOM_DO), body_items, body)) {
-                out_of_memory_error(vm);
-            }
-
-            Object **closure;
-            if (false == stack_try_create_local(s, &closure)) {
-                stack_overflow_error(vm);
-            }
-
-            auto constructor =
-                    FRAME_MACRO == frame->type
-                    ? object_try_make_macro
-                    : object_try_make_closure;
-            if (constructor(a, frame->env, args, *body, closure)) {
-                if (try_save_result_and_pop(vm, frame->results_list, *closure)) {
-                    return true;
-                }
-
-                out_of_memory_error(vm);
-            }
-
-            out_of_memory_error(vm);
+            return try_step_macro_or_fn(vm);
         }
         case FRAME_IF: {
-            if (object_nil() == frame->evaluated) {
-                auto const len = object_list_count(frame->unevaluated);
-                if (len < 2) {
-                    too_few_args_error(vm, "if");
-                }
-
-                if (len > 3) {
-                    too_many_args_error(vm, "if");
-                }
-
-                auto const cond = object_as_cons(frame->unevaluated).first;
-                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, cond, &frame->evaluated);
-                object_list_shift(&frame->unevaluated);
-                return ok;
-            }
-
-            auto const cond_value = object_as_cons(frame->evaluated).first;
-            if (object_nil() != cond_value) {
-                return try_begin_eval(
-                        vm, EVAL_FRAME_REMOVE,
-                        frame->env, object_as_cons(frame->unevaluated).first,
-                        frame->results_list
-                );
-            }
-
-            frame->unevaluated = object_as_cons(frame->unevaluated).rest; // skip `then`
-            if (object_nil() == frame->unevaluated) {
-                return try_save_result_and_pop(vm, frame->results_list, object_nil());
-            }
-
-            return try_begin_eval(
-                    vm, EVAL_FRAME_REMOVE,
-                    frame->env, object_as_cons(frame->unevaluated).first,
-                    frame->results_list
-            );
+            return try_step_if(vm);
         }
         case FRAME_DO: {
-            if (object_nil() == frame->unevaluated) {
-                return try_save_result_and_pop(vm, frame->results_list, object_nil());
-            }
-
-            if (object_nil() == object_as_cons(frame->unevaluated).rest) {
-                return try_begin_eval(
-                        vm, EVAL_FRAME_REMOVE,
-                        frame->env, frame->unevaluated->as_cons.first,
-                        frame->results_list
-                );
-            }
-
-            auto const next = object_as_cons(frame->unevaluated).first;
-            auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, nullptr);
-            object_list_shift(&frame->unevaluated);
-            return ok;
+            return try_step_do(vm);
         }
         case FRAME_DEFINE: {
-            if (object_nil() == frame->evaluated) {
-                size_t const expected = 2;
-                if (expected != object_list_count(frame->unevaluated)) {
-                    args_count_error(vm, "define", expected);
-                }
-
-                return try_begin_eval(
-                        vm, EVAL_FRAME_KEEP,
-                        frame->env, *object_list_nth(1, frame->unevaluated),
-                        &frame->evaluated
-                );
-            }
-
-            auto const target = object_as_cons(frame->unevaluated).first;
-            auto const value = object_as_cons(frame->evaluated).first;
-            if (false == try_bind(vm, frame->env, target, value)) {
-                return false;
-            }
-
-            return try_save_result_and_pop(vm, frame->results_list, value);
+            return try_step_define(vm);
         }
         case FRAME_IMPORT: {
-            size_t const expected = 1;
-            if (expected != object_list_count(frame->unevaluated)) {
-                args_count_error(vm, "import", expected);
-            }
-
-            auto const file_name = object_as_cons(frame->unevaluated).first;
-            if (TYPE_STRING != file_name->type) {
-                import_path_type_error(vm);
-            }
-
-            if (false == slice_try_append(vm_expressions_stack(vm), object_nil())) {
-                import_nesting_too_deep_error(vm);
-            }
-
-            NamedFile file;
-            if (false == named_file_try_open(file_name->as_string, "rb", &file)) {
-                slice_try_pop(vm_expressions_stack(vm), nullptr);
-                os_error(vm, errno);
-            }
-
-            auto const exprs = slice_last(*vm_expressions_stack(vm));
-
-            auto const read_ok = reader_try_read_all(vm_reader(vm), file, exprs);
-            named_file_close(&file);
-            if (false == read_ok) {
-                slice_try_pop(vm_expressions_stack(vm), nullptr);
-                return false;
-            }
-
-            object_list_reverse(exprs);
-            if (false == object_try_make_cons(a, object_nil(), *exprs, exprs)) {
-                out_of_memory_error(vm);
-                slice_try_pop(vm_expressions_stack(vm), nullptr);
-            }
-            object_list_reverse(exprs);
-
-            Object **exprs_list;
-            if (false == stack_try_create_local(s, &exprs_list)) {
-                stack_overflow_error(vm);
-            }
-
-            object_list_for(it, *exprs) {
-                if (object_try_make_cons(a, it, *exprs_list, exprs_list)) {
-                    continue;
-                }
-
-                out_of_memory_error(vm);
-                slice_try_pop(vm_expressions_stack(vm), nullptr);
-            }
-            object_list_reverse(exprs_list);
-
-            stack_swap_top(s, frame_make(FRAME_DO, frame->expr, frame->env, frame->results_list, *exprs_list));
-            slice_try_pop(vm_expressions_stack(vm), nullptr);
-            return true;
+            return try_step_import(vm);
         }
         case FRAME_QUOTE: {
-            size_t const expected = 1;
-            if (expected != object_list_count(frame->unevaluated)) {
-                args_count_error(vm, "quote", expected);
-            }
-
-            auto const value = object_as_cons(frame->unevaluated).first;
-            return try_save_result_and_pop(vm, frame->results_list, value);
+            return try_step_quote(vm);
         }
         case FRAME_TRY: {
-            if (object_nil() != *vm_error(vm)) {
-                guard_is_equal(frame->unevaluated, object_nil());
-                guard_is_equal(frame->evaluated, object_nil());
-
-                Object **error;
-                if (false == stack_try_create_local(s, &error)) {
-                    stack_overflow_error(vm);
-                }
-
-                Object **result;
-                if (false == stack_try_create_local(s, &result)) {
-                    stack_overflow_error(vm);
-                }
-
-                *error = exchange(*vm_error(vm), object_nil());
-
-                if (false == object_try_make_list(a, result, object_nil(), *error)) {
-                    out_of_memory_error(vm);
-                }
-
-                return try_save_result_and_pop(vm, frame->results_list, *result);
-            }
-
-            if (object_nil() == frame->evaluated) {
-                guard_is_equal(*vm_error(vm), object_nil());
-
-                Object **body;
-                if (false == stack_try_create_local(s, &body)) {
-                    stack_overflow_error(vm);
-                }
-
-                if (false == object_try_make_cons(a, vm_get(vm, STATIC_ATOM_DO), frame->unevaluated, body)) {
-                    out_of_memory_error(vm);
-                }
-
-                frame->unevaluated = object_nil();
-
-                return try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, *body, &frame->evaluated);
-            }
-
-            guard_is_equal(*vm_error(vm), object_nil());
-            guard_is_equal(frame->unevaluated, object_nil());
-            guard_is_equal(frame->unevaluated, object_nil());
-
-            Object **result;
-            if (false == stack_try_create_local(s, &result)) {
-                stack_overflow_error(vm);
-            }
-
-            if (false == object_try_make_list(a, result, object_as_cons(frame->evaluated).first, object_nil())) {
-                out_of_memory_error(vm);
-            }
-
-            return try_save_result_and_pop(vm, frame->results_list, *result);
+            return try_step_try(vm);
         }
         case FRAME_AND: {
-            if (object_nil() == frame->evaluated) {
-                if (object_nil() == frame->unevaluated) {
-                    return try_save_result_and_pop(vm, frame->results_list, object_nil());
-                }
-
-                if (1 == object_list_count(frame->unevaluated)) {
-                    auto const result = object_as_cons(frame->unevaluated).first;
-                    return try_begin_eval(vm, EVAL_FRAME_REMOVE, frame->env, result, frame->results_list);
-                }
-
-                auto const next = object_as_cons(frame->unevaluated).first;
-                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
-                object_list_shift(&frame->unevaluated);
-                return ok;
-            }
-
-            auto const value = object_as_cons(frame->evaluated).first;
-            if (object_nil() == value) {
-                return try_save_result_and_pop(vm, frame->results_list, object_nil());
-            }
-
-            frame->evaluated = object_nil();
-            return true;
+            return try_step_and(vm);
         }
         case FRAME_OR: {
-            if (object_nil() == frame->evaluated) {
-                if (object_nil() == frame->unevaluated) {
-                    return try_save_result_and_pop(vm, frame->results_list, object_nil());
-                }
-
-                if (1 == object_list_count(frame->unevaluated)) {
-                    auto const result = object_as_cons(frame->unevaluated).first;
-                    return try_begin_eval(vm, EVAL_FRAME_REMOVE, frame->env, result, frame->results_list);
-                }
-
-                auto const next = object_as_cons(frame->unevaluated).first;
-                auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
-                object_list_shift(&frame->unevaluated);
-                return ok;
-            }
-
-            auto const value = object_as_cons(frame->evaluated).first;
-            if (object_nil() != value) {
-                return try_save_result_and_pop(vm, frame->results_list, value);
-            }
-
-            frame->evaluated = object_nil();
-            return true;
+            return try_step_or(vm);
         }
     }
 

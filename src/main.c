@@ -1,7 +1,6 @@
 #include <stdlib.h>
 
 #include "utility/guards.h"
-#include "utility/slice.h"
 #include "vm/env.h"
 #include "object/lists.h"
 #include "vm/reader/reader.h"
@@ -51,21 +50,16 @@ static void print_error(Object *error) {
 }
 
 static bool try_eval_input(VirtualMachine *vm) {
-    auto const named_stdin = (NamedFile) {.name = "<stdin>", .handle = stdin};
-
-    slice_try_append(vm_expressions_stack(vm), object_nil());
-    if (false == reader_try_prompt(vm_reader(vm), named_stdin, slice_last(*vm_expressions_stack(vm)))) {
-        slice_try_pop(vm_expressions_stack(vm), nullptr);
+    if (false == reader_try_prompt(vm_reader(vm), named_file_stdin, vm_exprs(vm))) {
         print_error(*vm_error(vm));
         return true;
     }
 
-    if (object_nil() == *slice_last(*vm_expressions_stack(vm))) {
-        slice_try_pop(vm_expressions_stack(vm), nullptr);
+    if (object_nil() == *vm_exprs(vm)) {
         return false;
     }
 
-    object_list_for(it, *slice_last(*vm_expressions_stack(vm))) {
+    object_list_for(it, *vm_exprs(vm)) {
         if (try_eval(vm, *vm_globals(vm), it)) {
             object_repr_print(*vm_value(vm), stdout);
             printf("\n");
@@ -76,7 +70,6 @@ static bool try_eval_input(VirtualMachine *vm) {
         break;
     }
 
-    slice_try_pop(vm_expressions_stack(vm), nullptr);
     return true;
 }
 
@@ -92,29 +85,24 @@ static void run_repl(VirtualMachine *vm) {
 }
 
 static bool try_eval_file(VirtualMachine *vm, NamedFile file) {
-    slice_try_append(vm_expressions_stack(vm), object_nil());
-    if (false == reader_try_read_all(vm_reader(vm), file, slice_last(*vm_expressions_stack(vm)))) {
-        slice_try_pop(vm_expressions_stack(vm), nullptr);
+    if (false == reader_try_read_all(vm_reader(vm), file, vm_exprs(vm))) {
         print_error(*vm_error(vm));
+        return true;
+    }
+
+    if (object_nil() == *vm_exprs(vm)) {
         return false;
     }
 
-    if (object_nil() == *slice_last(*vm_expressions_stack(vm))) {
-        slice_try_pop(vm_expressions_stack(vm), nullptr);
-        return false;
-    }
-
-    object_list_for(it, *slice_last(*vm_expressions_stack(vm))) {
+    object_list_for(it, *vm_exprs(vm)) {
         if (try_eval(vm, *vm_globals(vm), it)) {
             continue;
         }
 
         print_error(*vm_error(vm));
-        slice_try_pop(vm_expressions_stack(vm), nullptr);
         return false;
     }
 
-    slice_try_pop(vm_expressions_stack(vm), nullptr);
     return true;
 }
 
