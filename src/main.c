@@ -7,6 +7,7 @@
 #include "vm/eval.h"
 #include "vm/virtual_machine.h"
 #include "vm/traceback.h"
+#include "vm/errors.h"
 
 static bool try_shift_args(int *argc, char ***argv, char **arg) {
     if (*argc <= 0) {
@@ -23,28 +24,29 @@ static bool try_shift_args(int *argc, char ***argv, char **arg) {
 }
 
 static void print_error(Object *error) {
-    printf("ERROR:\n");
     if (TYPE_CONS != error->type) {
         object_repr_print(error, stdout);
         printf("\n");
         return;
     }
 
-    printf("(");
-    object_repr_print(error->as_cons.first, stdout);
-    printf("\n");
-
-    printf("    ");
-    object_repr_print(error->as_cons.rest->as_cons.first, stdout);
-
-    object_list_for(it, error->as_cons.rest->as_cons.rest) {
-        printf("\n    ");
-        object_repr_print(it, stdout);
+    auto const error_type = error->as_cons.first;
+    if (TYPE_ATOM != error_type->type) {
+        object_repr_print(error, stdout);
+        printf("\n");
+        return;
     }
-    printf(")\n");
+
+    printf("%s: ", error_type->as_atom);
+
+    Object *message;
+    if (object_list_try_get_tagged(error, ERROR_FIELD_MESSAGE, &message)) {
+        object_print(message, stdout);
+        printf("\n");
+    }
 
     Object *traceback;
-    if (object_list_try_get_tagged(error, "traceback", &traceback)) {
+    if (object_list_try_get_tagged(error, ERROR_FIELD_TRACEBACK, &traceback)) {
         traceback_print(traceback, stdout);
     }
 }

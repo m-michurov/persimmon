@@ -2,6 +2,9 @@
 
 #include "vm/virtual_machine.h"
 
+#define ERROR_FIELD_MESSAGE   "message"
+#define ERROR_FIELD_TRACEBACK "traceback"
+
 #define ERRORS__error(Fn, ...)  \
 do {                            \
     Fn(__VA_ARGS__);            \
@@ -33,10 +36,10 @@ void create_syntax_error(VirtualMachine *vm, SyntaxError base, char const *file,
 #define syntax_error(VM, Base, File, Text) \
     ERRORS__error(create_syntax_error, (VM), (Base), (File), (Text))
 
-void create_call_error(VirtualMachine *vm, char const *name, size_t expected_args, size_t got_args);
+void create_call_error(VirtualMachine *vm, char const *name, size_t expected, size_t got);
 
-#define call_error(VM, Name, ExpectedArgs, GotArgs) \
-    ERRORS__error(create_call_error, (VM), (Name), (ExpectedArgs), (GotArgs))
+#define call_error(VM, Name, Expected, Got) \
+    ERRORS__error(create_call_error, (VM), (Name), (Expected), (Got))
 
 void create_name_error(VirtualMachine *vm, char const *name);
 
@@ -79,10 +82,10 @@ void create_import_path_type_error(VirtualMachine *vm);
 
 #define import_path_type_error(VM) ERRORS__error(create_import_path_type_error, (VM))
 
-void create_binding_count_error(VirtualMachine *vm, size_t expected, bool at_least, size_t got);
+void create_binding_count_error(VirtualMachine *vm, size_t expected, bool is_varargs, size_t got);
 
-#define binding_count_error(VM, Expected, AtLeast, Got) \
-    ERRORS__error(create_binding_count_error, (VM), (Expected), (AtLeast), (Got))
+#define binding_count_error(VM, Expected, IsVarargs, Got) \
+    ERRORS__error(create_binding_count_error, (VM), (Expected), (IsVarargs), (Got))
 
 void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_type);
 

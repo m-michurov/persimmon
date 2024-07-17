@@ -104,7 +104,7 @@ do {                                    \
     auto const _r = Callee ArgsList;                            \
     guard_assert(                                               \
         0 == errno,                                             \
-        #Callee "(" #ArgsList ") failed: %s", strerror(errno)   \
+        #Callee "(%s) failed: %s", #ArgsList, strerror(errno)   \
     );                                                          \
     _r;                                                         \
 })

@@ -61,7 +61,7 @@ static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
            && try_wrap_atom(a, "SyntaxError", slice_at(*constants, STATIC_SYNTAX_ERROR_DEFAULT))
            && try_wrap_atom(a, "SpecialFormError", slice_at(*constants, STATIC_SPECIAL_ERROR_DEFAULT))
            && try_wrap_atom(a, "ImportError", slice_at(*constants, STATIC_TOO_MANY_DEFAULT))
-           && try_wrap_atom(a, "BindError", slice_at(*constants, STATIC_BIND_DEFAULT));
+           && try_wrap_atom(a, "BindingError", slice_at(*constants, STATIC_BINDING_ERROR_DEFAULT));
 }
 
 VirtualMachine *vm_new(VirtualMachine_Config config) {

@@ -132,7 +132,7 @@ static bool validate_binding(Object *target, Object *value, Env_BindingError *er
             return true;
         }
         case TYPE_CONS: {
-            if (TYPE_CONS != value->type) {
+            if (TYPE_CONS != value->type && TYPE_NIL != value->type) {
                 *error = (Env_BindingError) {
                         .type = Env_CannotUnpack,
                         .as_cannot_unpack = {
@@ -217,7 +217,7 @@ static bool env_try_bind_(ObjectAllocator *a, Object *env, Object *target, Objec
             return false;
         }
         case TYPE_CONS: {
-            guard_is_equal(value->type, TYPE_CONS);
+            guard_is_one_of(value->type, TYPE_CONS, TYPE_NIL);
 
             auto is_varargs = false;
             object_list_for(it, target) {
