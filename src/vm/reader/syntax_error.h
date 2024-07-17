@@ -17,7 +17,7 @@ typedef enum {
     SYNTAX_ERROR_NESTING_TOO_DEEP
 } SyntaxError_Code;
 
-char const *syntax_error_code_desc(SyntaxError_Code error_type);
+char const *syntax_error_str(SyntaxError_Code error_type);
 
 typedef struct {
     SyntaxError_Code code;
@@ -25,4 +25,3 @@ typedef struct {
     int bad_chr;
 } SyntaxError;
 
-void syntax_error_print(SyntaxError error);

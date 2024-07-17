@@ -189,7 +189,7 @@ void create_syntax_error(
             )
             && try_create_string_field(
                     vm,
-                    FIELD_MESSAGE, syntax_error_code_desc(base.code),
+                    FIELD_MESSAGE, syntax_error_str(base.code),
                     object_list_nth(++field_index, *vm_error(vm))
             )
             && try_create_string_field(vm, "file", file, object_list_nth(++field_index, *vm_error(vm)))

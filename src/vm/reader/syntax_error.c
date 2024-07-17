@@ -5,7 +5,7 @@
 #include "utility/guards.h"
 #include "utility/strings.h"
 
-char const *syntax_error_code_desc(SyntaxError_Code error_type) {
+char const *syntax_error_str(SyntaxError_Code error_type) {
     switch (error_type) {
         case SYNTAX_ERROR_INTEGER_INVALID: {
             return "invalid integer literal";
@@ -39,24 +39,3 @@ char const *syntax_error_code_desc(SyntaxError_Code error_type) {
     guard_unreachable();
 }
 
-void syntax_error_print(SyntaxError error) {
-    printf( "SyntaxError: %s", syntax_error_code_desc(error.code));
-    if (SYNTAX_ERROR_INVALID_CHARACTER != error.code) {
-        printf("\n");
-        return;
-    }
-
-    printf(" - ");
-    if (isprint(error.bad_chr)) {
-        printf("'%c'\n", error.bad_chr);
-        return;
-    }
-
-    char const *escape_seq;
-    if (string_try_repr_escape_seq((char) error.bad_chr, &escape_seq)) {
-        printf("'%s'\n", escape_seq);
-        return;
-    }
-
-    printf("\\0x%02hhX\n", error.bad_chr);
-}
