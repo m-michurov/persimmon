@@ -41,6 +41,18 @@ void create_call_error(VirtualMachine *vm, char const *name, size_t expected, si
 #define call_error(VM, Name, Expected, Got) \
     ERRORS__error(create_call_error, (VM), (Name), (Expected), (Got))
 
+void create_call_dot_before_error(VirtualMachine *vm);
+
+#define call_dot_before_error(VM) ERRORS__error(create_call_dot_before_error, (VM))
+
+void create_call_dot_after_error(VirtualMachine *vm);
+
+#define call_dot_after_error(VM) ERRORS__error(create_call_dot_after_error, (VM))
+
+void create_call_extra_args_error(VirtualMachine *vm, Object_Type extras_type);
+
+#define call_extra_args_error(VM, ExtrasType) ERRORS__error(create_call_extra_args_error, (VM), (ExtrasType))
+
 void create_name_error(VirtualMachine *vm, char const *name);
 
 #define name_error(VM, Name) ERRORS__error(create_name_error, (VM), (Name))

@@ -266,8 +266,45 @@ static bool try_step_call(VirtualMachine *vm) {
         );
     }
 
+    if (TYPE_ATOM == frame->unevaluated->type && 0 == strcmp(".", frame->unevaluated->as_atom)) {
+        guard_is_not_equal(frame->evaluated, object_nil());
+
+        auto const extra_args = object_list_nth(0, frame->evaluated);
+        if (TYPE_CONS != (*extra_args)->type && TYPE_NIL != (*extra_args)->type) {
+            call_extra_args_error(vm, (*extra_args)->type);
+        }
+
+        object_list_reverse(extra_args);
+        object_list_concat(extra_args, object_list_skip(1, frame->evaluated));
+
+        frame->evaluated = *object_list_nth(0, frame->evaluated);
+        frame->unevaluated = object_nil();
+
+        return true;
+    }
+
     if (object_nil() != frame->unevaluated) {
-        auto const next = object_as_cons(frame->unevaluated).first;
+        auto const next = *object_list_nth(0, frame->unevaluated);
+
+        if (TYPE_ATOM == next->type && 0 == strcmp(".", next->as_atom)) {
+            if (object_nil() == frame->evaluated) {
+                call_dot_before_error(vm);
+            }
+
+            auto const rest = object_list_skip(1, frame->unevaluated);
+            if (1 != object_list_count(rest)) {
+                call_dot_after_error(vm);
+            }
+
+            frame->unevaluated = next;
+            return try_begin_eval(
+                    vm, EVAL_FRAME_KEEP,
+                    frame->env,
+                    object_as_cons(rest).first,
+                    &frame->evaluated
+            );
+        }
+
         auto const ok = try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, next, &frame->evaluated);
         object_list_shift(&frame->unevaluated);
         return ok;

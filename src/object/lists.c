@@ -30,6 +30,20 @@ bool object_list_try_append(ObjectAllocator *a, Object *value, Object **list) {
     return object_try_make_cons(a, value, object_nil(), list);
 }
 
+void object_list_concat(Object **head, Object *tail) {
+    guard_is_not_null(head);
+    guard_is_not_null(*head);
+    guard_is_not_null(tail);
+    guard_is_one_of((*head)->type, TYPE_NIL, TYPE_CONS);
+    guard_is_one_of(tail->type, TYPE_NIL, TYPE_CONS);
+
+    while (object_nil() != *head) {
+        head = &(*head)->as_cons.rest;
+    }
+
+    *head = tail;
+}
+
 Object *object_list_shift(Object **list) {
     guard_is_not_null(list);
     guard_is_not_null(*list);
@@ -123,7 +137,7 @@ Object **object_list_last(Object **list) {
     return list;
 }
 
-Object *object_list_skip(Object *list, size_t n) {
+Object *object_list_skip(size_t n, Object *list) {
     guard_is_not_null(list);
     guard_is_one_of(list->type, TYPE_CONS, TYPE_NIL);
 

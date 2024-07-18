@@ -7,6 +7,8 @@ bool object_list_try_prepend(ObjectAllocator *a, Object *value, Object **list);
 
 bool object_list_try_append(ObjectAllocator *a, Object *value, Object **list);
 
+void object_list_concat(Object **head, Object *tail);
+
 Object *object_list_shift(Object **list);
 
 bool object_try_make_list_(ObjectAllocator *a, Object **list, ...);
@@ -39,7 +41,7 @@ Object **object_list_nth(size_t n, Object *list);
 
 Object **object_list_last(Object **list);
 
-Object *object_list_skip(Object *list, size_t n);
+Object *object_list_skip(size_t n, Object *list);
 
 bool object_list_try_unpack_2(Object **_1, Object **_2, Object *list);
 
