@@ -11,7 +11,7 @@ typedef enum {
     FRAME_DEFINE,
     FRAME_IMPORT,
     FRAME_QUOTE,
-    FRAME_TRY,
+    FRAME_CATCH,
     FRAME_AND,
     FRAME_OR
 } Stack_FrameType;

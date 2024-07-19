@@ -96,8 +96,8 @@ static bool try_get_special_type(Object *expr, Stack_FrameType *type) {
         return true;
     }
 
-    if (0 == strcmp("try", atom_name)) {
-        *type = FRAME_TRY;
+    if (0 == strcmp("catch", atom_name)) {
+        *type = FRAME_CATCH;
         return true;
     }
 
@@ -550,13 +550,13 @@ static bool try_step_quote(VirtualMachine *vm) {
     return try_save_result_and_pop(vm, frame->results_list, value);
 }
 
-static bool try_step_try(VirtualMachine *vm) {
+static bool try_step_catch(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
     auto const s = vm_stack(vm);
     auto const a = vm_allocator(vm);
     auto const frame = stack_top(s);
-    guard_is_equal(frame->type, FRAME_TRY);
+    guard_is_equal(frame->type, FRAME_CATCH);
 
     if (object_nil() != *vm_error(vm)) {
         guard_is_equal(frame->unevaluated, object_nil());
@@ -702,8 +702,8 @@ static bool try_step(VirtualMachine *vm) {
         case FRAME_QUOTE: {
             return try_step_quote(vm);
         }
-        case FRAME_TRY: {
-            return try_step_try(vm);
+        case FRAME_CATCH: {
+            return try_step_catch(vm);
         }
         case FRAME_AND: {
             return try_step_and(vm);
@@ -740,7 +740,7 @@ bool try_eval(VirtualMachine *vm, Object *env, Object *expr) {
 
         while (false == stack_is_empty(s)) {
             auto const current_frame = stack_top(s);
-            if (FRAME_TRY == current_frame->type && error_frame != current_frame) {
+            if (FRAME_CATCH == current_frame->type && error_frame != current_frame) {
                 break;
             }
 
@@ -751,7 +751,7 @@ bool try_eval(VirtualMachine *vm, Object *env, Object *expr) {
             return false;
         }
 
-        if (FRAME_TRY == stack_top(s)->type) {
+        if (FRAME_CATCH == stack_top(s)->type) {
             continue;
         }
 

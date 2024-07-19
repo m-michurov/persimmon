@@ -15,7 +15,7 @@
     (apply print (error-get 'traceback fields))))
 
 (defmacro run-catching (. code)
-  (list 'let (list '(val err) (list 'try (concat '(do) code)))
+  (list 'let (list '(val err) (list 'catch (concat '(do) code)))
         '(if err
            (let ((type . fields) err)
              (print 'ERROR type '- (error-get 'message fields))
@@ -27,5 +27,5 @@
 (run-catching (define x (/ 1 2) (print y)))
 (run-catching (define x (/ 1 2)) (print y))
 (run-catching (define x (/ 1 2)) x)
-(run-catching (try))
-(run-catching (try 1 2 3))
+(run-catching (catch))
+(run-catching (catch 1 2 3))
