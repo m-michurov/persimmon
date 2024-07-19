@@ -154,7 +154,7 @@ Object **vm_exprs(VirtualMachine *vm) {
     return &vm->exprs;
 }
 
-Object *vm_get(VirtualMachine const *vm, StaticConstantName name) {
+Object *vm_get(VirtualMachine const *vm, VirtualMachine_StaticConstantName name) {
     guard_is_not_null(vm);
 
     auto const value = *slice_at(vm->constants, name);

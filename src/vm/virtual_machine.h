@@ -51,6 +51,6 @@ typedef enum {
     STATIC_BINDING_ERROR_DEFAULT,
 
     STATIC_CONSTANTS_COUNT
-} StaticConstantName;
+} VirtualMachine_StaticConstantName;
 
-Object *vm_get(VirtualMachine const *vm, StaticConstantName name);
+Object *vm_get(VirtualMachine const *vm, VirtualMachine_StaticConstantName name);
