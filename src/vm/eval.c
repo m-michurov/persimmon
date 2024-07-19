@@ -187,11 +187,6 @@ static bool try_begin_eval(
     guard_unreachable();
 }
 
-static bool validate_args(Object *args) {
-    return env_is_valid_bind_target(args)
-           && (TYPE_CONS == args->type || TYPE_NIL == args->type);
-}
-
 static bool try_bind(VirtualMachine *vm, Object *env, Object *target, Object *value) {
     Env_BindingError binding_error;
     if (env_try_bind(vm_allocator(vm), env, target, value, &binding_error)) {
@@ -350,6 +345,11 @@ static bool try_step_call(VirtualMachine *vm) {
     return try_begin_eval(vm, EVAL_FRAME_REMOVE, *arg_bindings, fn->as_closure.body, frame->results_list);
 }
 
+static bool is_parameters_declaration_valid(Object *args) {
+    return (TYPE_CONS == args->type || TYPE_NIL == args->type)
+           && env_is_valid_bind_target(args);
+}
+
 static bool try_step_macro_or_fn(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
@@ -364,7 +364,7 @@ static bool try_step_macro_or_fn(VirtualMachine *vm) {
     }
 
     auto const args = object_as_cons(frame->unevaluated).first;
-    if (false == validate_args(args)) {
+    if (false == is_parameters_declaration_valid(args)) {
         parameters_type_error(vm);
     }
 
