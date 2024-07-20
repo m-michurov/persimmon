@@ -29,7 +29,7 @@ add_executable(persimmon
         src/vm/reader/named_file.c
         src/vm/reader/named_file.h
         src/vm/constants.c
-        src/vm/constants.h
+        src/vm/bindings.c
 )
 
 target_compile_options(persimmon PRIVATE

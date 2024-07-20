@@ -1,6 +1,7 @@
 #pragma once
 
-#include "vm/virtual_machine.h"
+#include "virtual_machine.h"
+#include "bindings.h"
 
 #define ERROR_FIELD_MESSAGE   "message"
 #define ERROR_FIELD_TRACEBACK "traceback"
@@ -31,10 +32,10 @@ create_type_error_(                                                     \
 
 #define type_error(VM, Got, ...) ERRORS__error(create_type_error, (VM), (Got), __VA_ARGS__)
 
-void create_syntax_error(VirtualMachine *vm, SyntaxError base, char const *file, char const *text);
+void create_syntax_error(VirtualMachine *vm, SyntaxError error, char const *file, char const *text);
 
-#define syntax_error(VM, Base, File, Text) \
-    ERRORS__error(create_syntax_error, (VM), (Base), (File), (Text))
+#define syntax_error(VM, Error, File, Text) \
+    ERRORS__error(create_syntax_error, (VM), (Error), (File), (Text))
 
 void create_call_error(VirtualMachine *vm, char const *name, size_t expected, size_t got);
 
@@ -82,27 +83,14 @@ void create_args_count_error(VirtualMachine *vm, char const *name, size_t expect
 #define args_count_error(VM, Name, Expected) \
     ERRORS__error(create_args_count_error, (VM), (Name), (Expected))
 
-void create_parameters_type_error(VirtualMachine *vm);
+void create_parameters_declaration_error(VirtualMachine *vm, Binding_TargetError error);
 
-#define parameters_type_error(VM) ERRORS__error(create_parameters_type_error, (VM))
+#define parameters_declaration_error(VM, Error) ERRORS__error(create_parameters_declaration_error, (VM), (Error))
 
 void create_import_path_type_error(VirtualMachine *vm);
 
 #define import_path_type_error(VM) ERRORS__error(create_import_path_type_error, (VM))
 
-void create_binding_count_error(VirtualMachine *vm, size_t expected, bool is_varargs, size_t got);
+void create_binding_error(VirtualMachine *vm, Binding_Error error);
 
-#define binding_count_error(VM, Expected, IsVarargs, Got) \
-    ERRORS__error(create_binding_count_error, (VM), (Expected), (IsVarargs), (Got))
-
-void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_type);
-
-#define binding_unpack_error(VM, Type) ERRORS__error(create_binding_unpack_error, (VM), (Type))
-
-void create_binding_target_error(VirtualMachine *vm, Object_Type target_type);
-
-#define binding_target_error(VM, Type) ERRORS__error(create_binding_target_error, (VM), (Type))
-
-void create_binding_varargs_error(VirtualMachine *vm);
-
-#define binding_varargs_error(VM) ERRORS__error(create_binding_varargs_error, (VM))
+#define binding_error(VM, Error) ERRORS__error(create_binding_error, (VM), (Error))

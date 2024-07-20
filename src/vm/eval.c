@@ -9,6 +9,7 @@
 #include "object/constructors.h"
 #include "reader/reader.h"
 #include "env.h"
+#include "bindings.h"
 #include "stack.h"
 #include "errors.h"
 
@@ -187,38 +188,6 @@ static bool try_begin_eval(
     guard_unreachable();
 }
 
-static bool try_bind(VirtualMachine *vm, Object *env, Object *target, Object *value) {
-    Env_BindingError binding_error;
-    if (env_try_bind(vm_allocator(vm), env, target, value, &binding_error)) {
-        return true;
-    }
-
-    switch (binding_error.type) {
-        case Env_CannotUnpack: {
-            binding_unpack_error(vm, binding_error.as_cannot_unpack.value_type);
-        }
-        case Env_CountMismatch: {
-            binding_count_error(
-                    vm,
-                    binding_error.as_count_mismatch.expected,
-                    binding_error.as_count_mismatch.is_varargs,
-                    binding_error.as_count_mismatch.got
-            );
-        }
-        case Env_InvalidTarget: {
-            binding_target_error(vm, binding_error.as_invalid_target.target_type);
-        }
-        case Env_InvalidVarargsFormat: {
-            binding_varargs_error(vm);
-        }
-        case Env_AllocationError: {
-            out_of_memory_error(vm);
-        }
-    }
-
-    guard_unreachable();
-}
-
 static bool try_step_call(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
@@ -242,8 +211,9 @@ static bool try_step_call(VirtualMachine *vm) {
             out_of_memory_error(vm);
         }
 
-        if (false == try_bind(vm, *arg_bindings, formal_args, actual_args)) {
-            return false;
+        Binding_Error error;
+        if (false == binding_try_create(vm_allocator(vm), *arg_bindings, formal_args, actual_args, &error)) {
+            binding_error(vm, error);
         }
 
         stack_swap_top(s, frame_make(
@@ -338,16 +308,17 @@ static bool try_step_call(VirtualMachine *vm) {
         out_of_memory_error(vm);
     }
 
-    if (false == try_bind(vm, *arg_bindings, formal_args, actual_args)) {
-        return false;
+    Binding_Error error;
+    if (false == binding_try_create(vm_allocator(vm), *arg_bindings, formal_args, actual_args, &error)) {
+        binding_error(vm, error);
     }
 
     return try_begin_eval(vm, EVAL_FRAME_REMOVE, *arg_bindings, fn->as_closure.body, frame->results_list);
 }
 
-static bool is_parameters_declaration_valid(Object *args) {
+static bool is_parameters_declaration_valid(Object *args, Binding_TargetError *error) {
     return (TYPE_CONS == args->type || TYPE_NIL == args->type)
-           && env_is_valid_bind_target(args);
+           && binding_is_valid_target(args, error);
 }
 
 static bool try_step_macro_or_fn(VirtualMachine *vm) {
@@ -364,8 +335,9 @@ static bool try_step_macro_or_fn(VirtualMachine *vm) {
     }
 
     auto const args = object_as_cons(frame->unevaluated).first;
-    if (false == is_parameters_declaration_valid(args)) {
-        parameters_type_error(vm);
+    Binding_TargetError error;
+    if (false == is_parameters_declaration_valid(args, &error)) {
+        parameters_declaration_error(vm, error);
     }
 
     auto const body_items = object_as_cons(frame->unevaluated).rest;
@@ -486,8 +458,10 @@ static bool try_step_define(VirtualMachine *vm) {
 
     auto const target = object_as_cons(frame->unevaluated).first;
     auto const value = object_as_cons(frame->evaluated).first;
-    if (false == try_bind(vm, frame->env, target, value)) {
-        return false;
+
+    Binding_Error error;
+    if (false == binding_try_create(vm_allocator(vm), frame->env, target, value, &error)) {
+        binding_error(vm, error);
     }
 
     return try_save_result_and_pop(vm, frame->results_list, value);

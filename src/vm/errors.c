@@ -257,7 +257,7 @@ static void create_message_syntax_error(
 
 void create_syntax_error(
         VirtualMachine *vm,
-        SyntaxError base,
+        SyntaxError error,
         char const *file,
         char const *text
 ) {
@@ -276,7 +276,7 @@ void create_syntax_error(
         report_out_of_system_memory(vm, error_type);
         return;
     }
-    create_message_syntax_error(capacity, message, base, file, text);
+    create_message_syntax_error(capacity, message, error, file, text);
 
     auto field_index = 0;
     auto const ok =
@@ -298,12 +298,12 @@ void create_syntax_error(
             )
             && try_create_string_field(vm, "file", file, object_list_nth(++field_index, *vm_error(vm)))
             &&
-            try_create_int_field(vm, "line", (int64_t) base.pos.lineno, object_list_nth(++field_index, *vm_error(vm)))
-            && try_create_int_field(vm, "col", (int64_t) base.pos.col, object_list_nth(++field_index, *vm_error(vm)))
+            try_create_int_field(vm, "line", (int64_t) error.pos.lineno, object_list_nth(++field_index, *vm_error(vm)))
+            && try_create_int_field(vm, "col", (int64_t) error.pos.col, object_list_nth(++field_index, *vm_error(vm)))
             && try_create_int_field(
                     vm,
                     "end_col",
-                    (int64_t) base.pos.end_col,
+                    (int64_t) error.pos.end_col,
                     object_list_nth(++field_index, *vm_error(vm))
             )
             && try_create_string_field(vm, "text", text, object_list_nth(++field_index, *vm_error(vm)))
@@ -483,10 +483,6 @@ void create_too_many_args_error(VirtualMachine *vm, char const *name) {
     create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
 }
 
-void create_parameters_type_error(VirtualMachine *vm) {
-    create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), "parameters declaration is invalid");
-}
-
 void create_args_count_error(VirtualMachine *vm, char const *name, size_t expected) {
     char message[MESSAGE_MIN_CAPACITY] = {0};
     auto capacity = sizeof(message);
@@ -496,6 +492,31 @@ void create_args_count_error(VirtualMachine *vm, char const *name, size_t expect
             "%s takes exactly %zu argument%s",
             name, expected, (1 == expected % 10) ? "" : "s"
     );
+
+    create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
+}
+
+void create_parameters_declaration_error(VirtualMachine *vm, Binding_TargetError error) {
+    char message[MESSAGE_MIN_CAPACITY] = {0};
+    auto capacity = sizeof(message);
+    auto buf = message;
+
+    switch (error.type) {
+        case Binding_InvalidTargetType: {
+            snprintf_checked(
+                    &buf, &capacity,
+                    "parameters declaration is invalid (got %s)",
+                    object_type_str(error.as_invalid_target.target_type)
+            );
+            break;
+        }
+        case Binding_InvalidVariadicSyntax: {
+            snprintf_checked(&buf, &capacity, "invalid variadic parameters syntax");
+            break;
+        }
+    }
+
+    guard_is_not_equal(*message, '\0');
 
     create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
 }
@@ -521,7 +542,7 @@ static void message_create_bind_count_error(
     );
 }
 
-void create_binding_count_error(VirtualMachine *vm, size_t expected, bool is_varargs, size_t got) {
+static void create_binding_count_error(VirtualMachine *vm, size_t expected, bool is_variadic, size_t got) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
@@ -529,7 +550,7 @@ void create_binding_count_error(VirtualMachine *vm, size_t expected, bool is_var
     auto const error_type = object_as_cons(default_error).first;
 
     char message[MESSAGE_MIN_CAPACITY] = {0};
-    message_create_bind_count_error(sizeof(message), message, expected, is_varargs, got);
+    message_create_bind_count_error(sizeof(message), message, expected, is_variadic, got);
 
     auto field_index = 0;
     auto ok =
@@ -551,8 +572,8 @@ void create_binding_count_error(VirtualMachine *vm, size_t expected, bool is_var
             )
             && try_create_atom_field(
                     vm,
-                    "varargs",
-                    (is_varargs ? "true" : "false"),
+                    "variadic",
+                    (is_variadic ? "true" : "false"),
                     object_list_nth(++field_index, *vm_error(vm))
             )
             && try_create_int_field(vm, ERROR_FIELD_GOT, (int64_t) got, object_list_nth(++field_index, *vm_error(vm)))
@@ -565,7 +586,7 @@ void create_binding_count_error(VirtualMachine *vm, size_t expected, bool is_var
     report_out_of_memory(vm, error_type);
 }
 
-void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_type) {
+static void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_type) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
@@ -603,7 +624,7 @@ void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_type) {
     report_out_of_memory(vm, error_type);
 }
 
-void create_binding_target_error(VirtualMachine *vm, Object_Type target_type) {
+static void create_binding_target_error(VirtualMachine *vm, Object_Type target_type) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
@@ -641,6 +662,57 @@ void create_binding_target_error(VirtualMachine *vm, Object_Type target_type) {
     report_out_of_memory(vm, error_type);
 }
 
-void create_binding_varargs_error(VirtualMachine *vm) {
-    create_error_with_message(vm, vm_get(vm, STATIC_BINDING_ERROR_DEFAULT), "invalid variadic binding format");
+static void create_binding_variadic_syntax_error(VirtualMachine *vm) {
+    create_error_with_message(
+            vm, vm_get(vm, STATIC_BINDING_ERROR_DEFAULT),
+            "invalid variadic binding syntax"
+    );
+}
+
+void create_binding_error(VirtualMachine *vm, Binding_Error error) {
+    guard_is_not_null(vm);
+
+    switch (error.type) {
+        case Binding_InvalidTarget: {
+            auto const target_error = error.as_target_error;
+            switch (target_error.type) {
+                case Binding_InvalidTargetType: {
+                    create_binding_target_error(vm, target_error.as_invalid_target.target_type);
+                    return;
+                }
+                case Binding_InvalidVariadicSyntax: {
+                    create_binding_variadic_syntax_error(vm);
+                    return;
+                }
+            }
+
+            break;
+        }
+        case Binding_InvalidValue: {
+            auto const value_error = error.as_value_error;
+            switch (value_error.type) {
+                case Binding_ValueCountMismatch: {
+                    create_binding_count_error(
+                            vm,
+                            value_error.as_count_mismatch.expected,
+                            value_error.as_count_mismatch.is_variadic,
+                            value_error.as_count_mismatch.got
+                    );
+                    return;
+                }
+                case Binding_CannotUnpackValue: {
+                    create_binding_unpack_error(vm, value_error.as_cannot_unpack.value_type);
+                    return;
+                }
+            }
+
+            break;
+        }
+        case Binding_AllocationFailed: {
+            create_out_of_memory_error(vm);
+            return;
+        }
+    }
+
+    guard_unreachable();
 }

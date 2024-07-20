@@ -29,3 +29,11 @@
 (run-catching (define x (/ 1 2)) x)
 (run-catching (catch))
 (run-catching (catch 1 2 3))
+
+(run-catching (define (x y) '(1 2 3)))
+(run-catching (define (x y z t) '(1 2 3)))
+(run-catching (define (x y . z t) '(1 2 3)))
+(run-catching (define (x y . z) '(1)))
+(run-catching (define (x y . 1) '(1 2 3)))
+(run-catching (define (x 1) '(1 2 3)))
+(run-catching (define (. x) 1))
