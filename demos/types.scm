@@ -1,0 +1,10 @@
+(import "demos/def.scm")
+
+(defn integer? (x) (eq? 'integer (type x)))
+(defn string? (x) (eq? 'string (type x)))
+(defn atom? (x) (eq? 'atom (type x)))
+(defn cons? (x) (eq? 'cons (type x)))
+(defn primitive? (x) (eq? 'primitive (type x)))
+(defn closure? (x) (eq? 'closure (type x)))
+(defn macro? (x) (eq? 'macro (type x)))
+(defn nil? (x) (eq? 'nil (type x)))
