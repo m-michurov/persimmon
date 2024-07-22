@@ -37,10 +37,10 @@ void create_syntax_error(VirtualMachine *vm, SyntaxError error, char const *file
 #define syntax_error(VM, Error, File, Text) \
     ERRORS__error(create_syntax_error, (VM), (Error), (File), (Text))
 
-void create_call_error(VirtualMachine *vm, char const *name, size_t expected, size_t got);
+void create_call_error(VirtualMachine *vm, char const *name, size_t expected, bool is_variadic, size_t got);
 
-#define call_error(VM, Name, Expected, Got) \
-    ERRORS__error(create_call_error, (VM), (Name), (Expected), (Got))
+#define call_error(VM, Name, Expected, IsVariadic, Got) \
+    ERRORS__error(create_call_error, (VM), (Name), (Expected), (IsVariadic), (Got))
 
 void create_call_dot_before_error(VirtualMachine *vm);
 

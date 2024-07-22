@@ -316,7 +316,7 @@ void create_syntax_error(
     report_out_of_memory(vm, error_type);
 }
 
-void create_call_error(VirtualMachine *vm, char const *name, size_t expected, size_t got) {
+void create_call_error(VirtualMachine *vm, char const *name, size_t expected, bool is_variadic, size_t got) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
@@ -326,7 +326,11 @@ void create_call_error(VirtualMachine *vm, char const *name, size_t expected, si
     char message[MESSAGE_MIN_CAPACITY] = {0};
     size_t capacity = sizeof(message);
     auto buf = message;
-    snprintf_checked(&buf, &capacity, "%s takes %zu arguments (got %zu)", name, expected, got);
+    snprintf_checked(
+            &buf, &capacity,
+            "%s takes %s%zu arguments (got %zu)",
+            name, (is_variadic ? "at least " : ""), expected, got
+    );
 
     auto field_index = 0;
     auto const ok =

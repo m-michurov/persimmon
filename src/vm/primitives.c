@@ -7,11 +7,12 @@
 #include "object/constructors.h"
 #include "object/accessors.h"
 #include "env.h"
+#include "traceback.h"
 #include "errors.h"
 
 #define error(PrintErrorFn, Args) do { PrintErrorFn Args; return false; } while (false)
 
-static bool prim_eq(VirtualMachine *vm, Object *args, Object **value) {
+static bool eq(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -19,14 +20,14 @@ static bool prim_eq(VirtualMachine *vm, Object *args, Object **value) {
 
     Object *lhs, *rhs;
     if (false == object_list_try_unpack_2(&lhs, &rhs, args)) {
-        call_error(vm, "eq?", 2, object_list_count(args));
+        call_error(vm, "eq?", 2, false, object_list_count(args));
     }
 
     *value = vm_get(vm, object_equals(lhs, rhs) ? STATIC_TRUE : STATIC_FALSE);
     return true;
 }
 
-static bool prim_repr(VirtualMachine *vm, Object *args, Object **value) {
+static bool repr(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -42,7 +43,7 @@ static bool prim_repr(VirtualMachine *vm, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_print(VirtualMachine *vm, Object *args, Object **value) {
+static bool print(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -58,7 +59,7 @@ static bool prim_print(VirtualMachine *vm, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_plus(VirtualMachine *vm, Object *args, Object **value) {
+static bool plus(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -80,7 +81,7 @@ static bool prim_plus(VirtualMachine *vm, Object *args, Object **value) {
     out_of_memory_error(vm);
 }
 
-static bool prim_minus(VirtualMachine *vm, Object *args, Object **value) {
+static bool minus(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -115,7 +116,7 @@ static bool prim_minus(VirtualMachine *vm, Object *args, Object **value) {
     out_of_memory_error(vm);
 }
 
-static bool prim_mul(VirtualMachine *vm, Object *args, Object **value) {
+static bool multiply(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -137,7 +138,7 @@ static bool prim_mul(VirtualMachine *vm, Object *args, Object **value) {
     out_of_memory_error(vm);
 }
 
-static bool prim_div(VirtualMachine *vm, Object *args, Object **value) {
+static bool divide(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -176,7 +177,7 @@ static bool prim_div(VirtualMachine *vm, Object *args, Object **value) {
     out_of_memory_error(vm);
 }
 
-static bool prim_list_list(VirtualMachine *vm, Object *args, Object **value) {
+static bool list_list(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -186,7 +187,7 @@ static bool prim_list_list(VirtualMachine *vm, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_list_first(VirtualMachine *vm, Object *args, Object **value) {
+static bool list_first(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -195,7 +196,7 @@ static bool prim_list_first(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_error(vm, "first", expected, got);
+        call_error(vm, "first", expected, false, got);
     }
 
     auto const list = object_as_cons(args).first;
@@ -207,7 +208,7 @@ static bool prim_list_first(VirtualMachine *vm, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_list_rest(VirtualMachine *vm, Object *args, Object **value) {
+static bool list_rest(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -216,7 +217,7 @@ static bool prim_list_rest(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_error(vm, "rest", expected, got);
+        call_error(vm, "rest", expected, false, got);
     }
 
     auto const list = object_as_cons(args).first;
@@ -228,7 +229,7 @@ static bool prim_list_rest(VirtualMachine *vm, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_list_prepend(VirtualMachine *vm, Object *args, Object **value) {
+static bool list_prepend(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -236,7 +237,7 @@ static bool prim_list_prepend(VirtualMachine *vm, Object *args, Object **value) 
 
     Object *element, *list;
     if (false == object_list_try_unpack_2(&element, &list, args)) {
-        call_error(vm, "prepend", 2, object_list_count(args));
+        call_error(vm, "prepend", 2, false, object_list_count(args));
     }
 
     if (list->type != TYPE_NIL && list->type != TYPE_CONS) {
@@ -250,7 +251,7 @@ static bool prim_list_prepend(VirtualMachine *vm, Object *args, Object **value) 
     out_of_memory_error(vm);
 }
 
-static bool prim_list_reverse(VirtualMachine *vm, Object *args, Object **value) {
+static bool list_reverse(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -259,7 +260,7 @@ static bool prim_list_reverse(VirtualMachine *vm, Object *args, Object **value) 
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_error(vm, "reverse", expected, got);
+        call_error(vm, "reverse", expected, false, got);
     }
 
     auto const list = object_as_cons(args).first;
@@ -275,7 +276,7 @@ static bool prim_list_reverse(VirtualMachine *vm, Object *args, Object **value) 
     return true;
 }
 
-static bool prim_list_concat(VirtualMachine *vm, Object *args, Object **value) {
+static bool list_concat(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -297,7 +298,7 @@ static bool prim_list_concat(VirtualMachine *vm, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_not(VirtualMachine *vm, Object *args, Object **value) {
+static bool not(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -306,7 +307,7 @@ static bool prim_not(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_error(vm, "not", expected, got);
+        call_error(vm, "not", expected, false, got);
     }
 
     *value = vm_get(vm, object_nil() == args->as_cons.first ? STATIC_TRUE : STATIC_FALSE);
@@ -314,7 +315,7 @@ static bool prim_not(VirtualMachine *vm, Object *args, Object **value) {
     return true;
 }
 
-static bool prim_type(VirtualMachine *vm, Object *args, Object **value) {
+static bool type(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
@@ -323,11 +324,47 @@ static bool prim_type(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_error(vm, "type", expected, got);
+        call_error(vm, "type", expected, false, got);
     }
 
     auto const arg = args->as_cons.first;
     return object_try_make_atom(vm_allocator(vm), object_type_str(arg->type), value);
+}
+
+static bool traceback(VirtualMachine *vm, Object *args, Object **value) {
+    guard_is_not_null(vm);
+    guard_is_not_null(args);
+    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_not_null(value);
+
+    auto const got = object_list_count(args);
+    typeof(got) expected = 0;
+    if (expected != got) {
+        call_error(vm, "traceback", expected, false, got);
+    }
+
+    if (false == traceback_try_get(vm_allocator(vm), vm_stack(vm), value)) {
+        out_of_memory_error(vm);
+    }
+    object_list_shift(value);
+
+    return true;
+}
+
+static bool throw(VirtualMachine *vm, Object *args, Object **value) {
+    guard_is_not_null(vm);
+    guard_is_not_null(args);
+    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_not_null(value);
+
+    auto const got = object_list_count(args);
+    typeof(got) expected = 1;
+    if (expected != got) {
+        call_error(vm, "throw", expected, false, got);
+    }
+
+    *vm_error(vm) = args->as_cons.first;
+    return false;
 }
 
 static bool try_define(ObjectAllocator *a, Object *env, char const *name, Object_Primitive value) {
@@ -338,20 +375,22 @@ static bool try_define(ObjectAllocator *a, Object *env, char const *name, Object
 }
 
 bool try_define_primitives(ObjectAllocator *a, Object *env) {
-    return try_define(a, env, "repr", prim_repr)
-           && try_define(a, env, "print", prim_print)
-           && try_define(a, env, "+", prim_plus)
-           && try_define(a, env, "-", prim_minus)
-           && try_define(a, env, "*", prim_mul)
-           && try_define(a, env, "/", prim_div)
-           && try_define(a, env, "list", prim_list_list)
-           && try_define(a, env, "first", prim_list_first)
-           && try_define(a, env, "rest", prim_list_rest)
-           && try_define(a, env, "prepend", prim_list_prepend)
-           && try_define(a, env, "reverse", prim_list_reverse)
-           && try_define(a, env, "concat", prim_list_concat)
-           && try_define(a, env, "eq?", prim_eq)
-           && try_define(a, env, "not", prim_not)
-           && try_define(a, env, "type", prim_type);
+    return try_define(a, env, "repr", repr)
+           && try_define(a, env, "print", print)
+           && try_define(a, env, "+", plus)
+           && try_define(a, env, "-", minus)
+           && try_define(a, env, "*", multiply)
+           && try_define(a, env, "/", divide)
+           && try_define(a, env, "list", list_list)
+           && try_define(a, env, "first", list_first)
+           && try_define(a, env, "rest", list_rest)
+           && try_define(a, env, "prepend", list_prepend)
+           && try_define(a, env, "reverse", list_reverse)
+           && try_define(a, env, "concat", list_concat)
+           && try_define(a, env, "eq?", eq)
+           && try_define(a, env, "not", not)
+           && try_define(a, env, "type", type)
+           && try_define(a, env, "traceback", traceback)
+           && try_define(a, env, "throw", throw);
 }
 

@@ -39,11 +39,11 @@ static void print_error(Object *error) {
 
     printf("%s: ", error_type->as_atom);
 
-    Object *message;
+    Object *message = nullptr;
     if (object_list_try_get_tagged(error, ERROR_FIELD_MESSAGE, &message)) {
         object_print(message, stdout);
-        printf("\n");
     }
+    printf("\n");
 
     Object *traceback;
     if (object_list_try_get_tagged(error, ERROR_FIELD_TRACEBACK, &traceback)) {
