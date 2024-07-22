@@ -49,8 +49,11 @@
 (run-catching (define (x y . 1) '(1 2 3)))
 (run-catching (define (x 1) '(1 2 3)))
 (run-catching (define (. x) 1))
+
 (run-catching (throw 1))
-(run-catching (throw (error 'TypeError '(expected integer) '(got nil))))
+(run-catching (throw (error 'TypeError '(message "unsupported type") '(expected integer) '(got nil))))
+(run-catching (throw (error 1)))
+(run-catching (throw (error)))
 
 (run-catching (run-ignoring 'TypeError -1 (fn () (/ 1 0))))
 (run-catching (run-ignoring 'TypeError -1 (fn () (/ 1 ""))))
