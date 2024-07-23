@@ -506,7 +506,7 @@ void create_parameters_declaration_error(VirtualMachine *vm, Binding_TargetError
     auto buf = message;
 
     switch (error.type) {
-        case Binding_InvalidTargetType: {
+        case BINDING_INVALID_TARGET_TYPE: {
             snprintf_checked(
                     &buf, &capacity,
                     "parameters declaration is invalid (got %s)",
@@ -514,7 +514,7 @@ void create_parameters_declaration_error(VirtualMachine *vm, Binding_TargetError
             );
             break;
         }
-        case Binding_InvalidVariadicSyntax: {
+        case BINDING_INVALID_VARIADIC_SYNTAX: {
             snprintf_checked(&buf, &capacity, "invalid variadic parameters syntax");
             break;
         }
@@ -677,14 +677,14 @@ void create_binding_error(VirtualMachine *vm, Binding_Error error) {
     guard_is_not_null(vm);
 
     switch (error.type) {
-        case Binding_InvalidTarget: {
+        case BINDING_INVALID_TARGET: {
             auto const target_error = error.as_target_error;
             switch (target_error.type) {
-                case Binding_InvalidTargetType: {
+                case BINDING_INVALID_TARGET_TYPE: {
                     create_binding_target_error(vm, target_error.as_invalid_target.target_type);
                     return;
                 }
-                case Binding_InvalidVariadicSyntax: {
+                case BINDING_INVALID_VARIADIC_SYNTAX: {
                     create_binding_variadic_syntax_error(vm);
                     return;
                 }
@@ -692,10 +692,10 @@ void create_binding_error(VirtualMachine *vm, Binding_Error error) {
 
             break;
         }
-        case Binding_InvalidValue: {
+        case BINDING_INVALID_VALUE: {
             auto const value_error = error.as_value_error;
             switch (value_error.type) {
-                case Binding_ValueCountMismatch: {
+                case BINDING_VALUES_COUNT_MISMATCH: {
                     create_binding_count_error(
                             vm,
                             value_error.as_count_mismatch.expected,
@@ -704,7 +704,7 @@ void create_binding_error(VirtualMachine *vm, Binding_Error error) {
                     );
                     return;
                 }
-                case Binding_CannotUnpackValue: {
+                case BINDING_CANNOT_UNPACK_VALUE: {
                     create_binding_unpack_error(vm, value_error.as_cannot_unpack.value_type);
                     return;
                 }
@@ -712,7 +712,7 @@ void create_binding_error(VirtualMachine *vm, Binding_Error error) {
 
             break;
         }
-        case Binding_AllocationFailed: {
+        case BINDING_ALLOCATION_FAILED: {
             create_out_of_memory_error(vm);
             return;
         }

@@ -3,8 +3,8 @@
 #include "env.h"
 
 typedef enum {
-    Binding_InvalidTargetType,
-    Binding_InvalidVariadicSyntax,
+    BINDING_INVALID_TARGET_TYPE,
+    BINDING_INVALID_VARIADIC_SYNTAX,
 } Binding_TargetErrorType;
 
 typedef struct {
@@ -19,9 +19,10 @@ typedef struct {
 
 bool binding_is_valid_target(Object *target, Binding_TargetError *error);
 
+// FIXME CAPS
 typedef enum {
-    Binding_ValueCountMismatch,
-    Binding_CannotUnpackValue,
+    BINDING_VALUES_COUNT_MISMATCH,
+    BINDING_CANNOT_UNPACK_VALUE,
 } Binding_ValueErrorType;
 
 typedef struct {
@@ -40,10 +41,11 @@ typedef struct {
     };
 } Binding_ValueError;
 
+// FIXME CAPS
 typedef enum {
-    Binding_InvalidTarget,
-    Binding_InvalidValue,
-    Binding_AllocationFailed
+    BINDING_INVALID_TARGET,
+    BINDING_INVALID_VALUE,
+    BINDING_ALLOCATION_FAILED
 } Binding_ErrorType;
 
 typedef struct {

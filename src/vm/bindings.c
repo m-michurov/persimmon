@@ -22,7 +22,7 @@ bool binding_is_valid_target(Object *target, Binding_TargetError *error) {
 
                 if (is_varargs && (TYPE_ATOM != it->type || object_nil() != target)) {
                     *error = (Binding_TargetError) {
-                            .type = Binding_InvalidVariadicSyntax
+                            .type = BINDING_INVALID_VARIADIC_SYNTAX
                     };
                     return false;
                 }
@@ -47,7 +47,7 @@ bool binding_is_valid_target(Object *target, Binding_TargetError *error) {
         case TYPE_CLOSURE:
         case TYPE_MACRO: {
             *error = (Binding_TargetError) {
-                    .type = Binding_InvalidTargetType,
+                    .type = BINDING_INVALID_TARGET_TYPE,
                     .as_invalid_target = {
                             .target_type = target->type
                     }
@@ -96,7 +96,7 @@ static bool is_valid_value(Object *target, Object *value, Binding_ValueError *er
         case TYPE_CONS: {
             if (TYPE_CONS != value->type && TYPE_NIL != value->type) {
                 *error = (Binding_ValueError) {
-                        .type = Binding_CannotUnpackValue,
+                        .type = BINDING_CANNOT_UNPACK_VALUE,
                         .as_cannot_unpack = {
                                 .value_type = value->type
                         }
@@ -109,7 +109,7 @@ static bool is_valid_value(Object *target, Object *value, Binding_ValueError *er
             if ((values_count < targets.count && targets.is_variadic) ||
                 (targets.count != values_count && false == targets.is_variadic)) {
                 *error = (Binding_ValueError) {
-                        .type = Binding_ValueCountMismatch,
+                        .type = BINDING_VALUES_COUNT_MISMATCH,
                         .as_count_mismatch = {
                                 .expected = targets.count,
                                 .is_variadic = targets.is_variadic,
@@ -210,7 +210,7 @@ bool binding_try_create(ObjectAllocator *a, Object *env, Object *target, Object 
     Binding_TargetError target_error;
     if (false == binding_is_valid_target(target, &target_error)) {
         *error = (Binding_Error) {
-                .type = Binding_InvalidTarget,
+                .type = BINDING_INVALID_TARGET,
                 .as_target_error = target_error
         };
         return false;
@@ -219,7 +219,7 @@ bool binding_try_create(ObjectAllocator *a, Object *env, Object *target, Object 
     Binding_ValueError value_error;
     if (false == is_valid_value(target, value, &value_error)) {
         *error = (Binding_Error) {
-                .type = Binding_InvalidValue,
+                .type = BINDING_INVALID_VALUE,
                 .as_value_error = value_error
         };
         return false;
