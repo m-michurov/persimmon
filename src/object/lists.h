@@ -45,4 +45,6 @@ Object *object_list_skip(size_t n, Object *list);
 
 bool object_list_try_unpack_2(Object **_1, Object **_2, Object *list);
 
-bool object_list_try_get_tagged(Object *list, char const *tag, Object **value);
+bool object_list_is_tagged(Object *list, char const **tag);
+
+bool object_list_try_get_tagged_field(Object *list, char const *tag, Object **value);

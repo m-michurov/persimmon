@@ -23,30 +23,29 @@ static bool try_shift_args(int *argc, char ***argv, char **arg) {
     return true;
 }
 
+static void print_any_as_error(Object *error) {
+    printf("Error: ");
+    object_repr_print(error, stdout);
+    printf("\n");
+}
+
 static void print_error(Object *error) {
-    if (TYPE_CONS != error->type) {
-        object_repr_print(error, stdout);
-        printf("\n");
+    char const *error_type;
+    if (false == object_list_is_tagged(error, &error_type)) {
+        print_any_as_error(error);
         return;
     }
 
-    auto const error_type = error->as_cons.first;
-    if (TYPE_ATOM != error_type->type) {
-        object_repr_print(error, stdout);
-        printf("\n");
-        return;
-    }
-
-    printf("%s: ", error_type->as_atom);
+    printf("%s: ", error_type);
 
     Object *message = nullptr;
-    if (object_list_try_get_tagged(error, ERROR_FIELD_MESSAGE, &message)) {
+    if (object_list_try_get_tagged_field(error, ERROR_FIELD_MESSAGE, &message)) {
         object_print(message, stdout);
     }
     printf("\n");
 
     Object *traceback;
-    if (object_list_try_get_tagged(error, ERROR_FIELD_TRACEBACK, &traceback)) {
+    if (object_list_try_get_tagged_field(error, ERROR_FIELD_TRACEBACK, &traceback)) {
         traceback_print(traceback, stdout);
     }
 }
@@ -119,7 +118,7 @@ int main(int argc, char **argv) {
                     .debug = {
                             .no_free = true,
                             .trace = false,
-                            .gc_mode = ALLOCATOR_SOFT_GC
+                            .gc_mode = ALLOCATOR_ALWAYS_GC
                     }
             },
             .reader_config = {

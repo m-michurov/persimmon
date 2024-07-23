@@ -178,7 +178,24 @@ bool object_list_try_unpack_2(Object **_1, Object **_2, Object *list) {
     return true;
 }
 
-bool object_list_try_get_tagged(Object *list, char const *tag, Object **value) {
+bool object_list_is_tagged(Object *list, char const **tag) {
+    guard_is_not_null(list);
+    guard_is_not_null(tag);
+
+    if (TYPE_CONS != list->type) {
+        return false;
+    }
+
+    auto const first = list->as_cons.first;
+    if (TYPE_ATOM != first->type) {
+        return false;
+    }
+
+    *tag = first->as_atom;
+    return true;
+}
+
+bool object_list_try_get_tagged_field(Object *list, char const *tag, Object **value) {
     guard_is_not_null(list);
     guard_is_not_null(tag);
     guard_is_not_null(value);
