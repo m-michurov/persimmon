@@ -363,7 +363,16 @@ static bool throw(VirtualMachine *vm, Object *args, Object **value) {
         call_error(vm, "throw", expected, false, got);
     }
 
-    *vm_error(vm) = args->as_cons.first;
+    auto const error = args->as_cons.first;
+    if (TYPE_NIL == error->type) {
+        type_error(
+                vm,
+                error->type,
+                TYPE_CONS, TYPE_INT, TYPE_ATOM, TYPE_MACRO, TYPE_CLOSURE, TYPE_PRIMITIVE, TYPE_STRING
+        );
+    }
+
+    *vm_error(vm) = error;
     return false;
 }
 
