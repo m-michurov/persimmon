@@ -19,7 +19,6 @@ typedef struct {
 
 bool binding_is_valid_target(Object *target, Binding_TargetError *error);
 
-// FIXME CAPS
 typedef enum {
     BINDING_VALUES_COUNT_MISMATCH,
     BINDING_CANNOT_UNPACK_VALUE,
@@ -41,7 +40,6 @@ typedef struct {
     };
 } Binding_ValueError;
 
-// FIXME CAPS
 typedef enum {
     BINDING_INVALID_TARGET,
     BINDING_INVALID_VALUE,
