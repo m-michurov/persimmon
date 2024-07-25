@@ -462,7 +462,7 @@ bool scanner_try_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
     guard_unreachable();
 }
 
-Scanner *scanner_new(void) {
+Scanner *scanner_new(Scanner_Config config) {
     auto const s = (Scanner *) guard_succeeds(calloc, (1, sizeof(Scanner)));
     *s = (Scanner) {.sb = sb_new()};
     return s;

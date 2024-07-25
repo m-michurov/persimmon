@@ -54,6 +54,8 @@ typedef struct {
     };
 } Binding_Error;
 
+[[nodiscard]]
+
 bool binding_try_create(
         ObjectAllocator *a,
         Object *env,

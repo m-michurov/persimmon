@@ -21,4 +21,6 @@ void line_reader_reset(LineReader *r);
 
 void line_reader_reset_file(LineReader *r, FILE *file);
 
+[[nodiscard]]
+
 bool line_try_read(LineReader *r, Arena *a, Line *line);

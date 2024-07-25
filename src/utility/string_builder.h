@@ -27,6 +27,7 @@ char *sb_copy_str(StringBuilder const *sb);
 
 void sb_sprintf(StringBuilder *sb, char const *format, ...);
 
+// FIXME do not crash on errors
 #define sb_append_char(Builder, Char) sb_sprintf((Builder), "%c", (Char))
 
 #define sb_append(Builder, Str) sb_sprintf((Builder), "%s", (Str))

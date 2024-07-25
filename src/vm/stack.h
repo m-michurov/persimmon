@@ -51,11 +51,17 @@ Stack_Frame *stack_top(Stack const *s);
 
 void stack_pop(Stack *s);
 
+[[nodiscard]]
+
 bool stack_try_push_frame(Stack *s, Stack_Frame frame);
 
 void stack_swap_top(Stack *s, Stack_Frame frame);
 
+[[nodiscard]]
+
 bool stack_try_create_local(Stack *s, Object ***obj);
+
+[[nodiscard]]
 
 bool stack_try_get_prev(Stack const *s, Stack_Frame *frame, Stack_Frame **prev);
 

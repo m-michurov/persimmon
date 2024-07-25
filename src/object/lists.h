@@ -3,13 +3,19 @@
 #include "object.h"
 #include "allocator.h"
 
+[[nodiscard]]
+
 bool object_list_try_prepend(ObjectAllocator *a, Object *value, Object **list);
+
+[[nodiscard]]
 
 bool object_list_try_append(ObjectAllocator *a, Object *value, Object **list);
 
 void object_list_concat(Object **head, Object *tail);
 
 Object *object_list_shift(Object **list);
+
+[[nodiscard]]
 
 bool object_try_make_list_(ObjectAllocator *a, Object **list, ...);
 
@@ -43,8 +49,14 @@ Object **object_list_last(Object **list);
 
 Object *object_list_skip(size_t n, Object *list);
 
+[[nodiscard]]
+
 bool object_list_try_unpack_2(Object **_1, Object **_2, Object *list);
 
+[[nodiscard]]
+
 bool object_list_is_tagged(Object *list, char const **tag);
+
+[[nodiscard]]
 
 bool object_list_try_get_tagged_field(Object *list, char const *tag, Object **value);

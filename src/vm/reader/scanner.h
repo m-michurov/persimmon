@@ -30,11 +30,17 @@ typedef struct {
 
 typedef struct Scanner Scanner;
 
-Scanner *scanner_new(void);
+typedef struct {
+    size_t max_token_size;
+} Scanner_Config;
+
+Scanner *scanner_new(Scanner_Config config);
 
 void scanner_free(Scanner **s);
 
 void scanner_reset(Scanner *s);
+
+[[nodiscard]]
 
 bool scanner_try_accept(Scanner *s, Position pos, int c, SyntaxError *error);
 

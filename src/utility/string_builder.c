@@ -61,6 +61,9 @@ void sb_sprintf(StringBuilder *sb, char const *format, ...) {
 
     auto const min_capacity = sb->length + to_be_written + 1;
     if (min_capacity > sb->capacity) {
+        // FIXME maybe the VM shouldn't crash if a token is too big but report the error properly instead
+        // TODO make StringBuilder use a limited size pre-allocated buffer?
+        // TODO make StringBuilder return false on ENOMEM?
         sb->str = guard_succeeds(realloc, (sb->str, min_capacity));
         sb->capacity = min_capacity;
     }

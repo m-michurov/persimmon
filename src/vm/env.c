@@ -12,6 +12,7 @@ bool env_try_create(ObjectAllocator *a, Object *base_env, Object **env) {
     return object_try_make_cons(a, object_nil(), base_env, env);
 }
 
+// TODO find and update existing binding
 bool env_try_define(ObjectAllocator *a, Object *env, Object *name, Object *value, Object **binding) {
     guard_is_not_null(a);
     guard_is_not_null(env);

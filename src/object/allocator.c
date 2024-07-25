@@ -71,15 +71,18 @@ static void mark_gray(Objects *gray, Object *obj) {
     guard_is_not_null(obj);
     guard_is_equal(obj->color, OBJECT_WHITE);
 
+    // TODO do not use heap memory
     guard_is_true(da_try_append(gray, obj));
     obj->color = OBJECT_GRAY;
 }
+
+#define TYPE_FREED 12345
 
 static void mark_gray_if_white(Objects *gray, Object *obj) {
     guard_is_not_null(gray);
     guard_is_not_null(obj);
 
-    guard_is_not_equal((int) obj->type, 12345);
+    guard_is_not_equal((int) obj->type, TYPE_FREED);
 
     if (OBJECT_WHITE != obj->color) {
         return;
@@ -131,6 +134,7 @@ static void mark_children(Objects *gray, Object *obj) {
 static void mark(ObjectAllocator *a) {
     guard_is_not_null(a);
 
+    // TODO do not allocate new memory, move gray objects to the beginning of the objects list
     auto gray = (Objects) {0};
 
     stack_for_reversed(frame, a->roots.stack) {
@@ -169,8 +173,6 @@ static void mark(ObjectAllocator *a) {
 
     da_free(&gray);
 }
-
-#define TYPE_FREED 12345
 
 static void sweep(ObjectAllocator *a) {
     guard_is_not_null(a);
@@ -217,7 +219,6 @@ static void collect_garbage(ObjectAllocator *a) {
     guard_is_false(a->gc_is_running);
 
     a->gc_is_running = true;
-
 
     auto const heap_size_initial = a->heap_size;
     size_t count_initial, count_final;

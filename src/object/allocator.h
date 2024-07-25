@@ -42,6 +42,8 @@ typedef struct {
 
 void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots);
 
+[[nodiscard]]
+
 bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj);
 
 void allocator_print_statistics(ObjectAllocator const *a, FILE *file);

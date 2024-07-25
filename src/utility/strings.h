@@ -2,7 +2,11 @@
 
 bool string_is_blank(char const *str);
 
+[[nodiscard]]
+
 bool string_try_repr_escape_seq(char value, char const **escape_seq);
+
+[[nodiscard]]
 
 bool string_try_get_escape_seq_value(char escaped, char *value);
 
