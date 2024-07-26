@@ -122,6 +122,9 @@ int main(int argc, char **argv) {
                     }
             },
             .reader_config = {
+                    .scanner_config = {
+                            .max_token_size = 2 * 1024
+                    },
                     .parser_config = {
                             .max_nesting_depth = 50
                     }

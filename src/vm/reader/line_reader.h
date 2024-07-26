@@ -17,10 +17,5 @@ LineReader *line_reader_new(FILE *file);
 
 void line_reader_free(LineReader **r);
 
-void line_reader_reset(LineReader *r);
-
-void line_reader_reset_file(LineReader *r, FILE *file);
-
 [[nodiscard]]
-
-bool line_try_read(LineReader *r, Arena *a, Line *line);
+bool line_reader_try_read(LineReader *r, Arena *a, Line *line, errno_t *error_code);

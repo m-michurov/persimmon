@@ -6,51 +6,57 @@
 
 #include "guards.h"
 
-struct StringBuilder {
-    char *str;
-    size_t length;
-    size_t capacity;
-};
-
-StringBuilder *sb_new(void) {
-    return guard_succeeds(calloc, (1, sizeof(StringBuilder)));
-}
-
-void sb_free(StringBuilder **sb) {
+void sb_free(StringBuilder *sb) {
     guard_is_not_null(sb);
-    guard_is_not_null(*sb);
 
-    free((*sb)->str);
-    free(*sb);
-    *sb = nullptr;
-}
-
-char *sb_str_(StringBuilder *sb) {
-    return sb->str;
-}
-
-char const *sb_str_const_(StringBuilder const *sb) {
-    return sb->str;
-}
-
-size_t sb_length(StringBuilder const *sb) {
-    return sb->length;
+    free(sb->str);
+    *sb = (StringBuilder) {0};
 }
 
 void sb_clear(StringBuilder *sb) {
     guard_is_not_null(sb);
     sb->length = 0;
-    memset(sb->str, 0, sb->capacity);
+    memset(sb->str, 0, sb->_max_length);
 }
 
-char *sb_copy_str(StringBuilder const *sb) {
+bool sb_try_reserve(StringBuilder *sb, size_t max_length) {
     guard_is_not_null(sb);
 
-    return guard_succeeds(strdup, (sb->str));
+    if (max_length <= sb->_max_length) {
+        return true;
+    }
+
+    auto const str = realloc(sb->str, max_length + 1);
+    if (nullptr == str) {
+        return false;
+    }
+
+    sb->str = str;
+    sb->_max_length = max_length;
+
+    return true;
 }
 
-void sb_sprintf(StringBuilder *sb, char const *format, ...) {
+static void sb_format(StringBuilder *sb, char const *format, va_list args) {
     guard_is_not_null(sb);
+    guard_is_not_null(format);
+
+    auto const dst = sb->str + sb->length;
+    auto const available = sb->_max_length - sb->length + 1;
+    memset(dst, 0, available);
+
+    auto const written = vsnprintf(dst, available, format, args);
+
+    guard_is_greater_or_equal(written, 0);
+    guard_is_less((size_t) written, available);
+
+    sb->length += written;
+    guard_is_equal(sb->str[sb->length], '\0');
+}
+
+bool sb_try_printf(StringBuilder *sb, char const *format, ...) {
+    guard_is_not_null(sb);
+    guard_is_not_null(format);
 
     va_list args;
 
@@ -59,26 +65,39 @@ void sb_sprintf(StringBuilder *sb, char const *format, ...) {
     va_end(args);
     guard_is_greater_or_equal(to_be_written, 0);
 
-    auto const min_capacity = sb->length + to_be_written + 1;
-    if (min_capacity > sb->capacity) {
-        // FIXME maybe the VM shouldn't crash if a token is too big but report the error properly instead
-        // TODO make StringBuilder use a limited size pre-allocated buffer?
-        // TODO make StringBuilder return false on ENOMEM?
-        sb->str = guard_succeeds(realloc, (sb->str, min_capacity));
-        sb->capacity = min_capacity;
+    auto const new_length = sb->length + to_be_written;
+    if (new_length > sb->_max_length) {
+        return false;
     }
 
-    auto const dst = sb->str + sb->length;
-    auto const available = sb->capacity - sb->length;
-    memset(dst, 0, available);
-
     va_start(args, format);
-    auto const written = vsnprintf(dst, available, format, args);
+    sb_format(sb, format, args);
     va_end(args);
 
-    guard_is_greater_or_equal(written, 0);
-    guard_is_less((size_t) written, available);
+    return true;
+}
 
-    sb->length += written;
-    guard_is_equal(sb->str[sb->length], '\0');
+bool sb_try_printf_realloc(StringBuilder *sb, char const *format, ...) {
+    guard_is_not_null(sb);
+    guard_is_not_null(format);
+
+    va_list args;
+
+    va_start(args, format);
+    auto const to_be_written = vsnprintf(nullptr, 0, format, args);
+    va_end(args);
+    guard_is_greater_or_equal(to_be_written, 0);
+
+    auto const new_length = sb->length + to_be_written;
+    if (new_length > sb->_max_length) {
+        if (false == sb_try_reserve(sb, new_length)) {
+            return false;
+        }
+    }
+
+    va_start(args, format);
+    sb_format(sb, format, args);
+    va_end(args);
+
+    return true;
 }

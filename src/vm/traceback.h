@@ -4,7 +4,6 @@
 #include "vm/stack.h"
 
 [[nodiscard]]
-
 bool traceback_try_get(ObjectAllocator *a, Stack const *s, Object **traceback);
 
 void traceback_print(Object *traceback, FILE *file);

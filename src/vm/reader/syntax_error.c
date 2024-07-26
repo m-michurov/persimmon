@@ -34,6 +34,9 @@ char const *syntax_error_str(SyntaxError_Code error_type) {
         case SYNTAX_ERROR_NESTING_TOO_DEEP: {
             return "too many nesting levels";
         }
+        case SYNTAX_ERROR_TOKEN_TOO_LONG: {
+            return "token is too long";
+        }
     }
 
     guard_unreachable();

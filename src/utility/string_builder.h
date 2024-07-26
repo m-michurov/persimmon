@@ -4,30 +4,19 @@
 
 #include "arena.h"
 
-typedef struct StringBuilder StringBuilder;
+typedef struct {
+    char *str;
+    size_t length;
 
-StringBuilder *sb_new(void);
+    size_t _max_length;
+} StringBuilder;
 
-void sb_free(StringBuilder **sb);
-
-char *sb_str_(StringBuilder *sb);
-
-char const *sb_str_const_(StringBuilder const *sb);
-
-#define sb_str(Builder) _Generic((Builder),             \
-    StringBuilder const *   : sb_str_const_((Builder)), \
-    StringBuilder *         : sb_str_((Builder))        \
-)
-
-size_t sb_length(StringBuilder const *sb);
+void sb_free(StringBuilder *sb);
 
 void sb_clear(StringBuilder *sb);
 
-char *sb_copy_str(StringBuilder const *sb);
+bool sb_try_reserve(StringBuilder *sb, size_t capacity);
 
-void sb_sprintf(StringBuilder *sb, char const *format, ...);
+bool sb_try_printf(StringBuilder *sb, char const *format, ...);
 
-// FIXME do not crash on errors
-#define sb_append_char(Builder, Char) sb_sprintf((Builder), "%c", (Char))
-
-#define sb_append(Builder, Str) sb_sprintf((Builder), "%s", (Str))
+bool sb_try_printf_realloc(StringBuilder *sb, char const *format, ...);

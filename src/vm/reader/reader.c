@@ -33,7 +33,7 @@ Reader *reader_new(VirtualMachine *vm, Reader_Config config) {
     auto const r = (Reader *) guard_succeeds(calloc, (1, sizeof(Reader)));
     *r = (Reader) {
             .vm = vm,
-            .s = scanner_new(),
+            .s = scanner_new(config.scanner_config),
             .p = parser_new(vm_allocator(vm), config.parser_config)
     };
     return r;
@@ -145,9 +145,15 @@ static bool try_prompt(
     while (slice_empty(line) || string_is_blank(line.data) || parser_is_inside_expression(r->p)) {
         printf("%s ", (line.lineno > 0 ? PROMPT_CONTINUE : PROMPT_NEW));
 
-        if (false == line_try_read(line_reader, lines_arena, &line)) {
+        errno_t error_code;
+        if (false == line_reader_try_read(line_reader, lines_arena, &line, &error_code)) {
+            os_error(r->vm, error_code);
+        }
+
+        if (nullptr == line.data) {
             return true;
         }
+
         arena_append(lines_arena, &lines, line);
 
         if (string_is_blank(line.data)) {
@@ -177,7 +183,16 @@ static bool try_read_all(
 
     auto line = (Line) {0};
     auto lines = (Lines) {0};
-    while (line_try_read(line_reader, lines_arena, &line)) {
+    while (true) {
+        errno_t error_code;
+        if (false == line_reader_try_read(line_reader, lines_arena, &line, &error_code)) {
+            os_error(r->vm, error_code);
+        }
+
+        if (nullptr == line.data) {
+            break;
+        }
+
         arena_append(lines_arena, &lines, line);
 
         if (false == try_parse_line(r, file_name, lines, line, exprs)) {

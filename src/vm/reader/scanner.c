@@ -29,7 +29,7 @@ typedef enum {
 
 struct Scanner {
     State state;
-    StringBuilder *sb;
+    StringBuilder sb;
     bool escape_sequence;
     int64_t int_value;
     Position token_pos;
@@ -78,11 +78,11 @@ static bool is_printable(int c) {
 }
 
 static bool is_newline(int c) {
-    return '\r' == c || '\n' ==c;
+    return '\r' == c || '\n' == c;
 }
 
 static void clear(Scanner *s) {
-    sb_clear(s->sb);
+    sb_clear(&s->sb);
     s->escape_sequence = false;
     s->int_value = 0;
 }
@@ -113,19 +113,19 @@ static void transition(Scanner *s, Position pos, State new_state) {
             s->token = (Token) {
                     .type = TOKEN_STRING,
                     .pos = token_pos,
-                    .as_string = sb_str(s->sb)
+                    .as_string = s->sb.str
             };
 //            tokenizer_clear(t);
             return;
         }
         case TOKENIZER_ATOM: {
-            guard_is_greater(sb_length(s->sb), 0);
+            guard_is_greater(s->sb.length, 0);
 
             s->has_token = true;
             s->token = (Token) {
                     .type = TOKEN_ATOM,
                     .pos = token_pos,
-                    .as_atom = sb_str(s->sb)
+                    .as_atom = s->sb.str
             };
 //            tokenizer_clear(t);
             return;
@@ -183,7 +183,15 @@ static bool any_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
 
     if (is_name_char(c)) {
         transition(s, pos, TOKENIZER_ATOM);
-        sb_append_char(s->sb, (char) c);
+
+        if (false == sb_try_printf(&s->sb, "%c", (char) c)) {
+            *error = (SyntaxError) {
+                    .code = SYNTAX_ERROR_TOKEN_TOO_LONG,
+                    .pos = {.lineno = pos.lineno, s->token_pos.col, pos.end_col}
+            };
+            return false;
+        }
+
         return true;
     }
 
@@ -287,7 +295,15 @@ static bool string_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
 
         char represented_char;
         if (string_try_get_escape_seq_value((char) c, &represented_char)) {
-            sb_append_char(s->sb, represented_char);
+
+            if (false == sb_try_printf(&s->sb, "%c", represented_char)) {
+                *error = (SyntaxError) {
+                        .code = SYNTAX_ERROR_TOKEN_TOO_LONG,
+                        .pos = {.lineno = pos.lineno, s->token_pos.col, pos.end_col}
+                };
+                return false;
+            }
+
             return true;
         }
 
@@ -313,7 +329,15 @@ static bool string_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
 
     if (is_printable(c)) {
         s->token_pos.end_col = pos.end_col;
-        sb_append_char(s->sb, (char) c);
+
+        if (false == sb_try_printf(&s->sb, "%c", (char) c)) {
+            *error = (SyntaxError) {
+                    .code = SYNTAX_ERROR_TOKEN_TOO_LONG,
+                    .pos = {.lineno = pos.lineno, s->token_pos.col, pos.end_col}
+            };
+            return false;
+        }
+
         return true;
     }
 
@@ -344,7 +368,7 @@ static bool string_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
 static bool name_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
     guard_is_equal(s->state, TOKENIZER_ATOM);
 
-    if (isdigit(c) && 1 == sb_length(s->sb)) {
+    if (isdigit(c) && 1 == s->sb.length) {
         auto digit = c - '0';
         if (0 == digit) {
             *error = (SyntaxError) {
@@ -356,7 +380,7 @@ static bool name_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
             return false;
         }
 
-        switch (sb_str(s->sb)[0]) {
+        switch (s->sb.str[0]) {
             case '-': {
                 digit = -digit;
                 [[fallthrough]];
@@ -372,7 +396,15 @@ static bool name_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
 
     if (is_name_char(c)) {
         s->token_pos.end_col = pos.end_col;
-        sb_append_char(s->sb, (char) c);
+
+        if (false == sb_try_printf(&s->sb, "%c", (char) c)) {
+            *error = (SyntaxError) {
+                    .code = SYNTAX_ERROR_TOKEN_TOO_LONG,
+                    .pos = {.lineno = pos.lineno, s->token_pos.col, pos.end_col}
+            };
+            return false;
+        }
+
         return true;
     }
 
@@ -464,7 +496,10 @@ bool scanner_try_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
 
 Scanner *scanner_new(Scanner_Config config) {
     auto const s = (Scanner *) guard_succeeds(calloc, (1, sizeof(Scanner)));
-    *s = (Scanner) {.sb = sb_new()};
+    *s = (Scanner) {0};
+
+    guard_is_true(sb_try_reserve(&s->sb, config.max_token_size));
+
     return s;
 }
 

@@ -39,11 +39,9 @@ typedef enum {
 } Parser_Result;
 
 [[nodiscard]]
-
 Parser_Result parser_try_accept(Parser *p, Token token, SyntaxError *syntax_error);
 
 [[nodiscard]]
-
 bool parser_try_get_expression(Parser *p, Object **expression);
 
 // TODO maybe don't limit the depth since, for example, scanner uses realloc and string builder

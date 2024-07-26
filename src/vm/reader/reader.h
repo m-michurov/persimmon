@@ -12,6 +12,7 @@
 typedef struct Reader Reader;
 
 typedef struct {
+    Scanner_Config scanner_config;
     Parser_Config parser_config;
 } Reader_Config;
 
@@ -34,5 +35,4 @@ Object *const *reader_parser_expr(Reader const *r);
 bool reader_try_prompt(Reader *r, NamedFile file, Object **exprs);
 
 [[nodiscard]]
-
 bool reader_try_read_all(Reader *r, NamedFile file, Object **exprs);
