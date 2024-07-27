@@ -39,6 +39,7 @@ bool sb_try_reserve(StringBuilder *sb, size_t max_length) {
 
 static void sb_format(StringBuilder *sb, char const *format, va_list args) {
     guard_is_not_null(sb);
+    guard_is_not_null(sb->str);
     guard_is_not_null(format);
 
     auto const dst = sb->str + sb->length;
