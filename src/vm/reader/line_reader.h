@@ -11,11 +11,15 @@ typedef struct {
     size_t lineno;
 } Line;
 
-typedef struct LineReader LineReader;
+typedef struct {
+    FILE *_file;
+    size_t _lineno;
+    StringBuilder _sb;
+} LineReader;
 
-LineReader *line_reader_new(FILE *file);
+#define line_reader_init(File) ((LineReader) {._file = (File)})
 
-void line_reader_free(LineReader **r);
+void line_reader_free(LineReader *r);
 
 [[nodiscard]]
 bool line_reader_try_read(LineReader *r, Arena *a, Line *line, errno_t *error_code);
