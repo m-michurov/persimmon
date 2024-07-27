@@ -15,8 +15,8 @@ void sb_free(StringBuilder *sb);
 
 void sb_clear(StringBuilder *sb);
 
-bool sb_try_reserve(StringBuilder *sb, size_t capacity);
+bool sb_try_reserve(StringBuilder *sb, size_t max_length, errno_t *error_code);
 
 bool sb_try_printf(StringBuilder *sb, char const *format, ...);
 
-bool sb_try_printf_realloc(StringBuilder *sb, char const *format, ...);
+bool sb_try_printf_realloc(StringBuilder *sb, errno_t *error_code, char const *format, ...);

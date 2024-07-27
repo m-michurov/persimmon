@@ -498,7 +498,8 @@ Scanner *scanner_new(Scanner_Config config) {
     auto const s = (Scanner *) guard_succeeds(calloc, (1, sizeof(Scanner)));
     *s = (Scanner) {0};
 
-    guard_is_true(sb_try_reserve(&s->sb, config.max_token_size));
+    errno_t error_code;
+    guard_is_true(sb_try_reserve(&s->sb, config.max_token_size, &error_code));
 
     return s;
 }

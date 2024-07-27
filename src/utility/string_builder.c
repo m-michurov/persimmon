@@ -19,15 +19,18 @@ void sb_clear(StringBuilder *sb) {
     memset(sb->str, 0, sb->_max_length);
 }
 
-bool sb_try_reserve(StringBuilder *sb, size_t max_length) {
+bool sb_try_reserve(StringBuilder *sb, size_t max_length, errno_t *error_code) {
     guard_is_not_null(sb);
+    guard_is_not_null(error_code);
 
     if (max_length <= sb->_max_length) {
         return true;
     }
 
+    errno = 0;
     auto const str = realloc(sb->str, max_length + 1);
     if (nullptr == str) {
+        *error_code = errno;
         return false;
     }
 
@@ -78,8 +81,9 @@ bool sb_try_printf(StringBuilder *sb, char const *format, ...) {
     return true;
 }
 
-bool sb_try_printf_realloc(StringBuilder *sb, char const *format, ...) {
+bool sb_try_printf_realloc(StringBuilder *sb, errno_t *error_code, char const *format, ...) {
     guard_is_not_null(sb);
+    guard_is_not_null(error_code);
     guard_is_not_null(format);
 
     va_list args;
@@ -91,7 +95,7 @@ bool sb_try_printf_realloc(StringBuilder *sb, char const *format, ...) {
 
     auto const new_length = sb->length + to_be_written;
     if (new_length > sb->_max_length) {
-        if (false == sb_try_reserve(sb, new_length)) {
+        if (false == sb_try_reserve(sb, new_length, error_code)) {
             return false;
         }
     }
