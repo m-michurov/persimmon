@@ -55,12 +55,13 @@ bool line_reader_try_read(LineReader *r, Arena *a, Line *line, errno_t *error_co
         }
     }
 
-    *line = (Line) {
-            .data = arena_copy_all(a, r->_sb.str, r->_sb.length + 1),
-            .count = r->_sb.length,
-            .lineno = r->_lineno
-    };
-    r->_lineno++;
+    if (false == arena_try_copy_all(a, r->_sb.str, r->_sb.length + 1, &line->data, error_code)) {
+        return false;
+    }
 
+    line->count = r->_sb.length;
+    line->lineno = r->_lineno;
+
+    r->_lineno++;
     return true;
 }

@@ -154,7 +154,9 @@ static bool try_prompt(
             return true;
         }
 
-        arena_append(lines_arena, &lines, line);
+        if (false == arena_try_append(lines_arena, &lines, line, &error_code)) {
+            os_error(r->vm, error_code);
+        }
 
         if (string_is_blank(line.data)) {
             continue;
@@ -193,7 +195,9 @@ static bool try_read_all(
             break;
         }
 
-        arena_append(lines_arena, &lines, line);
+        if (false == arena_try_append(lines_arena, &lines, line, &error_code)) {
+            os_error(r->vm, error_code);
+        }
 
         if (false == try_parse_line(r, file_name, lines, line, exprs)) {
             return false;

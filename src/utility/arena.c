@@ -18,10 +18,17 @@ struct Arena_Region {
 
 #define REGION_DEFAULT_CAPACITY ((size_t) 4 * 1024)
 
-static bool region_try_create(size_t capacity_bytes, Arena_Region **r) {
+[[nodiscard]]
+static bool region_try_create(size_t capacity_bytes, Arena_Region **r, errno_t *error_code) {
+    guard_is_not_null(r);
+    guard_is_not_null(error_code);
+
     auto const size_bytes = sizeof(Arena_Region) + capacity_bytes;
+
+    errno = 0;
     *r = (Arena_Region *) calloc(size_bytes, 1);
     if (nullptr == *r) {
+        *error_code = errno;
         return false;
     }
 
@@ -33,6 +40,7 @@ static bool region_try_create(size_t capacity_bytes, Arena_Region **r) {
     return true;
 }
 
+[[nodiscard]]
 static bool region_try_allocate(Arena_Region *r, size_t alignment, size_t size, void **p) {
     guard_is_not_null(r);
     guard_is_not_null(p);
@@ -48,27 +56,23 @@ static bool region_try_allocate(Arena_Region *r, size_t alignment, size_t size, 
     return true;
 }
 
-static void arena_append_region(Arena *a, size_t capacity_bytes) {
+[[nodiscard]]
+static bool arena_try_append_region(Arena *a, size_t capacity_bytes, errno_t *error_code) {
     guard_is_not_null(a);
 
     Arena_Region *r;
-    if (false == region_try_create(capacity_bytes, &r)) {
-        auto const stats = arena_statistics(a);
-        fprintf(stderr, "Arena info:\n");
-        fprintf(stderr, "            Regions: %zu\n", stats.regions);
-        fprintf(stderr, "  Total memory used: %zu bytes\n", stats.system_memory_used_bytes);
-        fprintf(stderr, "          Allocated: %zu bytes\n", stats.allocated_bytes);
-        fprintf(stderr, "             Wasted: %zu bytes\n", stats.wasted_bytes);
-        exit(EXIT_FAILURE);
+    if (false == region_try_create(capacity_bytes, &r, error_code)) {
+        return false;
     }
 
-    r->next = exchange(a->first, r);
+    r->next = exchange(a->_regions, r);
+    return true;
 }
 
 void arena_free(Arena *a) {
     guard_is_not_null(a);
 
-    auto region = a->first;
+    auto region = a->_regions;
     while (nullptr != region) {
         auto next = region->next;
         free(region);
@@ -78,25 +82,38 @@ void arena_free(Arena *a) {
     *a = (Arena) {0};
 }
 
-void *arena_allocate(Arena *a, size_t alignment, size_t size) {
+bool arena_try_allocate(Arena *a, size_t alignment, size_t size, void **p, errno_t *error_code) {
     guard_is_not_null(a);
+    guard_is_not_null(p);
+    guard_is_not_null(error_code);
     guard_is_greater(alignment, 0);
 
-    for (auto r = a->first; nullptr != r; r = r->next) {
-        void *p;
-        if (region_try_allocate(r, alignment, size, &p)) {
-            return p;
+    for (auto r = a->_regions; nullptr != r; r = r->next) {
+        if (region_try_allocate(r, alignment, size, p)) {
+            return true;
         }
     }
 
-    arena_append_region(a, max(size, REGION_DEFAULT_CAPACITY));
-    void *p;
-    guard_is_true(region_try_allocate(a->first, alignment, size, &p));
-    return p;
+    if (false == arena_try_append_region(a, alignment + max(size, REGION_DEFAULT_CAPACITY), error_code)) {
+        return false;
+    }
+
+    guard_is_true(region_try_allocate(a->_regions, alignment, size, p));
+    return true;
 }
 
-void *arena_allocate_copy(Arena *a, void const *src, size_t src_size, size_t alignment, size_t total_size) {
+bool arena_try_allocate_copy(
+        Arena *a,
+        void const *src,
+        size_t src_size,
+        size_t alignment,
+        size_t total_size,
+        void **p,
+        errno_t *error_code
+) {
     guard_is_not_null(a);
+    guard_is_not_null(p);
+    guard_is_not_null(error_code);
 
     if (nullptr == src) {
         src_size = 0;
@@ -106,17 +123,22 @@ void *arena_allocate_copy(Arena *a, void const *src, size_t src_size, size_t ali
         src_size = total_size;
     }
 
-    auto p = arena_allocate(a, alignment, total_size);
-    memcpy(p, src, src_size);
+    void *ptr;
+    if (false == arena_try_allocate(a, alignment, total_size, &ptr, error_code)) {
+        return false;
+    }
 
-    return p;
+    memcpy(ptr, src, src_size);
+    *p = ptr;
+
+    return true;
 }
 
 Arena_Statistics arena_statistics(Arena const *a) {
     guard_is_not_null(a);
 
     auto stats = (Arena_Statistics) {0};
-    for (auto it = a->first; nullptr != it; it = it->next) {
+    for (auto it = a->_regions; nullptr != it; it = it->next) {
         stats.regions++;
         stats.system_memory_used_bytes += it->capacity;
         auto const wasted = (size_t) (it->end - it->top);
