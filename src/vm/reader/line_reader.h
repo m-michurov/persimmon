@@ -17,7 +17,7 @@ typedef struct {
     StringBuilder _sb;
 } LineReader;
 
-#define line_reader_init(File) ((LineReader) {._file = (File)})
+#define line_reader_make(File) ((LineReader) {._file = (File)})
 
 void line_reader_free(LineReader *r);
 

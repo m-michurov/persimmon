@@ -224,7 +224,7 @@ static bool reader_call(
         bool (*fn)(Reader *, LineReader *, Arena *, char const *, Object **)
 ) {
     auto lines_arena = (Arena) {0};
-    auto line_reader = line_reader_init(file.handle);
+    auto line_reader = line_reader_make(file.handle);
 
     auto const ok = fn(r, &line_reader, &lines_arena, file.name, exprs);
     object_list_reverse(exprs);
