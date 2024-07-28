@@ -12,7 +12,6 @@ typedef struct {
     ObjectAllocator_Config allocator_config;
     Reader_Config reader_config;
     Stack_Config stack_config;
-    size_t import_stack_size;
 } VirtualMachine_Config;
 
 VirtualMachine *vm_new(VirtualMachine_Config config);

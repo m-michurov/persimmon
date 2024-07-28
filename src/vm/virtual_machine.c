@@ -52,8 +52,6 @@ static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
 }
 
 VirtualMachine *vm_new(VirtualMachine_Config config) {
-    guard_is_greater(config.import_stack_size, 0);
-
     auto const vm = (VirtualMachine *) guard_succeeds(calloc, (1, sizeof(VirtualMachine)));
 
     auto const allocator = allocator_new(config.allocator_config);

@@ -131,8 +131,7 @@ int main(int argc, char **argv) {
             },
             .stack_config = {
                     .size_bytes = 2048
-            },
-            .import_stack_size = 2
+            }
     });
 
     char *file_name;
