@@ -5,7 +5,7 @@
 (defn main () ; comment
   (let (square (fn (x) (* x x))
          square-pair (fn (x) (list x (square x)))
-         format (fn ((num squared)) (list num 'squared 'is squared)))
+         format (fn ((num squared)) (str num " squared is " squared)))
     (-> 500
       (range)
       (map square-pair)
