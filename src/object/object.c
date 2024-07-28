@@ -1,10 +1,5 @@
 #include "object.h"
 
-#include <string.h>
-#include <inttypes.h>
-#include <ctype.h>
-
-#include "utility/strings.h"
 #include "utility/guards.h"
 
 static auto NIL = (Object) {.type = TYPE_NIL};
@@ -72,104 +67,6 @@ bool object_equals(Object *a, Object *b) { // NOLINT(*-no-recursion)
         }
         case TYPE_NIL: {
             return true;
-        }
-    }
-
-    guard_unreachable();
-}
-
-void object_print(Object *object, FILE *file) {
-    guard_is_not_null(file);
-    guard_is_not_null(object);
-
-    switch (object->type) {
-        case TYPE_STRING: {
-            fprintf(file, "%s", object->as_string);
-            return;
-        }
-        case TYPE_INT:
-        case TYPE_ATOM:
-        case TYPE_CONS:
-        case TYPE_NIL:
-        case TYPE_PRIMITIVE:
-        case TYPE_CLOSURE:
-        case TYPE_MACRO: {
-            object_repr_print(object, file);
-            return;
-        }
-    }
-
-    guard_unreachable();
-}
-
-void object_repr_print(Object *object, FILE *file) { // NOLINT(*-no-recursion)
-    guard_is_not_null(file);
-    guard_is_not_null(object);
-
-    switch (object->type) {
-        case TYPE_INT: {
-            fprintf(file, "%" PRId64, object->as_int);
-            return;
-        }
-        case TYPE_STRING: {
-            fprintf(file, "\"");
-
-            string_for(it, object->as_string) {
-                char const *escape_sequence;
-                if (string_try_repr_escape_seq(*it, &escape_sequence)) {
-                    fprintf(file, "%s", escape_sequence);
-                    continue;
-                }
-
-                if (isprint(*it)) {
-                    fprintf(file, "%c", *it);
-                    continue;
-                }
-
-                fprintf(file, "\\0x%02hhX", *it);
-            }
-
-            fprintf(file, "\"");
-            return;
-        }
-        case TYPE_ATOM: {
-            fprintf(file, "%s", object->as_atom);
-            return;
-        }
-        case TYPE_CONS: {
-            fprintf(file, "(");
-            object_repr_print(object->as_cons.first, file);
-            auto it = object->as_cons.rest;
-            while (true) {
-                if (object_nil() == it) {
-                    break;
-                }
-
-                fprintf(file, " ");
-
-                if (TYPE_CONS == it->type) {
-                    object_repr_print(it->as_cons.first, file);
-                    it = it->as_cons.rest;
-                    continue;
-                }
-
-                fprintf(file, ". ");
-                object_repr_print(it, file);
-                break;
-            }
-            fprintf(file, ")");
-
-            return;
-        }
-        case TYPE_NIL: {
-            fprintf(file, "()");
-            return;
-        }
-        case TYPE_PRIMITIVE:
-        case TYPE_CLOSURE:
-        case TYPE_MACRO: {
-            fprintf(file, "<%s>", object_type_str(object->type));
-            return;
         }
     }
 

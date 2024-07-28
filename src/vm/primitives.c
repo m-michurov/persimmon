@@ -6,6 +6,7 @@
 #include "object/lists.h"
 #include "object/constructors.h"
 #include "object/accessors.h"
+#include "object/repr.h"
 #include "env.h"
 #include "traceback.h"
 #include "errors.h"
@@ -27,19 +28,64 @@ static bool eq(VirtualMachine *vm, Object *args, Object **value) {
     return true;
 }
 
+static bool str(VirtualMachine *vm, Object *args, Object **value) {
+    guard_is_not_null(vm);
+    guard_is_not_null(args);
+    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_not_null(value);
+
+    if (object_nil() == args) {
+        if (false == object_try_make_string(vm_allocator(vm), "", value)) {
+            out_of_memory_error(vm);
+        }
+
+        return true;
+    }
+
+    auto sb = (StringBuilder) {0};
+    object_list_for(it, args) {
+        errno_t error_code;
+        if (false == object_try_print(it, &sb, &error_code)) {
+            sb_free(&sb);
+            os_error(vm, error_code);
+        }
+    }
+
+    if (false == object_try_make_string(vm_allocator(vm), sb.str, value)) {
+        sb_free(&sb);
+        out_of_memory_error(vm);
+    }
+
+    sb_free(&sb);
+    return true;
+}
+
 static bool repr(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
 
-    object_list_for(it, args) {
-        object_repr_print(it, stdout);
-        printf(" ");
+    auto const got = object_list_count(args);
+    typeof(got) expected = 1;
+    if (expected != got) {
+        call_error(vm, "repr", expected, false, got);
     }
-    printf("\n");
 
-    *value = object_nil();
+    auto sb = (StringBuilder) {0};
+
+    errno_t error_code;
+    if (false == object_try_repr(args->as_cons.first, &sb, &error_code)) {
+        sb_free(&sb);
+        os_error(vm, error_code);
+    }
+
+    if (false == object_try_make_string(vm_allocator(vm), sb.str, value)) {
+        sb_free(&sb);
+        out_of_memory_error(vm);
+    }
+
+    sb_free(&sb);
     return true;
 }
 
@@ -49,9 +95,20 @@ static bool print(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
 
-    object_list_for(it, args) {
-        object_print(it, stdout);
+    if (object_nil() == args) {
+        return true;
+    }
+
+    errno_t error_code;
+    if (false == object_try_print(args->as_cons.first, stdout, &error_code)) {
+        os_error(vm, error_code);
+    }
+
+    object_list_for(it, args->as_cons.rest) {
         printf(" ");
+        if (false == object_try_print(it, stdout, &error_code)) {
+            os_error(vm, error_code);
+        }
     }
     printf("\n");
 
@@ -384,7 +441,9 @@ static bool try_define(ObjectAllocator *a, Object *env, char const *name, Object
 }
 
 bool try_define_primitives(ObjectAllocator *a, Object *env) {
-    return try_define(a, env, "repr", repr)
+    return try_define(a, env, "eq?", eq)
+           && try_define(a, env, "str", str)
+           && try_define(a, env, "repr", repr)
            && try_define(a, env, "print", print)
            && try_define(a, env, "+", plus)
            && try_define(a, env, "-", minus)
@@ -396,7 +455,6 @@ bool try_define_primitives(ObjectAllocator *a, Object *env) {
            && try_define(a, env, "prepend", list_prepend)
            && try_define(a, env, "reverse", list_reverse)
            && try_define(a, env, "concat", list_concat)
-           && try_define(a, env, "eq?", eq)
            && try_define(a, env, "not", not)
            && try_define(a, env, "type", type)
            && try_define(a, env, "traceback", traceback)

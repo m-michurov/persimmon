@@ -1,8 +1,8 @@
 #include <stdlib.h>
 
 #include "utility/guards.h"
-#include "vm/env.h"
 #include "object/lists.h"
+#include "object/repr.h"
 #include "vm/reader/reader.h"
 #include "vm/eval.h"
 #include "vm/virtual_machine.h"
@@ -25,7 +25,7 @@ static bool try_shift_args(int *argc, char ***argv, char **arg) {
 
 static void print_any_as_error(Object *error) {
     printf("Error: ");
-    object_repr_print(error, stdout);
+    object_repr(error, stdout);
     printf("\n");
 }
 
@@ -62,7 +62,7 @@ static bool try_eval_input(VirtualMachine *vm) {
 
     object_list_for(it, *vm_exprs(vm)) {
         if (try_eval(vm, *vm_globals(vm), it)) {
-            object_repr_print(*vm_value(vm), stdout);
+            object_repr(*vm_value(vm), stdout);
             printf("\n");
             continue;
         }
@@ -76,7 +76,7 @@ static bool try_eval_input(VirtualMachine *vm) {
 
 static void run_repl(VirtualMachine *vm) {
     printf("env: ");
-    object_repr_print(*vm_globals(vm), stdout);
+    object_repr(*vm_globals(vm), stdout);
     printf("\n");
 
     auto stream_is_open = true;

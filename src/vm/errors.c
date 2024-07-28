@@ -6,6 +6,7 @@
 #include "object/constructors.h"
 #include "object/lists.h"
 #include "object/accessors.h"
+#include "object/repr.h"
 #include "traceback.h"
 
 #define ERROR_FIELD_EXPECTED  "expected"
@@ -459,7 +460,7 @@ void create_out_of_memory_error(VirtualMachine *vm) {
 
     *vm_error(vm) = default_error;
 
-    object_repr_print(error_type, stdout);
+    object_print(error_type, stdout);
     printf("\n");
     allocator_print_statistics(vm_allocator(vm), stderr);
     traceback_print_from_stack(vm_stack(vm), stderr);
