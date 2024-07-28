@@ -51,7 +51,7 @@ static void print_error(Object *error) {
 }
 
 static bool try_eval_input(VirtualMachine *vm) {
-    if (false == reader_try_prompt(vm_reader(vm), named_file_stdin, vm_exprs(vm))) {
+    if (false == object_reader_try_prompt(vm_reader(vm), named_file_stdin, vm_exprs(vm))) {
         print_error(*vm_error(vm));
         return true;
     }
@@ -86,7 +86,7 @@ static void run_repl(VirtualMachine *vm) {
 }
 
 static bool try_eval_file(VirtualMachine *vm, NamedFile file) {
-    if (false == reader_try_read_all(vm_reader(vm), file, vm_exprs(vm))) {
+    if (false == object_reader_try_read_all(vm_reader(vm), file, vm_exprs(vm))) {
         print_error(*vm_error(vm));
         return true;
     }

@@ -21,17 +21,17 @@ typedef struct {
     size_t capacity;
 } Lines;
 
-struct Reader {
+struct ObjectReader {
     VirtualMachine *vm;
     Scanner *s;
     Parser *p;
 };
 
-Reader *reader_new(VirtualMachine *vm, Reader_Config config) {
+ObjectReader *object_reader_new(struct VirtualMachine *vm, Reader_Config config) {
     guard_is_not_null(vm);
 
-    auto const r = (Reader *) guard_succeeds(calloc, (1, sizeof(Reader)));
-    *r = (Reader) {
+    auto const r = (ObjectReader *) guard_succeeds(calloc, (1, sizeof(ObjectReader)));
+    *r = (ObjectReader) {
             .vm = vm,
             .s = scanner_new(config.scanner_config),
             .p = parser_new(vm_allocator(vm), config.parser_config)
@@ -39,7 +39,7 @@ Reader *reader_new(VirtualMachine *vm, Reader_Config config) {
     return r;
 }
 
-void reader_free(Reader **r) {
+void object_reader_free(ObjectReader **r) {
     guard_is_not_null(r);
     guard_is_not_null(*r);
 
@@ -50,25 +50,25 @@ void reader_free(Reader **r) {
     *r = nullptr;
 }
 
-void reader_reset(Reader *r) {
+void object_reader_reset(ObjectReader *r) {
     scanner_reset(r->s);
     parser_reset(r->p);
 }
 
-struct Parser_ExpressionsStack const *reader_parser_stack(Reader const *r) {
+struct Parser_ExpressionsStack const *object_reader_parser_stack(ObjectReader const *r) {
     guard_is_not_null(r);
 
     return parser_stack(r->p);
 }
 
-Object *const *reader_parser_expr(Reader const *r) {
+Object *const *object_reader_parser_expr(ObjectReader const *r) {
     guard_is_not_null(r);
 
     return parser_peek(r->p);
 }
 
 static bool try_parse_line(
-        Reader *r,
+        ObjectReader *r,
         char const *file_name,
         Lines lines,
         Line line,
@@ -128,7 +128,7 @@ static bool try_parse_line(
 #define PROMPT_CONTINUE "..."
 
 static bool try_prompt(
-        Reader *r,
+        ObjectReader *r,
         LineReader *line_reader,
         Arena *lines_arena,
         char const *file_name,
@@ -137,7 +137,7 @@ static bool try_prompt(
     guard_is_not_null(r);
     guard_is_not_null(exprs);
 
-    reader_reset(r);
+    object_reader_reset(r);
     *exprs = object_nil();
 
     auto line = (Line) {0};
@@ -173,7 +173,7 @@ static bool try_prompt(
 }
 
 static bool try_read_all(
-        Reader *r,
+        ObjectReader *r,
         LineReader *line_reader,
         Arena *lines_arena,
         char const *file_name,
@@ -181,7 +181,7 @@ static bool try_read_all(
 ) {
     guard_is_not_null(r);
 
-    reader_reset(r);
+    object_reader_reset(r);
 
     auto line = (Line) {0};
     auto lines = (Lines) {0};
@@ -222,10 +222,10 @@ static bool try_read_all(
 }
 
 static bool reader_call(
-        Reader *r,
+        ObjectReader *r,
         NamedFile file,
         Object **exprs,
-        bool (*fn)(Reader *, LineReader *, Arena *, char const *, Object **)
+        bool (*fn)(ObjectReader *, LineReader *, Arena *, char const *, Object **)
 ) {
     auto lines_arena = (Arena) {0};
     auto line_reader = line_reader_make(file.handle);
@@ -239,10 +239,10 @@ static bool reader_call(
     return ok;
 }
 
-bool reader_try_prompt(Reader *r, NamedFile file, Object **exprs) {
+bool object_reader_try_prompt(ObjectReader *r, NamedFile file, Object **exprs) {
     return reader_call(r, file, exprs, try_prompt);
 }
 
-bool reader_try_read_all(Reader *r, NamedFile file, Object **exprs) {
+bool object_reader_try_read_all(ObjectReader *r, NamedFile file, Object **exprs) {
     return reader_call(r, file, exprs, try_read_all);
 }

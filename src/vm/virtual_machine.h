@@ -23,7 +23,7 @@ ObjectAllocator *vm_allocator(VirtualMachine *vm);
 
 Stack *vm_stack(VirtualMachine *vm);
 
-Reader *vm_reader(VirtualMachine *vm);
+ObjectReader *vm_reader(VirtualMachine *vm);
 
 Object **vm_value(VirtualMachine *vm);
 

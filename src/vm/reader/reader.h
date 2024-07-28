@@ -9,7 +9,7 @@
 #include "parser.h"
 #include "named_file.h"
 
-typedef struct Reader Reader;
+typedef struct ObjectReader ObjectReader;
 
 typedef struct {
     Scanner_Config scanner_config;
@@ -18,21 +18,20 @@ typedef struct {
 
 struct VirtualMachine;
 
-Reader *reader_new(struct VirtualMachine *vm, Reader_Config config);
+ObjectReader *object_reader_new(struct VirtualMachine *vm, Reader_Config config);
 
-void reader_free(Reader **r);
+void object_reader_free(ObjectReader **r);
 
-void reader_reset(Reader *r);
+void object_reader_reset(ObjectReader *r);
 
 struct Parser_ExpressionsStack;
 
-struct Parser_ExpressionsStack const *reader_parser_stack(Reader const *r);
+struct Parser_ExpressionsStack const *object_reader_parser_stack(ObjectReader const *r);
 
-Object *const *reader_parser_expr(Reader const *r);
-
-[[nodiscard]]
-
-bool reader_try_prompt(Reader *r, NamedFile file, Object **exprs);
+Object *const *object_reader_parser_expr(ObjectReader const *r);
 
 [[nodiscard]]
-bool reader_try_read_all(Reader *r, NamedFile file, Object **exprs);
+bool object_reader_try_prompt(ObjectReader *r, NamedFile file, Object **exprs);
+
+[[nodiscard]]
+bool object_reader_try_read_all(ObjectReader *r, NamedFile file, Object **exprs);

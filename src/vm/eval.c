@@ -495,7 +495,7 @@ static bool try_step_import(VirtualMachine *vm) {
         os_error(vm, errno);
     }
 
-    auto const read_ok = reader_try_read_all(vm_reader(vm), file, exprs);
+    auto const read_ok = object_reader_try_read_all(vm_reader(vm), file, exprs);
     named_file_close(&file);
     if (false == read_ok) {
         return false;
