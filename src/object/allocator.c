@@ -137,7 +137,7 @@ static void mark(ObjectAllocator *a) {
     // TODO do not allocate new memory, move gray objects to the beginning of the objects list
     auto gray = (Objects) {0};
 
-    stack_for_reversed(frame, a->roots.stack) {
+    stack_for_reversed(frame, *a->roots.stack) {
         mark_gray_if_white(&gray, frame->expr);
         mark_gray_if_white(&gray, frame->env);
         mark_gray_if_white(&gray, frame->unevaluated);

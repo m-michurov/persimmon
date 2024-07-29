@@ -9,8 +9,7 @@
 #define PRINT_FOOTER "Some calls may be missing due to tail call optimization.\n"
 #define PRINT_INDENT "    "
 
-bool traceback_try_get(ObjectAllocator *a, Stack const *s, Object **traceback) {
-    guard_is_not_null(s);
+bool traceback_try_get(ObjectAllocator *a, Stack s, Object **traceback) {
     guard_is_not_null(a);
     guard_is_not_null(traceback);
     guard_is_not_null(*traceback);
@@ -43,8 +42,7 @@ void traceback_print(Object *traceback, FILE *file) {
     fprintf(file, PRINT_FOOTER);
 }
 
-void traceback_print_from_stack(Stack const *s, FILE *file) {
-    guard_is_not_null(s);
+void traceback_print_from_stack(Stack s, FILE *file) {
     guard_is_not_null(file);
     guard_is_false(stack_is_empty(s));
 

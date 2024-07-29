@@ -35,19 +35,26 @@ Stack_Frame frame_make(
 
 Objects frame_locals(Stack_Frame const *frame);
 
+struct Stack_WrappedFrame;
+
 typedef struct Stack Stack;
+struct Stack {
+    struct Stack_WrappedFrame *_top;
+    uint8_t *_end;
+    uint8_t *_data;
+};
 
 typedef struct {
     size_t size_bytes;
 } Stack_Config;
 
-Stack *stack_new(Stack_Config config);
+bool stack_try_init(Stack *s, Stack_Config config, errno_t *error_code);
 
-void stack_free(Stack **s);
+void stack_free(Stack *s);
 
-bool stack_is_empty(Stack const *s);
+bool stack_is_empty(Stack s);
 
-Stack_Frame *stack_top(Stack const *s);
+Stack_Frame *stack_top(Stack s);
 
 void stack_pop(Stack *s);
 
@@ -60,7 +67,7 @@ void stack_swap_top(Stack *s, Stack_Frame frame);
 bool stack_try_create_local(Stack *s, Object ***obj);
 
 [[nodiscard]]
-bool stack_try_get_prev(Stack const *s, Stack_Frame *frame, Stack_Frame **prev);
+bool stack_try_get_prev(Stack s, Stack_Frame *frame, Stack_Frame **prev);
 
 #define stack_for_reversed(It, Stack_)      \
 for (                                       \

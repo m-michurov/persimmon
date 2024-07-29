@@ -5,38 +5,41 @@
 #include "utility/exchange.h"
 #include "utility/container_of.h"
 
-typedef struct WrappedFrame WrappedFrame;
-struct WrappedFrame {
-    WrappedFrame *prev;
+typedef struct Stack_WrappedFrame Stack_WrappedFrame;
+struct Stack_WrappedFrame {
+    Stack_WrappedFrame *prev;
     Stack_Frame frame;
     Object **locals_end;
     Object *locals[];
 };
 
-struct Stack {
-    WrappedFrame *top;
-    uint8_t *end;
-    uint8_t data[];
-};
-
-Stack *stack_new(Stack_Config config) {
+bool stack_try_init(Stack *s, Stack_Config config, errno_t *error_code) {
+    guard_is_not_null(s);
     guard_is_greater(config.size_bytes, 0);
 
-    auto const s = (Stack *) guard_succeeds(calloc, (sizeof(Stack) + config.size_bytes, 1));
-    s->end = s->data + config.size_bytes;
-    return s;
+    errno = 0;
+    auto const data = calloc(config.size_bytes, 1);
+    if (nullptr == data) {
+        *error_code = errno;
+        return false;
+    }
+
+    *s = (Stack) {
+        ._data = data,
+        ._end = data + config.size_bytes
+    };
+    return true;
 }
 
-void stack_free(Stack **s) {
+void stack_free(Stack *s) {
     guard_is_not_null(s);
-    guard_is_not_null(*s);
 
-    free(*s);
-    *s = nullptr;
+    free(s->_data);
+    *s = (Stack) {0};
 }
 
-bool stack_is_empty(Stack const *s) {
-    return nullptr == s->top;
+bool stack_is_empty(Stack s) {
+    return nullptr == s._top;
 }
 
 Stack_Frame frame_make(
@@ -61,30 +64,29 @@ Stack_Frame frame_make(
 }
 
 Objects frame_locals(Stack_Frame const *frame) {
-    auto const wrapped_frame = container_of(frame, WrappedFrame, frame);
+    auto const wrapped_frame = container_of(frame, Stack_WrappedFrame, frame);
     return (Objects) {
             .data = wrapped_frame->locals,
             .count = wrapped_frame->locals_end - wrapped_frame->locals
     };
 }
 
-Stack_Frame *stack_top(Stack const *s) {
-    guard_is_not_null(s);
-    guard_is_not_null(s->top);
+Stack_Frame *stack_top(Stack s) {
+    guard_is_not_null(s._top);
 
-    return &s->top->frame;
+    return &s._top->frame;
 }
 
 void stack_pop(Stack *s) {
     guard_is_not_null(s);
-    guard_is_not_null(s->top);
+    guard_is_not_null(s->_top);
 
-    s->top = s->top->prev;
+    s->_top = s->_top->prev;
 }
 
-bool stack_try_get_prev(Stack const *s, Stack_Frame *frame, Stack_Frame **prev) {
-    auto const wrapped_frame = container_of(frame, WrappedFrame, frame);
-    guard_is_in_range(wrapped_frame, s->data, s->end - sizeof(WrappedFrame));
+bool stack_try_get_prev(Stack s, Stack_Frame *frame, Stack_Frame **prev) {
+    auto const wrapped_frame = container_of(frame, Stack_WrappedFrame, frame);
+    guard_is_in_range(wrapped_frame, s._data, s._end - sizeof(Stack_WrappedFrame));
 
     if (nullptr == wrapped_frame->prev) {
         return false;
@@ -97,43 +99,43 @@ bool stack_try_push_frame(Stack *s, Stack_Frame frame) {
     guard_is_not_null(s);
 
     auto const new_top =
-            nullptr == s->top
-            ? s->data
-            : pointer_roundup(s->top->locals_end, _Alignof(WrappedFrame));
-    if ((uint8_t *) new_top + sizeof(WrappedFrame) > s->end) {
+            nullptr == s->_top
+            ? s->_data
+            : pointer_roundup(s->_top->locals_end, _Alignof(Stack_WrappedFrame));
+    if ((uint8_t *) new_top + sizeof(Stack_WrappedFrame) > s->_end) {
         return false;
     }
 
-    auto const wrapped_frame = (WrappedFrame *) new_top;
-    *wrapped_frame = (WrappedFrame) {
-            .prev = s->top,
+    auto const wrapped_frame = (Stack_WrappedFrame *) new_top;
+    *wrapped_frame = (Stack_WrappedFrame) {
+            .prev = s->_top,
             .frame = frame,
             .locals_end = wrapped_frame->locals
     };
-    s->top = wrapped_frame;
+    s->_top = wrapped_frame;
 
     return true;
 }
 
 void stack_swap_top(Stack *s, Stack_Frame frame) {
     guard_is_not_null(s);
-    guard_is_false(stack_is_empty(s));
+    guard_is_false(stack_is_empty(*s));
 
-    s->top->locals_end = s->top->locals;
-    s->top->frame = frame;
+    s->_top->locals_end = s->_top->locals;
+    s->_top->frame = frame;
 }
 
 bool stack_try_create_local(Stack *s, Object ***obj) {
     guard_is_not_null(s);
     guard_is_not_null(obj);
-    guard_is_not_null(s->top);
+    guard_is_not_null(s->_top);
 
-    auto new_locals_end = s->top->locals_end + 1;
-    if ((uint8_t *) new_locals_end > s->end) {
+    auto new_locals_end = s->_top->locals_end + 1;
+    if ((uint8_t *) new_locals_end > s->_end) {
         return false;
     }
 
-    *obj = exchange(s->top->locals_end, new_locals_end);
+    *obj = exchange(s->_top->locals_end, new_locals_end);
     **obj = object_nil();
     return true;
 }

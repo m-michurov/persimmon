@@ -22,7 +22,7 @@ static void report_out_of_system_memory(VirtualMachine *vm, Object *error_type) 
             "ERROR: ran out of system memory when creating an exception of type %s.\n",
             object_as_atom(error_type)
     );
-    traceback_print_from_stack(vm_stack(vm), stderr);
+    traceback_print_from_stack(*vm_stack(vm), stderr);
 }
 
 static void report_out_of_memory(VirtualMachine *vm, Object *error_type) {
@@ -32,7 +32,7 @@ static void report_out_of_memory(VirtualMachine *vm, Object *error_type) {
             object_as_atom(error_type)
     );
     allocator_print_statistics(vm_allocator(vm), stderr);
-    traceback_print_from_stack(vm_stack(vm), stderr);
+    traceback_print_from_stack(*vm_stack(vm), stderr);
 }
 
 static bool try_create_int_field(VirtualMachine *vm, char const *key, int64_t value, Object **field) {
@@ -77,7 +77,7 @@ static bool try_create_traceback(VirtualMachine *vm, Object **field) {
     auto const a = vm_allocator(vm);
     return object_try_make_list(a, field, object_nil(), object_nil())
            && object_try_make_atom(a, ERROR_FIELD_TRACEBACK, object_list_nth(0, *field))
-           && traceback_try_get(a, vm_stack(vm), object_list_nth(1, *field));
+           && traceback_try_get(a, *vm_stack(vm), object_list_nth(1, *field));
 }
 
 static void create_error_with_message(VirtualMachine *vm, Object *default_error, char const *message) {
@@ -463,7 +463,7 @@ void create_out_of_memory_error(VirtualMachine *vm) {
     object_print(error_type, stdout);
     printf("\n");
     allocator_print_statistics(vm_allocator(vm), stderr);
-    traceback_print_from_stack(vm_stack(vm), stderr);
+    traceback_print_from_stack(*vm_stack(vm), stderr);
 }
 
 void create_stack_overflow_error(VirtualMachine *vm) {

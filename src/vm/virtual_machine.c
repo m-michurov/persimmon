@@ -10,9 +10,9 @@
 #include "primitives.h"
 
 struct VirtualMachine {
+    Stack stack;
     ObjectReader reader;
     ObjectAllocator *allocator;
-    Stack *stack;
 
     Object *globals;
     Object *value;
@@ -57,8 +57,6 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
     auto const allocator = allocator_new(config.allocator_config);
     vm->allocator = allocator;
 
-    auto const stack = stack_new(config.stack_config);
-
     auto const constants = (Objects) {
             .data = (Object **) guard_succeeds(calloc, (STATIC_CONSTANTS_COUNT, sizeof(Object *))),
             .count = STATIC_CONSTANTS_COUNT,
@@ -67,21 +65,21 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
         *it = object_nil();
     }
 
-    memcpy(vm, &(VirtualMachine) {
+    *vm = (VirtualMachine) {
             .allocator = allocator,
-            .stack = stack,
             .globals = object_nil(),
             .value = object_nil(),
             .error = object_nil(),
             .exprs = object_nil(),
             .constants = constants
-    }, sizeof(VirtualMachine));
+    };
 
     errno_t error_code;
+    guard_is_true(stack_try_init(&vm->stack, config.stack_config, &error_code));
     guard_is_true(object_reader_try_init(&vm->reader, vm, config.reader_config, &error_code));
 
     allocator_set_roots(allocator, (ObjectAllocator_Roots) {
-            .stack = vm->stack,
+            .stack = &vm->stack,
             .globals = &vm->globals,
             .value = &vm->value,
             .error = &vm->error,
@@ -90,7 +88,6 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
     });
 
     guard_is_true(try_init_static_constants(allocator, &vm->constants));
-
     guard_is_true(env_try_create(vm->allocator, object_nil(), &vm->globals));
     guard_is_true(try_define_constants(vm, vm->globals));
     guard_is_true(try_define_primitives(vm->allocator, vm->globals));
@@ -118,7 +115,7 @@ ObjectAllocator *vm_allocator(VirtualMachine *vm) {
 Stack *vm_stack(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    return vm->stack;
+    return &vm->stack;
 }
 
 ObjectReader *vm_reader(VirtualMachine *vm) {

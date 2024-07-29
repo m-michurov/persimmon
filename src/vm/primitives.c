@@ -400,7 +400,7 @@ static bool traceback(VirtualMachine *vm, Object *args, Object **value) {
         call_error(vm, "traceback", expected, false, got);
     }
 
-    if (false == traceback_try_get(vm_allocator(vm), vm_stack(vm), value)) {
+    if (false == traceback_try_get(vm_allocator(vm), *vm_stack(vm), value)) {
         out_of_memory_error(vm);
     }
     object_list_shift(value);
