@@ -23,7 +23,7 @@ typedef struct {
 
 struct ObjectReader {
     VirtualMachine *vm;
-    Scanner *s;
+    Scanner s;
     Parser *p;
 };
 
@@ -33,9 +33,10 @@ ObjectReader *object_reader_new(struct VirtualMachine *vm, Reader_Config config)
     auto const r = (ObjectReader *) guard_succeeds(calloc, (1, sizeof(ObjectReader)));
     *r = (ObjectReader) {
             .vm = vm,
-            .s = scanner_new(config.scanner_config),
             .p = parser_new(vm_allocator(vm), config.parser_config)
     };
+    errno_t error_code;
+    guard_is_true(scanner_try_init(&r->s, config.scanner_config, &error_code));
     return r;
 }
 
@@ -51,7 +52,7 @@ void object_reader_free(ObjectReader **r) {
 }
 
 void object_reader_reset(ObjectReader *r) {
-    scanner_reset(r->s);
+    scanner_reset(&r->s);
     parser_reset(r->p);
 }
 
@@ -86,12 +87,12 @@ static bool try_parse_line(
         }));
 
         SyntaxError syntax_error;
-        if (false == scanner_try_accept(r->s, char_pos, *it, &syntax_error)) {
+        if (false == scanner_try_accept(&r->s, char_pos, *it, &syntax_error)) {
             auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
             syntax_error(r->vm, syntax_error, file_name, erroneous_line);
         }
 
-        auto token = scanner_peek(r->s);
+        auto token = scanner_peek(&r->s);
         if (nullptr == token) {
             continue;
         }

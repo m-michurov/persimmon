@@ -16,8 +16,6 @@ typedef enum {
     TOKEN_QUOTE
 } Token_Type;
 
-char const *token_type_str(Token_Type type);
-
 typedef struct {
     Token_Type type;
     Position pos;
@@ -28,15 +26,35 @@ typedef struct {
     };
 } Token;
 
-typedef struct Scanner Scanner;
+typedef enum {
+    SCANNER_WS,
+    SCANNER_INT,
+    SCANNER_STRING,
+    SCANNER_ATOM,
+    SCANNER_OPEN_PAREN,
+    SCANNER_CLOSE_PAREN,
+    SCANNER_QUOTE,
+    SCANNER_COMMENT
+} Scanner_State;
 
 typedef struct {
-    size_t max_token_size;
+    bool has_token;
+    Token token;
+
+    Scanner_State _state;
+    StringBuilder _sb;
+    bool _escape_sequence;
+    int64_t _int_value;
+    Position _token_pos;
+} Scanner;
+
+typedef struct {
+    size_t max_token_length;
 } Scanner_Config;
 
-Scanner *scanner_new(Scanner_Config config);
+bool scanner_try_init(Scanner *s, Scanner_Config config, errno_t *error_code);
 
-void scanner_free(Scanner **s);
+void scanner_free(Scanner *s);
 
 void scanner_reset(Scanner *s);
 
