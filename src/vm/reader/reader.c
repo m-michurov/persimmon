@@ -24,19 +24,17 @@ typedef struct {
 struct ObjectReader {
     VirtualMachine *vm;
     Scanner s;
-    Parser *p;
+    Parser p;
 };
 
 ObjectReader *object_reader_new(struct VirtualMachine *vm, Reader_Config config) {
     guard_is_not_null(vm);
 
     auto const r = (ObjectReader *) guard_succeeds(calloc, (1, sizeof(ObjectReader)));
-    *r = (ObjectReader) {
-            .vm = vm,
-            .p = parser_new(vm_allocator(vm), config.parser_config)
-    };
+    *r = (ObjectReader) {.vm = vm};
     errno_t error_code;
     guard_is_true(scanner_try_init(&r->s, config.scanner_config, &error_code));
+    guard_is_true(parser_try_init(&r->p, vm_allocator(vm), config.parser_config, &error_code));
     return r;
 }
 
@@ -53,19 +51,19 @@ void object_reader_free(ObjectReader **r) {
 
 void object_reader_reset(ObjectReader *r) {
     scanner_reset(&r->s);
-    parser_reset(r->p);
+    parser_reset(&r->p);
 }
 
 struct Parser_ExpressionsStack const *object_reader_parser_stack(ObjectReader const *r) {
     guard_is_not_null(r);
 
-    return parser_stack(r->p);
+    return &r->p.exprs_stack;
 }
 
 Object *const *object_reader_parser_expr(ObjectReader const *r) {
     guard_is_not_null(r);
 
-    return parser_peek(r->p);
+    return &r->p.expr;
 }
 
 static bool try_parse_line(
@@ -96,7 +94,7 @@ static bool try_parse_line(
             continue;
         }
 
-        switch (parser_try_accept(r->p, r->s.token, &syntax_error)) {
+        switch (parser_try_accept(&r->p, r->s.token, &syntax_error)) {
             case PARSER_OK: {
                 break;
             }
@@ -109,12 +107,11 @@ static bool try_parse_line(
             }
         }
 
-        Object *expr;
-        if (false == parser_try_get_expression(r->p, &expr)) {
+        if (false == r->p.has_expr) {
             continue;
         }
 
-        if (object_try_make_cons(vm_allocator(r->vm), expr, *exprs, exprs)) {
+        if (object_try_make_cons(vm_allocator(r->vm), r->p.expr, *exprs, exprs)) {
             continue;
         }
 
@@ -205,7 +202,7 @@ static bool try_read_all(
     }
 
     SyntaxError syntax_error;
-    switch (parser_try_accept(r->p, (Token) {.type = TOKEN_EOF}, &syntax_error)) {
+    switch (parser_try_accept(&r->p, (Token) {.type = TOKEN_EOF}, &syntax_error)) {
         case PARSER_OK: {
             return true;
         }

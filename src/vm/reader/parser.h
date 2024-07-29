@@ -12,25 +12,32 @@ typedef struct {
 } Parser_Expression;
 
 typedef struct Parser_ExpressionsStack Parser_ExpressionsStack;
+
 struct Parser_ExpressionsStack {
-    Parser_Expression *const data;
+    Parser_Expression *data;
     size_t count;
-    size_t const capacity;
+    size_t capacity;
 };
 
-typedef struct Parser Parser;
+typedef struct {
+    bool has_expr;
+    Object *expr;
+    Parser_ExpressionsStack exprs_stack;
+
+    ObjectAllocator *_a;
+} Parser;
 
 typedef struct {
     size_t max_nesting_depth;
 } Parser_Config;
 
-Parser *parser_new(ObjectAllocator *a, Parser_Config config);
+bool parser_try_init(Parser *p, ObjectAllocator *a, Parser_Config config, errno_t *error_code);
 
-void parser_free(Parser **p);
+void parser_free(Parser *p);
 
 void parser_reset(Parser *p);
 
-bool parser_is_inside_expression(Parser const *p);
+bool parser_is_inside_expression(Parser p);
 
 typedef enum {
     PARSER_OK,
@@ -40,11 +47,3 @@ typedef enum {
 
 [[nodiscard]]
 Parser_Result parser_try_accept(Parser *p, Token token, SyntaxError *syntax_error);
-
-[[nodiscard]]
-bool parser_try_get_expression(Parser *p, Object **expression);
-
-// TODO maybe don't limit the depth since, for example, scanner uses realloc and string builder
-Parser_ExpressionsStack const *parser_stack(Parser const *p);
-
-Object *const *parser_peek(Parser const *p);
