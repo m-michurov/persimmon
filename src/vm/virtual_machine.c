@@ -10,7 +10,7 @@
 #include "primitives.h"
 
 struct VirtualMachine {
-    ObjectReader *reader;
+    ObjectReader reader;
     ObjectAllocator *allocator;
     Stack *stack;
 
@@ -57,7 +57,6 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
     auto const allocator = allocator_new(config.allocator_config);
     vm->allocator = allocator;
 
-    auto const reader = object_reader_new(vm, config.reader_config);
     auto const stack = stack_new(config.stack_config);
 
     auto const constants = (Objects) {
@@ -70,7 +69,6 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
 
     memcpy(vm, &(VirtualMachine) {
             .allocator = allocator,
-            .reader = reader,
             .stack = stack,
             .globals = object_nil(),
             .value = object_nil(),
@@ -79,10 +77,11 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
             .constants = constants
     }, sizeof(VirtualMachine));
 
+    errno_t error_code;
+    guard_is_true(object_reader_try_init(&vm->reader, vm, config.reader_config, &error_code));
+
     allocator_set_roots(allocator, (ObjectAllocator_Roots) {
             .stack = vm->stack,
-            .parser_stack = object_reader_parser_stack(vm->reader),
-            .parser_expr = object_reader_parser_expr(vm->reader),
             .globals = &vm->globals,
             .value = &vm->value,
             .error = &vm->error,
@@ -125,7 +124,7 @@ Stack *vm_stack(VirtualMachine *vm) {
 ObjectReader *vm_reader(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    return vm->reader;
+    return &vm->reader;
 }
 
 Object **vm_value(VirtualMachine *vm) {

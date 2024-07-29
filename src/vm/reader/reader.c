@@ -21,49 +21,47 @@ typedef struct {
     size_t capacity;
 } Lines;
 
-struct ObjectReader {
-    VirtualMachine *vm;
-    Scanner s;
-    Parser p;
-};
-
-ObjectReader *object_reader_new(struct VirtualMachine *vm, Reader_Config config) {
+bool object_reader_try_init(
+        ObjectReader *r,
+        struct VirtualMachine *vm,
+        Reader_Config config,
+        errno_t *error_code
+) {
+    guard_is_not_null(r);
     guard_is_not_null(vm);
 
-    auto const r = (ObjectReader *) guard_succeeds(calloc, (1, sizeof(ObjectReader)));
-    *r = (ObjectReader) {.vm = vm};
-    errno_t error_code;
-    guard_is_true(scanner_try_init(&r->s, config.scanner_config, &error_code));
-    guard_is_true(parser_try_init(&r->p, vm_allocator(vm), config.parser_config, &error_code));
-    return r;
+    auto const a = vm_allocator(vm);
+
+    *r = (ObjectReader) {._vm = vm};
+
+    auto const ok =
+            scanner_try_init(&r->_s, config.scanner_config, error_code)
+            && parser_try_init(&r->_p, a, config.parser_config, error_code);
+    if (false == ok) {
+        object_reader_free(r);
+        return false;
+    }
+
+    allocator_set_roots(a, (ObjectAllocator_Roots) {
+        .parser_stack = &r->_p.exprs_stack,
+        .parser_expr = &r->_p.expr
+    });
+
+    return true;
 }
 
-void object_reader_free(ObjectReader **r) {
+void object_reader_free(ObjectReader *r) {
     guard_is_not_null(r);
-    guard_is_not_null(*r);
 
-    scanner_free(&(*r)->s);
-    parser_free(&(*r)->p);
+    scanner_free(&r->_s);
+    parser_free(&r->_p);
 
-    free(*r);
-    *r = nullptr;
+    *r = (ObjectReader) {0};
 }
 
 void object_reader_reset(ObjectReader *r) {
-    scanner_reset(&r->s);
-    parser_reset(&r->p);
-}
-
-struct Parser_ExpressionsStack const *object_reader_parser_stack(ObjectReader const *r) {
-    guard_is_not_null(r);
-
-    return &r->p.exprs_stack;
-}
-
-Object *const *object_reader_parser_expr(ObjectReader const *r) {
-    guard_is_not_null(r);
-
-    return &r->p.expr;
+    scanner_reset(&r->_s);
+    parser_reset(&r->_p);
 }
 
 static bool try_parse_line(
@@ -85,37 +83,37 @@ static bool try_parse_line(
         }));
 
         SyntaxError syntax_error;
-        if (false == scanner_try_accept(&r->s, char_pos, *it, &syntax_error)) {
+        if (false == scanner_try_accept(&r->_s, char_pos, *it, &syntax_error)) {
             auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
-            syntax_error(r->vm, syntax_error, file_name, erroneous_line);
+            syntax_error(r->_vm, syntax_error, file_name, erroneous_line);
         }
 
-        if (false == r->s.has_token) {
+        if (false == r->_s.has_token) {
             continue;
         }
 
-        switch (parser_try_accept(&r->p, r->s.token, &syntax_error)) {
+        switch (parser_try_accept(&r->_p, r->_s.token, &syntax_error)) {
             case PARSER_OK: {
                 break;
             }
             case PARSER_SYNTAX_ERROR: {
                 auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
-                syntax_error(r->vm, syntax_error, file_name, erroneous_line);
+                syntax_error(r->_vm, syntax_error, file_name, erroneous_line);
             }
             case PARSER_ALLOCATION_ERROR: {
-                out_of_memory_error(r->vm);
+                out_of_memory_error(r->_vm);
             }
         }
 
-        if (false == r->p.has_expr) {
+        if (false == r->_p.has_expr) {
             continue;
         }
 
-        if (object_try_make_cons(vm_allocator(r->vm), r->p.expr, *exprs, exprs)) {
+        if (object_try_make_cons(vm_allocator(r->_vm), r->_p.expr, *exprs, exprs)) {
             continue;
         }
 
-        out_of_memory_error(r->vm);
+        out_of_memory_error(r->_vm);
     }
 
     return true;
@@ -139,12 +137,12 @@ static bool try_prompt(
 
     auto line = (Line) {0};
     auto lines = (Lines) {0};
-    while (slice_empty(line) || string_is_blank(line.data) || parser_is_inside_expression(r->p)) {
+    while (slice_empty(line) || string_is_blank(line.data) || parser_is_inside_expression(r->_p)) {
         printf("%s ", (line.lineno > 0 ? PROMPT_CONTINUE : PROMPT_NEW));
 
         errno_t error_code;
         if (false == line_reader_try_read(line_reader, lines_arena, &line, &error_code)) {
-            os_error(r->vm, error_code);
+            os_error(r->_vm, error_code);
         }
 
         if (nullptr == line.data) {
@@ -152,7 +150,7 @@ static bool try_prompt(
         }
 
         if (false == arena_try_append(lines_arena, &lines, line, &error_code)) {
-            os_error(r->vm, error_code);
+            os_error(r->_vm, error_code);
         }
 
         if (string_is_blank(line.data)) {
@@ -185,7 +183,7 @@ static bool try_read_all(
     while (true) {
         errno_t error_code;
         if (false == line_reader_try_read(line_reader, lines_arena, &line, &error_code)) {
-            os_error(r->vm, error_code);
+            os_error(r->_vm, error_code);
         }
 
         if (nullptr == line.data) {
@@ -193,7 +191,7 @@ static bool try_read_all(
         }
 
         if (false == arena_try_append(lines_arena, &lines, line, &error_code)) {
-            os_error(r->vm, error_code);
+            os_error(r->_vm, error_code);
         }
 
         if (false == try_parse_line(r, file_name, lines, line, exprs)) {
@@ -202,16 +200,16 @@ static bool try_read_all(
     }
 
     SyntaxError syntax_error;
-    switch (parser_try_accept(&r->p, (Token) {.type = TOKEN_EOF}, &syntax_error)) {
+    switch (parser_try_accept(&r->_p, (Token) {.type = TOKEN_EOF}, &syntax_error)) {
         case PARSER_OK: {
             return true;
         }
         case PARSER_SYNTAX_ERROR: {
             auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
-            syntax_error(r->vm, syntax_error, file_name, erroneous_line);
+            syntax_error(r->_vm, syntax_error, file_name, erroneous_line);
         }
         case PARSER_ALLOCATION_ERROR: {
-            out_of_memory_error(r->vm);
+            out_of_memory_error(r->_vm);
         }
     }
 
