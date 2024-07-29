@@ -8,47 +8,27 @@
 #include "vm/stack.h"
 #include "vm/reader/parser.h"
 
-struct ObjectAllocator {
-    Object *objects;
-    Object *freed;
-
-    ObjectAllocator_Roots roots;
-
-    ObjectAllocator_GarbageCollectionMode gc_mode;
-    bool trace;
-    bool no_free;
-    bool gc_is_running;
-    size_t heap_size;
-    size_t hard_limit;
-    size_t soft_limit;
-    double grow_factor;
-};
-
-ObjectAllocator *allocator_new(ObjectAllocator_Config config) {
-    auto const allocator = (ObjectAllocator *) guard_succeeds(calloc, (1, sizeof(ObjectAllocator)));
-    *allocator = (ObjectAllocator) {
-            .soft_limit = config.soft_limit_initial,
-            .hard_limit = config.hard_limit,
-            .grow_factor = config.soft_limit_grow_factor,
-            .gc_mode = config.debug.gc_mode,
-            .trace = config.debug.trace,
-            .no_free = config.debug.no_free
+ObjectAllocator allocator_make(ObjectAllocator_Config config) {
+    return (ObjectAllocator) {
+            ._soft_limit = config.soft_limit_initial,
+            ._hard_limit = config.hard_limit,
+            ._grow_factor = config.soft_limit_grow_factor,
+            ._gc_mode = config.debug.gc_mode,
+            ._trace = config.debug.trace,
+            ._no_free = config.debug.no_free
     };
-    return allocator;
 }
 
-void allocator_free(ObjectAllocator **a) {
+void allocator_free(ObjectAllocator *a) {
     guard_is_not_null(a);
-    guard_is_not_null(*a);
 
-    for (auto it = (*a)->objects; nullptr != it;) {
+    for (auto it = a->_objects; nullptr != it;) {
         auto const next = it->next;
         free(it);
         it = next;
     }
 
-    free(*a);
-    *a = nullptr;
+    *a = (ObjectAllocator) {0};
 }
 
 #define update_root(Dst, Src, Member) ((Dst).Member = pointer_first_nonnull((Dst).Member, (Src).Member))
@@ -56,14 +36,14 @@ void allocator_free(ObjectAllocator **a) {
 void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots) {
     guard_is_not_null(a);
 
-    update_root(a->roots, roots, stack);
-    update_root(a->roots, roots, parser_stack);
-    update_root(a->roots, roots, parser_expr);
-    update_root(a->roots, roots, globals);
-    update_root(a->roots, roots, value);
-    update_root(a->roots, roots, error);
-    update_root(a->roots, roots, exprs);
-    update_root(a->roots, roots, constants);
+    update_root(a->_roots, roots, stack);
+    update_root(a->_roots, roots, parser_stack);
+    update_root(a->_roots, roots, parser_expr);
+    update_root(a->_roots, roots, globals);
+    update_root(a->_roots, roots, value);
+    update_root(a->_roots, roots, error);
+    update_root(a->_roots, roots, exprs);
+    update_root(a->_roots, roots, constants);
 }
 
 static void mark_gray(Objects *gray, Object *obj) {
@@ -137,7 +117,7 @@ static void mark(ObjectAllocator *a) {
     // TODO do not allocate new memory, move gray objects to the beginning of the objects list
     auto gray = (Objects) {0};
 
-    stack_for_reversed(frame, *a->roots.stack) {
+    stack_for_reversed(frame, *a->_roots.stack) {
         mark_gray_if_white(&gray, frame->expr);
         mark_gray_if_white(&gray, frame->env);
         mark_gray_if_white(&gray, frame->unevaluated);
@@ -151,17 +131,17 @@ static void mark(ObjectAllocator *a) {
         }
     }
 
-    slice_for(it, *a->roots.parser_stack) {
+    slice_for(it, *a->_roots.parser_stack) {
         mark_gray_if_white(&gray, it->last);
     }
 
-    mark_gray_if_white(&gray, *a->roots.parser_expr);
-    mark_gray_if_white(&gray, *a->roots.globals);
-    mark_gray_if_white(&gray, *a->roots.value);
-    mark_gray_if_white(&gray, *a->roots.error);
-    mark_gray_if_white(&gray, *a->roots.exprs);
+    mark_gray_if_white(&gray, *a->_roots.parser_expr);
+    mark_gray_if_white(&gray, *a->_roots.globals);
+    mark_gray_if_white(&gray, *a->_roots.value);
+    mark_gray_if_white(&gray, *a->_roots.error);
+    mark_gray_if_white(&gray, *a->_roots.exprs);
 
-    slice_for(it, *a->roots.constants) {
+    slice_for(it, *a->_roots.constants) {
         mark_gray_if_white(&gray, *it);
     }
 
@@ -178,7 +158,7 @@ static void sweep(ObjectAllocator *a) {
     guard_is_not_null(a);
 
     Object *prev = nullptr;
-    for (auto it = a->objects; nullptr != it;) {
+    for (auto it = a->_objects; nullptr != it;) {
         if (OBJECT_BLACK == it->color) {
             it->color = OBJECT_WHITE;
             prev = exchange(it, it->next);
@@ -189,15 +169,15 @@ static void sweep(ObjectAllocator *a) {
         guard_is_equal(unreached->color, OBJECT_WHITE);
 
         if (nullptr == prev) {
-            a->objects = it;
+            a->_objects = it;
         } else {
             prev->next = it;
         }
 
-        unreached->next = exchange(a->freed, unreached);
-        a->heap_size -= unreached->size;
+        unreached->next = exchange(a->_freed, unreached);
+        a->_heap_size -= unreached->size;
 
-        if (a->no_free) {
+        if (a->_no_free) {
             unreached->type = TYPE_FREED;
         } else {
             free(unreached);
@@ -207,7 +187,7 @@ static void sweep(ObjectAllocator *a) {
 
 static size_t count_objects(ObjectAllocator *a) {
     size_t count = 0;
-    for (auto it = a->objects; nullptr != it; it = it->next) {
+    for (auto it = a->_objects; nullptr != it; it = it->next) {
         count++;
     }
 
@@ -216,45 +196,45 @@ static size_t count_objects(ObjectAllocator *a) {
 
 static void collect_garbage(ObjectAllocator *a) {
     guard_is_not_null(a);
-    guard_is_false(a->gc_is_running);
+    guard_is_false(a->_gc_is_running);
 
-    a->gc_is_running = true;
+    a->_gc_is_running = true;
 
-    auto const heap_size_initial = a->heap_size;
+    auto const heap_size_initial = a->_heap_size;
     size_t count_initial, count_final;
 
-    if (a->trace) {
+    if (a->_trace) {
         count_initial = count_objects(a);
     }
 
     mark(a);
     sweep(a);
 
-    if (a->trace && (count_final = count_objects(a)) < count_initial) {
+    if (a->_trace && (count_final = count_objects(a)) < count_initial) {
         printf(
                 "GC: freed %zu objects (%zu bytes total)\n",
-                count_initial - count_final, heap_size_initial - a->heap_size
+                count_initial - count_final, heap_size_initial - a->_heap_size
         );
     }
 
-    a->gc_is_running = false;
+    a->_gc_is_running = false;
 }
 
 static void adjust_soft_limit(ObjectAllocator *a, size_t size) {
     guard_is_not_null(a);
 
-    a->soft_limit = min(size + a->soft_limit * a->grow_factor, a->hard_limit);
+    a->_soft_limit = min(size + a->_soft_limit * a->_grow_factor, a->_hard_limit);
 }
 
 static bool all_roots_set(ObjectAllocator const *a) {
-    return nullptr != a->roots.stack
-           && nullptr != a->roots.parser_stack
-           && nullptr != a->roots.parser_expr
-           && nullptr != a->roots.globals
-           && nullptr != a->roots.value
-           && nullptr != a->roots.error
-           && nullptr != a->roots.exprs
-           && nullptr != a->roots.constants;
+    return nullptr != a->_roots.stack
+           && nullptr != a->_roots.parser_stack
+           && nullptr != a->_roots.parser_expr
+           && nullptr != a->_roots.globals
+           && nullptr != a->_roots.value
+           && nullptr != a->_roots.error
+           && nullptr != a->_roots.exprs
+           && nullptr != a->_roots.constants;
 }
 
 bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
@@ -263,21 +243,21 @@ bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
     guard_is_true(all_roots_set(a));
 
     auto const should_collect =
-            ALLOCATOR_NEVER_GC != a->gc_mode
-            && (ALLOCATOR_ALWAYS_GC == a->gc_mode || a->heap_size + size >= a->soft_limit);
+            ALLOCATOR_NEVER_GC != a->_gc_mode
+            && (ALLOCATOR_ALWAYS_GC == a->_gc_mode || a->_heap_size + size >= a->_soft_limit);
     if (should_collect) {
         collect_garbage(a);
         adjust_soft_limit(a, size);
     }
 
-    if (a->heap_size + size >= a->hard_limit) {
+    if (a->_heap_size + size >= a->_hard_limit) {
         return false;
     }
 
     auto const new_obj = (Object *) guard_succeeds(calloc, (size, 1));
-    new_obj->next = exchange(a->objects, new_obj);
+    new_obj->next = exchange(a->_objects, new_obj);
     new_obj->size = size;
-    a->heap_size += size;
+    a->_heap_size += size;
     *obj = new_obj;
 
     return true;
@@ -285,12 +265,12 @@ bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
 
 void allocator_print_statistics(ObjectAllocator const *a, FILE *file) {
     size_t objects = 0;
-    for (auto it = a->objects; nullptr != it; it = it->next) {
+    for (auto it = a->_objects; nullptr != it; it = it->next) {
         objects++;
     }
 
     fprintf(file, "Heap usage:\n");
     fprintf(file, "          Objects: %zu\n", objects);
-    fprintf(file, "        Heap size: %zu bytes\n", a->heap_size);
-    fprintf(file, "  Heap size limit: %zu bytes\n", a->hard_limit);
+    fprintf(file, "        Heap size: %zu bytes\n", a->_heap_size);
+    fprintf(file, "  Heap size limit: %zu bytes\n", a->_hard_limit);
 }

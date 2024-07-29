@@ -12,7 +12,7 @@
 struct VirtualMachine {
     Stack stack;
     ObjectReader reader;
-    ObjectAllocator *allocator;
+    ObjectAllocator allocator;
 
     Object *globals;
     Object *value;
@@ -54,9 +54,6 @@ static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
 VirtualMachine *vm_new(VirtualMachine_Config config) {
     auto const vm = (VirtualMachine *) guard_succeeds(calloc, (1, sizeof(VirtualMachine)));
 
-    auto const allocator = allocator_new(config.allocator_config);
-    vm->allocator = allocator;
-
     auto const constants = (Objects) {
             .data = (Object **) guard_succeeds(calloc, (STATIC_CONSTANTS_COUNT, sizeof(Object *))),
             .count = STATIC_CONSTANTS_COUNT,
@@ -66,7 +63,7 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
     }
 
     *vm = (VirtualMachine) {
-            .allocator = allocator,
+            .allocator = allocator_make(config.allocator_config),
             .globals = object_nil(),
             .value = object_nil(),
             .error = object_nil(),
@@ -78,7 +75,7 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
     guard_is_true(stack_try_init(&vm->stack, config.stack_config, &error_code));
     guard_is_true(object_reader_try_init(&vm->reader, vm, config.reader_config, &error_code));
 
-    allocator_set_roots(allocator, (ObjectAllocator_Roots) {
+    allocator_set_roots(&vm->allocator, (ObjectAllocator_Roots) {
             .stack = &vm->stack,
             .globals = &vm->globals,
             .value = &vm->value,
@@ -87,10 +84,10 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
             .constants = &vm->constants
     });
 
-    guard_is_true(try_init_static_constants(allocator, &vm->constants));
-    guard_is_true(env_try_create(vm->allocator, object_nil(), &vm->globals));
+    guard_is_true(try_init_static_constants(&vm->allocator, &vm->constants));
+    guard_is_true(env_try_create(&vm->allocator, object_nil(), &vm->globals));
     guard_is_true(try_define_constants(vm, vm->globals));
-    guard_is_true(try_define_primitives(vm->allocator, vm->globals));
+    guard_is_true(try_define_primitives(&vm->allocator, vm->globals));
 
     return vm;
 }
@@ -109,7 +106,7 @@ void vm_free(VirtualMachine **vm) {
 ObjectAllocator *vm_allocator(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    return vm->allocator;
+    return &vm->allocator;
 }
 
 Stack *vm_stack(VirtualMachine *vm) {
