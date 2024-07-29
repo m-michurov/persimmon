@@ -464,13 +464,3 @@ void scanner_reset(Scanner *s) {
     clear(s);
     s->_state = SCANNER_WS;
 }
-
-Token const *scanner_peek(Scanner const *s) {
-    guard_is_not_null(s);
-
-    if (false == s->has_token) {
-        return nullptr;
-    }
-
-    return &s->token;
-}

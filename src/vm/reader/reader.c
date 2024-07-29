@@ -92,12 +92,11 @@ static bool try_parse_line(
             syntax_error(r->vm, syntax_error, file_name, erroneous_line);
         }
 
-        auto token = scanner_peek(&r->s);
-        if (nullptr == token) {
+        if (false == r->s.has_token) {
             continue;
         }
 
-        switch (parser_try_accept(r->p, *token, &syntax_error)) {
+        switch (parser_try_accept(r->p, r->s.token, &syntax_error)) {
             case PARSER_OK: {
                 break;
             }

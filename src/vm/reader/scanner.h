@@ -60,5 +60,3 @@ void scanner_reset(Scanner *s);
 
 [[nodiscard]]
 bool scanner_try_accept(Scanner *s, Position pos, int c, SyntaxError *error);
-
-Token const *scanner_peek(Scanner const *s);
