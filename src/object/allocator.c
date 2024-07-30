@@ -254,10 +254,15 @@ bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
         return false;
     }
 
-    auto const new_obj = (Object *) guard_succeeds(calloc, (size, 1));
+    auto const new_obj = (Object *) calloc(size, 1);
+    if (nullptr == new_obj) {
+        return false;
+    }
+
     new_obj->next = exchange(a->_objects, new_obj);
     new_obj->size = size;
     a->_heap_size += size;
+
     *obj = new_obj;
 
     return true;
