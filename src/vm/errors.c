@@ -270,7 +270,7 @@ void create_syntax_error(
     auto const default_error = vm_get(vm, STATIC_SYNTAX_ERROR_DEFAULT);
     auto const error_type = object_as_cons(default_error).first;
 
-    size_t const capacity = MESSAGE_MIN_CAPACITY + strlen(text);
+    size_t const capacity = MESSAGE_MIN_CAPACITY + 2 * strlen(text);
     char *message = calloc(capacity, sizeof(char));
     if (nullptr == message) {
         *vm_error(vm) = default_error;
