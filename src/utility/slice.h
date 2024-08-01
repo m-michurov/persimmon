@@ -71,7 +71,7 @@ do {                                                \
 
 #define slice_last(Slice)               \
 ({                                      \
-    auto const _slice = (Slice);        \
+    typeof(Slice) _slice = (Slice);     \
     guard_is_greater(_slice.count, 0);  \
     &_slice.data[_slice.count - 1];     \
 })
