@@ -40,10 +40,14 @@ void parser_reset(Parser *p);
 bool parser_is_inside_expression(Parser p);
 
 typedef enum {
-    PARSER_OK,
     PARSER_SYNTAX_ERROR,
     PARSER_ALLOCATION_ERROR
-} Parser_Result;
+} Parser_ErrorType;
+
+typedef struct {
+    Parser_ErrorType type;
+    SyntaxError as_syntax_error;
+} Parser_Error;
 
 [[nodiscard]]
-Parser_Result parser_try_accept(Parser *p, Token token, SyntaxError *syntax_error);
+bool parser_try_accept(Parser *p, Token token, Parser_Error *error);

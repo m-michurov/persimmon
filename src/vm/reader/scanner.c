@@ -173,8 +173,7 @@ static bool any_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
 
     *error = (SyntaxError) {
             .code = SYNTAX_ERROR_INVALID_CHARACTER,
-            .pos = pos,
-            .bad_chr = c
+            .pos = pos
     };
     scanner_reset(s);
     return false;
@@ -188,8 +187,7 @@ static bool int_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
         if (0 == s->_int_value) {
             *error = (SyntaxError) {
                     .code = SYNTAX_ERROR_INTEGER_LEADING_ZERO,
-                    .pos = {.lineno = pos.lineno, s->_token_pos.col, pos.end_col},
-                    .bad_chr = c
+                    .pos = {.lineno = pos.lineno, s->_token_pos.col, pos.end_col}
             };
             scanner_reset(s);
             return false;
@@ -199,8 +197,7 @@ static bool int_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
         if (false == try_add_digit(s->_int_value, digit, &s->_int_value)) {
             *error = (SyntaxError) {
                     .code = SYNTAX_ERROR_INTEGER_TOO_LARGE,
-                    .pos = {.lineno = pos.lineno, s->_token_pos.col, pos.end_col},
-                    .bad_chr = c
+                    .pos = {.lineno = pos.lineno, s->_token_pos.col, pos.end_col}
             };
             scanner_reset(s);
             return false;
@@ -231,8 +228,7 @@ static bool int_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
 
     *error = (SyntaxError) {
             .code = SYNTAX_ERROR_INTEGER_INVALID,
-            .pos = {.lineno = pos.lineno, s->_token_pos.col, pos.end_col},
-            .bad_chr = c
+            .pos = {.lineno = pos.lineno, s->_token_pos.col, pos.end_col}
     };
     scanner_reset(s);
     return false;
@@ -260,8 +256,7 @@ static bool string_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
 
         *error = (SyntaxError) {
                 .code = SYNTAX_ERROR_STRING_UNKNOWN_ESCAPE_SEQUENCE,
-                .pos = {.lineno = pos.lineno, .col = pos.col - 1, .end_col = pos.end_col},
-                .bad_chr = c
+                .pos = {.lineno = pos.lineno, .col = pos.col - 1, .end_col = pos.end_col}
         };
         scanner_reset(s);
         return false;
@@ -295,8 +290,7 @@ static bool string_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
     if (is_newline(c)) {
         *error = (SyntaxError) {
                 .code = SYNTAX_ERROR_STRING_UNTERMINATED,
-                .pos = pos,
-                .bad_chr = c
+                .pos = pos
         };
         scanner_reset(s);
         return false;
@@ -309,8 +303,7 @@ static bool string_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
 
     *error = (SyntaxError) {
             .code = SYNTAX_ERROR_INVALID_CHARACTER,
-            .pos = pos,
-            .bad_chr = c
+            .pos = pos
     };
     scanner_reset(s);
     return false;
@@ -324,8 +317,7 @@ static bool name_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
         if (0 == digit) {
             *error = (SyntaxError) {
                     .code = SYNTAX_ERROR_INTEGER_LEADING_ZERO,
-                    .pos = {.lineno = pos.lineno, .col = s->_token_pos.col, .end_col = pos.end_col},
-                    .bad_chr = c
+                    .pos = {.lineno = pos.lineno, .col = s->_token_pos.col, .end_col = pos.end_col}
             };
             scanner_reset(s);
             return false;
@@ -381,8 +373,7 @@ static bool name_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
 
     *error = (SyntaxError) {
             .code = SYNTAX_ERROR_INVALID_CHARACTER,
-            .pos = pos,
-            .bad_chr = c
+            .pos = pos
     };
     scanner_reset(s);
     return false;
@@ -403,8 +394,7 @@ static bool comment_accept(Scanner *s, Position pos, int c, SyntaxError *error) 
 
     *error = (SyntaxError) {
             .code = SYNTAX_ERROR_INVALID_CHARACTER,
-            .pos = pos,
-            .bad_chr = c
+            .pos = pos
     };
     scanner_reset(s);
     return false;

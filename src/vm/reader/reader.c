@@ -43,8 +43,8 @@ bool object_reader_try_init(
     }
 
     allocator_set_roots(a, (ObjectAllocator_Roots) {
-        .parser_stack = &r->_p.exprs_stack,
-        .parser_expr = &r->_p.expr
+            .parser_stack = &r->_p.exprs_stack,
+            .parser_expr = &r->_p.expr
     });
 
     return true;
@@ -92,17 +92,19 @@ static bool try_parse_line(
             continue;
         }
 
-        switch (parser_try_accept(&r->_p, r->_s.token, &syntax_error)) {
-            case PARSER_OK: {
-                break;
+        Parser_Error parser_error;
+        if (false == parser_try_accept(&r->_p, r->_s.token, &parser_error)) {
+            switch (parser_error.type) {
+                case PARSER_SYNTAX_ERROR: {
+                    auto const erroneous_line = slice_at(lines, parser_error.as_syntax_error.pos.lineno - 1)->data;
+                    syntax_error(r->_vm, parser_error.as_syntax_error, file_name, erroneous_line);
+                }
+                case PARSER_ALLOCATION_ERROR: {
+                    out_of_memory_error(r->_vm);
+                }
             }
-            case PARSER_SYNTAX_ERROR: {
-                auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
-                syntax_error(r->_vm, syntax_error, file_name, erroneous_line);
-            }
-            case PARSER_ALLOCATION_ERROR: {
-                out_of_memory_error(r->_vm);
-            }
+
+            guard_unreachable();
         }
 
         if (false == r->_p.has_expr) {
@@ -199,21 +201,22 @@ static bool try_read_all(
         }
     }
 
-    SyntaxError syntax_error;
-    switch (parser_try_accept(&r->_p, (Token) {.type = TOKEN_EOF}, &syntax_error)) {
-        case PARSER_OK: {
-            return true;
+    Parser_Error parser_error;
+    if (false == parser_try_accept(&r->_p, (Token) {.type = TOKEN_EOF}, &parser_error)) {
+        switch (parser_error.type) {
+            case PARSER_SYNTAX_ERROR: {
+                auto const erroneous_line = slice_at(lines, parser_error.as_syntax_error.pos.lineno - 1)->data;
+                syntax_error(r->_vm, parser_error.as_syntax_error, file_name, erroneous_line);
+            }
+            case PARSER_ALLOCATION_ERROR: {
+                out_of_memory_error(r->_vm);
+            }
         }
-        case PARSER_SYNTAX_ERROR: {
-            auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
-            syntax_error(r->_vm, syntax_error, file_name, erroneous_line);
-        }
-        case PARSER_ALLOCATION_ERROR: {
-            out_of_memory_error(r->_vm);
-        }
+
+        guard_unreachable();
     }
 
-    guard_unreachable();
+    return true;
 }
 
 static bool reader_call(

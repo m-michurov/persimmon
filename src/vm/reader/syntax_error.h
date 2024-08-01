@@ -23,6 +23,5 @@ char const *syntax_error_str(SyntaxError_Code error_type);
 typedef struct {
     SyntaxError_Code code;
     Position pos;
-    int bad_chr;
 } SyntaxError;
 
