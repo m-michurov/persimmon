@@ -59,9 +59,10 @@ bool line_reader_try_read(LineReader *r, Arena *a, Line *line, errno_t *error_co
         return false;
     }
 
+    r->_lineno++;
+
     line->count = r->_sb.length;
     line->lineno = r->_lineno;
 
-    r->_lineno++;
     return true;
 }
