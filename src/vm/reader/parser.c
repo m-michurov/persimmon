@@ -42,7 +42,7 @@ void parser_reset(Parser *p) {
 }
 
 bool parser_is_inside_expression(Parser p) {
-    return p.has_expr || false == slice_empty(p.exprs_stack);
+    return false == slice_empty(p.exprs_stack);
 }
 
 #define parser_syntax_error(ErrorCode, Pos, Error)  \
