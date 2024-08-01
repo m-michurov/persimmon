@@ -12,7 +12,6 @@ bool env_try_create(ObjectAllocator *a, Object *base_env, Object **env) {
     return object_try_make_cons(a, object_nil(), base_env, env);
 }
 
-// TODO find and update existing binding
 bool env_try_define(ObjectAllocator *a, Object *env, Object *name, Object *value, Object **binding) {
     guard_is_not_null(a);
     guard_is_not_null(env);
@@ -21,6 +20,15 @@ bool env_try_define(ObjectAllocator *a, Object *env, Object *name, Object *value
     guard_is_equal(env->type, TYPE_CONS);
 
     auto const current_env = &env->as_cons.first;
+    object_list_for(it, *current_env) {
+        if (false == object_equals(name, *object_list_nth(0, it))) {
+            continue;
+        }
+
+        *object_list_nth(1, it) = value;
+        return true;
+    }
+
     if (false == object_list_try_prepend(a, object_nil(), current_env)) {
         return false;
     }
