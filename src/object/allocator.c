@@ -46,29 +46,34 @@ void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots) {
     update_root(a->_roots, roots, constants);
 }
 
-static void mark_gray(Objects *gray, Object *obj) {
+[[nodiscard]]
+static bool try_mark_gray(Objects *gray, Object *obj) {
     guard_is_not_null(gray);
     guard_is_not_null(obj);
     guard_is_equal(obj->color, OBJECT_WHITE);
 
-    // TODO do not use heap memory
-    guard_is_true(da_try_append(gray, obj));
+    if (false == da_try_append(gray, obj)) {
+        return false;
+    }
+
     obj->color = OBJECT_GRAY;
+    return true;
 }
 
 #define TYPE_FREED 12345
 
-static void mark_gray_if_white(Objects *gray, Object *obj) {
+[[nodiscard]]
+static bool try_mark_gray_if_white(Objects *gray, Object *obj) {
     guard_is_not_null(gray);
     guard_is_not_null(obj);
 
     guard_is_not_equal((int) obj->type, TYPE_FREED);
 
     if (OBJECT_WHITE != obj->color) {
-        return;
+        return true;
     }
 
-    mark_gray(gray, obj);
+    return try_mark_gray(gray, obj);
 }
 
 static void mark_black(Object *obj) {
@@ -76,7 +81,8 @@ static void mark_black(Object *obj) {
     obj->color = OBJECT_BLACK;
 }
 
-static void mark_children(Objects *gray, Object *obj) {
+[[nodiscard]]
+static bool try_mark_children(Objects *gray, Object *obj) {
     guard_is_not_null(gray);
     guard_is_not_null(obj);
     guard_is_equal(obj->color, OBJECT_GRAY);
@@ -88,70 +94,95 @@ static void mark_children(Objects *gray, Object *obj) {
         case TYPE_NIL:
         case TYPE_PRIMITIVE: {
             mark_black(obj);
-            return;
+            return true;
         }
         case TYPE_CONS: {
-            mark_gray_if_white(gray, obj->as_cons.first);
-            mark_gray_if_white(gray, obj->as_cons.rest);
-
             mark_black(obj);
-            return;
+
+            return try_mark_gray_if_white(gray, obj->as_cons.first)
+                   && try_mark_gray_if_white(gray, obj->as_cons.rest);
         }
         case TYPE_CLOSURE:
         case TYPE_MACRO: {
-            mark_gray_if_white(gray, obj->as_closure.args);
-            mark_gray_if_white(gray, obj->as_closure.env);
-            mark_gray_if_white(gray, obj->as_closure.body);
-
             mark_black(obj);
-            return;
+
+            return try_mark_gray_if_white(gray, obj->as_closure.args)
+                   && try_mark_gray_if_white(gray, obj->as_closure.env)
+                   && try_mark_gray_if_white(gray, obj->as_closure.body);
         }
     }
 
     guard_unreachable();
 }
 
-static void mark(ObjectAllocator *a) {
+[[nodiscard]]
+static bool try_mark_(ObjectAllocator *a, Objects *gray) {
     guard_is_not_null(a);
+    guard_is_not_null(gray);
 
-    // TODO do not allocate new memory, move gray objects to the beginning of the objects list
-    auto gray = (Objects) {0};
+    slice_clear(gray);
 
     stack_for_reversed(frame, *a->_roots.stack) {
-        mark_gray_if_white(&gray, frame->expr);
-        mark_gray_if_white(&gray, frame->env);
-        mark_gray_if_white(&gray, frame->unevaluated);
-        mark_gray_if_white(&gray, frame->evaluated);
+        auto const ok =
+                try_mark_gray_if_white(gray, frame->expr)
+                && try_mark_gray_if_white(gray, frame->env)
+                && try_mark_gray_if_white(gray, frame->unevaluated)
+                && try_mark_gray_if_white(gray, frame->evaluated);
+        if (false == ok) {
+            return false;
+        }
         if (nullptr != frame->results_list) {
-            mark_gray_if_white(&gray, *frame->results_list);
+            if (false == try_mark_gray_if_white(gray, *frame->results_list)) {
+                return false;
+            }
         }
 
         slice_for(it, frame_locals(frame)) {
-            mark_gray_if_white(&gray, *it);
+            if (false == try_mark_gray_if_white(gray, *it)) {
+                return false;
+            }
         }
     }
 
     slice_for(it, *a->_roots.parser_stack) {
-        mark_gray_if_white(&gray, it->last);
+        if (false == try_mark_gray_if_white(gray, it->last)) {
+            return false;
+        }
     }
 
-    mark_gray_if_white(&gray, *a->_roots.parser_expr);
-    mark_gray_if_white(&gray, *a->_roots.globals);
-    mark_gray_if_white(&gray, *a->_roots.value);
-    mark_gray_if_white(&gray, *a->_roots.error);
-    mark_gray_if_white(&gray, *a->_roots.exprs);
+    auto const ok =
+            try_mark_gray_if_white(gray, *a->_roots.parser_expr)
+            && try_mark_gray_if_white(gray, *a->_roots.globals)
+            && try_mark_gray_if_white(gray, *a->_roots.value)
+            && try_mark_gray_if_white(gray, *a->_roots.error)
+            && try_mark_gray_if_white(gray, *a->_roots.exprs);
+    if (false == ok) {
+        return false;
+    }
 
     slice_for(it, *a->_roots.constants) {
-        mark_gray_if_white(&gray, *it);
+        if (false == try_mark_gray_if_white(gray, *it)) {
+            return false;
+        }
     }
 
     Object *obj;
-    while (slice_try_pop(&gray, &obj)) {
-        mark_children(&gray, obj);
+    while (slice_try_pop(gray, &obj)) {
+        if (false == try_mark_children(gray, obj)) {
+            return false;
+        }
     }
-    guard_is_true(slice_empty(gray));
+    guard_is_true(slice_empty(*gray));
 
+    return true;
+}
+
+[[nodiscard]]
+static bool try_mark(ObjectAllocator *a) {
+    auto gray = (Objects) {0};
+    auto const ok = try_mark_(a, &gray);
     da_free(&gray);
+    return ok;
 }
 
 static void sweep(ObjectAllocator *a) {
@@ -194,7 +225,8 @@ static size_t count_objects(ObjectAllocator *a) {
     return count;
 }
 
-static void collect_garbage(ObjectAllocator *a) {
+[[nodiscard]]
+static bool try_collect_garbage(ObjectAllocator *a) {
     guard_is_not_null(a);
     guard_is_false(a->_gc_is_running);
 
@@ -207,7 +239,9 @@ static void collect_garbage(ObjectAllocator *a) {
         count_initial = count_objects(a);
     }
 
-    mark(a);
+    if (false == try_mark(a)) {
+        return false;
+    }
     sweep(a);
 
     if (a->_trace && (count_final = count_objects(a)) < count_initial) {
@@ -218,6 +252,7 @@ static void collect_garbage(ObjectAllocator *a) {
     }
 
     a->_gc_is_running = false;
+    return true;
 }
 
 static void adjust_soft_limit(ObjectAllocator *a, size_t size) {
@@ -246,7 +281,9 @@ bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
             ALLOCATOR_NEVER_GC != a->_gc_mode
             && (ALLOCATOR_ALWAYS_GC == a->_gc_mode || a->_heap_size + size >= a->_soft_limit);
     if (should_collect) {
-        collect_garbage(a);
+        if (false == try_collect_garbage(a)) {
+            return false;
+        }
         adjust_soft_limit(a, size);
     }
 
