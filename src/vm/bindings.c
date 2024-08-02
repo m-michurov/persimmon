@@ -7,7 +7,7 @@ static bool is_dot(Object *obj) {
     return TYPE_ATOM == obj->type && 0 == strcmp(".", obj->as_atom);
 }
 
-bool binding_is_valid_target(Object *target, Binding_TargetError *error) {
+bool binding_is_valid_target(Object *target, BindingTargetError *error) {
     guard_is_not_null(target);
 
     switch (target->type) {
@@ -21,7 +21,7 @@ bool binding_is_valid_target(Object *target, Binding_TargetError *error) {
                 auto const it = object_list_shift(&target);
 
                 if (is_varargs && (TYPE_ATOM != it->type || object_nil() != target)) {
-                    *error = (Binding_TargetError) {
+                    *error = (BindingTargetError) {
                             .type = BINDING_INVALID_VARIADIC_SYNTAX
                     };
                     return false;
@@ -46,7 +46,7 @@ bool binding_is_valid_target(Object *target, Binding_TargetError *error) {
         case TYPE_PRIMITIVE:
         case TYPE_CLOSURE:
         case TYPE_MACRO: {
-            *error = (Binding_TargetError) {
+            *error = (BindingTargetError) {
                     .type = BINDING_INVALID_TARGET_TYPE,
                     .as_invalid_target = {
                             .target_type = target->type
@@ -86,7 +86,7 @@ static TargetsCount count_targets(Object *target) {
     return result;
 }
 
-static bool is_valid_value(Object *target, Object *value, Binding_ValueError *error) {
+static bool is_valid_value(Object *target, Object *value, BindingValueError *error) {
     guard_is_not_null(target);
     guard_is_not_null(value);
     guard_is_not_null(error);
@@ -95,7 +95,7 @@ static bool is_valid_value(Object *target, Object *value, Binding_ValueError *er
         case TYPE_NIL:
         case TYPE_CONS: {
             if (TYPE_CONS != value->type && TYPE_NIL != value->type) {
-                *error = (Binding_ValueError) {
+                *error = (BindingValueError) {
                         .type = BINDING_CANNOT_UNPACK_VALUE,
                         .as_cannot_unpack = {
                                 .value_type = value->type
@@ -108,7 +108,7 @@ static bool is_valid_value(Object *target, Object *value, Binding_ValueError *er
             auto const values_count = object_list_count(value);
             if ((values_count < targets.count && targets.is_variadic) ||
                 (targets.count != values_count && false == targets.is_variadic)) {
-                *error = (Binding_ValueError) {
+                *error = (BindingValueError) {
                         .type = BINDING_VALUES_COUNT_MISMATCH,
                         .as_count_mismatch = {
                                 .expected = targets.count,
@@ -200,30 +200,35 @@ static bool env_try_bind_(ObjectAllocator *a, Object *env, Object *target, Objec
     guard_unreachable();
 }
 
-bool binding_try_create(ObjectAllocator *a, Object *env, Object *target, Object *value, Binding_Error *error) {
+bool binding_try_create(ObjectAllocator *a, Object *env, Object *target, Object *value, BindingError *error) {
     guard_is_not_null(a);
     guard_is_not_null(env);
     guard_is_not_null(target);
     guard_is_not_null(value);
     guard_is_not_null(error);
 
-    Binding_TargetError target_error;
+    BindingTargetError target_error;
     if (false == binding_is_valid_target(target, &target_error)) {
-        *error = (Binding_Error) {
+        *error = (BindingError) {
                 .type = BINDING_INVALID_TARGET,
                 .as_target_error = target_error
         };
         return false;
     }
 
-    Binding_ValueError value_error;
+    BindingValueError value_error;
     if (false == is_valid_value(target, value, &value_error)) {
-        *error = (Binding_Error) {
+        *error = (BindingError) {
                 .type = BINDING_INVALID_VALUE,
                 .as_value_error = value_error
         };
         return false;
     }
 
-    return env_try_bind_(a, env, target, value);
+    if (env_try_bind_(a, env, target, value)) {
+        return true;
+    }
+
+    *error = (BindingError) {.type = BINDING_ALLOCATION_FAILED};
+    return false;
 }

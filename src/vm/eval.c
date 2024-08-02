@@ -211,7 +211,7 @@ static bool try_step_call(VirtualMachine *vm) {
             out_of_memory_error(vm);
         }
 
-        Binding_Error error;
+        BindingError error;
         if (false == binding_try_create(vm_allocator(vm), *arg_bindings, formal_args, actual_args, &error)) {
             binding_error(vm, error);
         }
@@ -308,7 +308,7 @@ static bool try_step_call(VirtualMachine *vm) {
         out_of_memory_error(vm);
     }
 
-    Binding_Error error;
+    BindingError error;
     if (false == binding_try_create(vm_allocator(vm), *arg_bindings, formal_args, actual_args, &error)) {
         binding_error(vm, error);
     }
@@ -316,7 +316,7 @@ static bool try_step_call(VirtualMachine *vm) {
     return try_begin_eval(vm, EVAL_FRAME_REMOVE, *arg_bindings, fn->as_closure.body, frame->results_list);
 }
 
-static bool is_parameters_declaration_valid(Object *args, Binding_TargetError *error) {
+static bool is_parameters_declaration_valid(Object *args, BindingTargetError *error) {
     return (TYPE_CONS == args->type || TYPE_NIL == args->type)
            && binding_is_valid_target(args, error);
 }
@@ -335,7 +335,7 @@ static bool try_step_macro_or_fn(VirtualMachine *vm) {
     }
 
     auto const args = object_as_cons(frame->unevaluated).first;
-    Binding_TargetError error;
+    BindingTargetError error;
     if (false == is_parameters_declaration_valid(args, &error)) {
         parameters_declaration_error(vm, error);
     }
@@ -459,7 +459,7 @@ static bool try_step_define(VirtualMachine *vm) {
     auto const target = object_as_cons(frame->unevaluated).first;
     auto const value = object_as_cons(frame->evaluated).first;
 
-    Binding_Error error;
+    BindingError error;
     if (false == binding_try_create(vm_allocator(vm), frame->env, target, value, &error)) {
         binding_error(vm, error);
     }

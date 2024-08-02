@@ -501,7 +501,7 @@ void create_args_count_error(VirtualMachine *vm, char const *name, size_t expect
     create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
 }
 
-void create_parameters_declaration_error(VirtualMachine *vm, Binding_TargetError error) {
+void create_parameters_declaration_error(VirtualMachine *vm, BindingTargetError error) {
     char message[MESSAGE_MIN_CAPACITY] = {0};
     auto capacity = sizeof(message);
     auto buf = message;
@@ -674,7 +674,7 @@ static void create_binding_variadic_syntax_error(VirtualMachine *vm) {
     );
 }
 
-void create_binding_error(VirtualMachine *vm, Binding_Error error) {
+void create_binding_error(VirtualMachine *vm, BindingError error) {
     guard_is_not_null(vm);
 
     switch (error.type) {

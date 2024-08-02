@@ -5,27 +5,25 @@
 typedef enum {
     BINDING_INVALID_TARGET_TYPE,
     BINDING_INVALID_VARIADIC_SYNTAX,
-} Binding_TargetErrorType;
+} BindingTargetError_Type;
 
 typedef struct {
-    Binding_TargetErrorType type;
+    BindingTargetError_Type type;
 
-    union {
-        struct {
-            Object_Type target_type;
-        } as_invalid_target;
-    };
-} Binding_TargetError;
+    struct {
+        Object_Type target_type;
+    } as_invalid_target;
+} BindingTargetError;
 
-bool binding_is_valid_target(Object *target, Binding_TargetError *error);
+bool binding_is_valid_target(Object *target, BindingTargetError *error);
 
 typedef enum {
     BINDING_VALUES_COUNT_MISMATCH,
     BINDING_CANNOT_UNPACK_VALUE,
-} Binding_ValueErrorType;
+} BindingValueError_Type;
 
 typedef struct {
-    Binding_ValueErrorType type;
+    BindingValueError_Type type;
 
     union {
         struct {
@@ -38,21 +36,21 @@ typedef struct {
             Object_Type value_type;
         } as_cannot_unpack;
     };
-} Binding_ValueError;
+} BindingValueError;
 
 typedef enum {
     BINDING_INVALID_TARGET,
     BINDING_INVALID_VALUE,
     BINDING_ALLOCATION_FAILED
-} Binding_ErrorType;
+} BindingError_Type;
 
 typedef struct {
-    Binding_ErrorType type;
+    BindingError_Type type;
     union {
-        Binding_TargetError as_target_error;
-        Binding_ValueError as_value_error;
+        BindingTargetError as_target_error;
+        BindingValueError as_value_error;
     };
-} Binding_Error;
+} BindingError;
 
 [[nodiscard]]
 bool binding_try_create(
@@ -60,5 +58,5 @@ bool binding_try_create(
         Object *env,
         Object *target,
         Object *value,
-        Binding_Error *error
+        BindingError *error
 );

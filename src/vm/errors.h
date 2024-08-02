@@ -83,7 +83,7 @@ void create_args_count_error(VirtualMachine *vm, char const *name, size_t expect
 #define args_count_error(VM, Name, Expected) \
     ERRORS__error(create_args_count_error, (VM), (Name), (Expected))
 
-void create_parameters_declaration_error(VirtualMachine *vm, Binding_TargetError error);
+void create_parameters_declaration_error(VirtualMachine *vm, BindingTargetError error);
 
 #define parameters_declaration_error(VM, Error) ERRORS__error(create_parameters_declaration_error, (VM), (Error))
 
@@ -91,6 +91,6 @@ void create_import_path_type_error(VirtualMachine *vm);
 
 #define import_path_type_error(VM) ERRORS__error(create_import_path_type_error, (VM))
 
-void create_binding_error(VirtualMachine *vm, Binding_Error error);
+void create_binding_error(VirtualMachine *vm, BindingError error);
 
 #define binding_error(VM, Error) ERRORS__error(create_binding_error, (VM), (Error))
