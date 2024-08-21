@@ -106,17 +106,17 @@ static bool object_try_write_str(Writer w, Object *obj, errno_t *error_code) {
 }
 
 bool object_try_repr_sb(Object *obj, StringBuilder *sb, errno_t *error_code) {
-    return object_try_write_repr((Writer) {.type = WRITER_SB, .as_sb = sb}, obj, error_code);
+    return object_try_write_repr(writer_make(sb), obj, error_code);
 }
 
 bool object_try_repr_file(Object *obj, FILE *file, errno_t *error_code) {
-    return object_try_write_repr((Writer) {.type = WRITER_FILE, .as_file = file}, obj, error_code);
+    return object_try_write_repr(writer_make(file), obj, error_code);
 }
 
 bool object_try_print_sb(Object *obj, StringBuilder *sb, errno_t *error_code) {
-    return object_try_write_str((Writer) {.type = WRITER_SB, .as_sb = sb}, obj, error_code);
+    return object_try_write_str(writer_make(sb), obj, error_code);
 }
 
 bool object_try_print_file(Object *obj, FILE *file, errno_t *error_code) {
-    return object_try_write_str((Writer) {.type = WRITER_FILE, .as_file = file}, obj, error_code);
+    return object_try_write_str(writer_make(file), obj, error_code);
 }

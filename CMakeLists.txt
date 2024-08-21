@@ -31,6 +31,7 @@ add_executable(persimmon
         src/vm/constants.c
         src/vm/bindings.c
         src/object/repr.c
+        src/utility/writer.c
 )
 
 target_compile_options(persimmon PRIVATE

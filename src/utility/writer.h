@@ -18,6 +18,16 @@ typedef struct {
     };
 } Writer;
 
+Writer writer_make_from_file_(FILE *file);
+
+Writer writer_make_from_sb_(StringBuilder *sb);
+
+#define writer_make(FileOrBuilder)              \
+(_Generic((FileOrBuilder),                      \
+    FILE *          : writer_make_from_file_,   \
+    StringBuilder * : writer_make_from_sb_      \
+)((FileOrBuilder)))
+
 #define writer_try_printf(Writer_, ErrorCode, Format, ...)  \
 ({                                                          \
     auto const _w = (Writer_);                              \
