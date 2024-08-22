@@ -4,6 +4,7 @@
 
 #include "utility/guards.h"
 #include "object/lists.h"
+#include "object/dict.h"
 #include "object/constructors.h"
 #include "object/accessors.h"
 #include "object/repr.h"
@@ -433,6 +434,53 @@ static bool throw(VirtualMachine *vm, Object *args, Object **value) {
     return false;
 }
 
+static bool dict_get(VirtualMachine *vm, Object *args, Object **value) {
+    guard_is_not_null(vm);
+    guard_is_not_null(args);
+    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_not_null(value);
+
+    Object *key, *dict;
+    if (false == object_list_try_unpack_2(&key, &dict, args)) {
+        call_error(vm, "get", 2, false, object_list_count(args));
+    }
+
+    if (TYPE_CONS != dict->type && TYPE_NIL != dict->type) {
+        type_error(vm, dict->type, TYPE_CONS, TYPE_NIL);
+    }
+
+    if (false == object_dict_try_get(dict, key, value)) {
+        key_error(vm, key);
+    }
+
+    return true;
+}
+
+static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
+    guard_is_not_null(vm);
+    guard_is_not_null(args);
+    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+
+    auto const got = object_list_count(args);
+    typeof(got) expected = 3;
+    if (expected != got) {
+        call_error(vm, "put", expected, false, got);
+    }
+
+    auto const key = *object_list_nth(0, args);
+    auto const value = *object_list_nth(1, args);
+    auto const dict = *object_list_nth(2, args);
+    if (TYPE_CONS != dict->type && TYPE_NIL != dict->type) {
+        type_error(vm, dict->type, TYPE_CONS, TYPE_NIL);
+    }
+
+    if (false == object_dict_try_put(vm_allocator(vm), dict, key, value, result)) {
+        out_of_memory_error(vm);
+    }
+
+    return true;
+}
+
 static bool try_define(ObjectAllocator *a, Object *env, char const *name, Object_Primitive value) {
     Object *binding;
     return env_try_define(a, env, object_nil(), object_nil(), &binding)
@@ -455,6 +503,8 @@ bool try_define_primitives(ObjectAllocator *a, Object *env) {
            && try_define(a, env, "prepend", list_prepend)
            && try_define(a, env, "reverse", list_reverse)
            && try_define(a, env, "concat", list_concat)
+           && try_define(a, env, "get", dict_get)
+           && try_define(a, env, "put", dict_put)
            && try_define(a, env, "not", not)
            && try_define(a, env, "type", type)
            && try_define(a, env, "traceback", traceback)

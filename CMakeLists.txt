@@ -32,6 +32,8 @@ add_executable(persimmon
         src/vm/bindings.c
         src/object/repr.c
         src/utility/writer.c
+        src/object/dict.c
+        src/object/dict.h
 )
 
 target_compile_options(persimmon PRIVATE

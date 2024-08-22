@@ -48,7 +48,8 @@ static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
            && try_wrap_atom(a, "StackOverflowError", slice_at(*constants, STATIC_STACK_OVERFLOW_ERROR_DEFAULT))
            && try_wrap_atom(a, "SyntaxError", slice_at(*constants, STATIC_SYNTAX_ERROR_DEFAULT))
            && try_wrap_atom(a, "SpecialFormError", slice_at(*constants, STATIC_SPECIAL_ERROR_DEFAULT))
-           && try_wrap_atom(a, "BindingError", slice_at(*constants, STATIC_BINDING_ERROR_DEFAULT));
+           && try_wrap_atom(a, "BindingError", slice_at(*constants, STATIC_BINDING_ERROR_DEFAULT))
+           && try_wrap_atom(a, "KeyError", slice_at(*constants, STATIC_KEY_ERROR_DEFAULT));
 }
 
 VirtualMachine *vm_new(VirtualMachine_Config config) {

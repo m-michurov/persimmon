@@ -22,7 +22,9 @@ typedef struct {
     Objects const *constants;
 } ObjectAllocator_Roots;
 
-typedef struct {
+typedef struct ObjectAllocator ObjectAllocator;
+
+struct ObjectAllocator {
     Object *_objects;
     Object *_freed;
     ObjectAllocator_Roots _roots;
@@ -34,7 +36,7 @@ typedef struct {
     size_t _hard_limit;
     size_t _soft_limit;
     double _grow_factor;
-} ObjectAllocator;
+};
 
 typedef struct {
     size_t hard_limit;

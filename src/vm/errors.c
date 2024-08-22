@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "utility/guards.h"
+#include "utility/string_builder.h"
 #include "object/constructors.h"
 #include "object/lists.h"
 #include "object/accessors.h"
@@ -68,6 +69,17 @@ static bool try_create_atom_field(VirtualMachine *vm, char const *key, char cons
     return object_try_make_list(a, field, object_nil(), object_nil())
            && object_try_make_atom(a, key, object_list_nth(0, *field))
            && object_try_make_atom(a, value, object_list_nth(1, *field));
+}
+
+static bool try_create_object_field(VirtualMachine *vm, char const *key, Object *value, Object **field) {
+    guard_is_not_null(vm);
+    guard_is_not_null(key);
+    guard_is_not_null(value);
+    guard_is_not_null(field);
+
+    auto const a = vm_allocator(vm);
+    return object_try_make_list(a, field, object_nil(), value)
+           && object_try_make_atom(a, key, object_list_nth(0, *field));
 }
 
 static bool try_create_traceback(VirtualMachine *vm, Object **field) {
@@ -720,4 +732,39 @@ void create_binding_error(VirtualMachine *vm, BindingError error) {
     }
 
     guard_unreachable();
+}
+
+void create_key_error(VirtualMachine *vm, Object *key) {
+    guard_is_not_null(vm);
+
+    auto const a = vm_allocator(vm);
+    auto const default_error = vm_get(vm, STATIC_KEY_ERROR_DEFAULT);
+    auto const error_type = object_as_cons(default_error).first;
+
+    auto sb = (StringBuilder) {0};
+    errno_t error_code;
+    auto ok =
+            sb_try_printf_realloc(&sb, &error_code, "key does not exist: ")
+            && object_try_repr(key, &sb, &error_code);
+
+    auto field_index = 0;
+    ok = ok
+         && object_try_make_list(
+                 a, vm_error(vm),
+                 error_type,
+                 object_nil(),
+                 object_nil(),
+                 object_nil()
+         )
+         && try_create_string_field(vm, ERROR_FIELD_MESSAGE, sb.str, object_list_nth(++field_index, *vm_error(vm)))
+         && try_create_object_field(vm, "key", key, object_list_nth(++field_index, *vm_error(vm)))
+         && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+    if (ok) {
+        return;
+    }
+
+    guard_is_equal(error_code, ENOMEM);
+
+    *vm_error(vm) = default_error;
+    report_out_of_system_memory(vm, error_type);
 }

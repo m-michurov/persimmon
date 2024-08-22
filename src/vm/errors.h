@@ -94,3 +94,7 @@ void create_import_path_type_error(VirtualMachine *vm);
 void create_binding_error(VirtualMachine *vm, BindingError error);
 
 #define binding_error(VM, Error) ERRORS__error(create_binding_error, (VM), (Error))
+
+void create_key_error(VirtualMachine *vm, Object *key);
+
+#define key_error(VM, Key) ERRORS__error(create_key_error, (VM), (Key))
