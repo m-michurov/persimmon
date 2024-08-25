@@ -92,7 +92,7 @@ static bool try_eval_file(VirtualMachine *vm, NamedFile file) {
     }
 
     if (object_nil() == *vm_exprs(vm)) {
-        return false;
+        return true;
     }
 
     object_list_for(it, *vm_exprs(vm)) {

@@ -138,9 +138,10 @@ static bool try_prompt(
     *exprs = object_nil();
 
     auto line = (Line) {0};
+    auto input_empty = true;
     auto lines = (Lines) {0};
-    while (slice_empty(line) || string_is_blank(line.data) || parser_is_inside_expression(r->_p)) {
-        printf("%s ", (line.lineno > 0 ? PROMPT_CONTINUE : PROMPT_NEW));
+    while (input_empty || parser_is_inside_expression(r->_p)) {
+        printf("%s ", input_empty ? PROMPT_NEW : PROMPT_CONTINUE);
 
         errno_t error_code;
         if (false == line_reader_try_read(line_reader, lines_arena, &line, &error_code)) {
@@ -159,6 +160,7 @@ static bool try_prompt(
             continue;
         }
 
+        input_empty = false;
         if (try_parse_line(r, file_name, lines, line, exprs)) {
             continue;
         }

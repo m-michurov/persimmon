@@ -12,6 +12,7 @@
 #include "bindings.h"
 #include "stack.h"
 #include "errors.h"
+#include "variadic.h"
 
 typedef enum : bool {
     EVAL_FRAME_KEEP,
@@ -231,7 +232,7 @@ static bool try_step_call(VirtualMachine *vm) {
         );
     }
 
-    if (TYPE_ATOM == frame->unevaluated->type && 0 == strcmp(".", frame->unevaluated->as_atom)) {
+    if (is_ampersand(frame->unevaluated)) {
         guard_is_not_equal(frame->evaluated, object_nil());
 
         auto const extra_args = object_list_nth(0, frame->evaluated);
@@ -251,14 +252,14 @@ static bool try_step_call(VirtualMachine *vm) {
     if (object_nil() != frame->unevaluated) {
         auto const next = *object_list_nth(0, frame->unevaluated);
 
-        if (TYPE_ATOM == next->type && 0 == strcmp(".", next->as_atom)) {
+        if (is_ampersand(next)) {
             if (object_nil() == frame->evaluated) {
-                call_dot_before_error(vm);
+                call_ampersand_before_error(vm);
             }
 
             auto const rest = object_list_skip(1, frame->unevaluated);
             if (1 != object_list_count(rest)) {
-                call_dot_after_error(vm);
+                call_ampersand_after_error(vm);
             }
 
             frame->unevaluated = next;

@@ -1,7 +1,7 @@
 (import "demos/def.scm")
 (import "demos/lists.scm")
 
-(defmacro let (bindings . body)
+(defmacro let (bindings & body)
   (defn generate (bindings body)
     (if bindings
       (do

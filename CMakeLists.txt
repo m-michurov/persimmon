@@ -34,6 +34,8 @@ add_executable(persimmon
         src/utility/writer.c
         src/object/dict.c
         src/object/dict.h
+        src/vm/variadic.c
+        src/vm/variadic.h
 )
 
 target_compile_options(persimmon PRIVATE

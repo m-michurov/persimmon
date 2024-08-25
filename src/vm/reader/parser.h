@@ -5,10 +5,16 @@
 #include "object/object.h"
 #include "object/allocator.h"
 
+typedef enum {
+    PARSER_EXPRESSION,
+    PARSER_QUOTE,
+    PARSER_DOT
+} Parser_ExpressionType;
+
 typedef struct {
+    Parser_ExpressionType type;
     Object *last;
     Position begin;
-    bool is_quote;
 } Parser_Expression;
 
 typedef struct Parser_ExpressionsStack Parser_ExpressionsStack;

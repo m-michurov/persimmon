@@ -19,6 +19,7 @@ typedef enum {
 typedef struct {
     Token_Type type;
     Position pos;
+    bool next_dot;
     union {
         int64_t as_int;
         char const *as_atom;
@@ -34,7 +35,8 @@ typedef enum {
     SCANNER_OPEN_PAREN,
     SCANNER_CLOSE_PAREN,
     SCANNER_QUOTE,
-    SCANNER_COMMENT
+    SCANNER_COMMENT,
+    SCANNER_DOT
 } Scanner_State;
 
 typedef struct {
@@ -44,6 +46,7 @@ typedef struct {
     Scanner_State _state;
     StringBuilder _sb;
     bool _escape_sequence;
+    bool _string_terminated;
     int64_t _int_value;
     Position _token_pos;
 } Scanner;

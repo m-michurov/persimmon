@@ -8,6 +8,22 @@
 #include "utility/writer.h"
 #include "lists.h"
 
+static bool is_quote(Object *expr, Object **quoted) {
+    guard_is_not_null(expr);
+    guard_is_not_null(quoted);
+
+    if (TYPE_CONS != expr->type) {
+        return false;
+    }
+
+    Object *tag;
+    if (false == object_list_try_unpack_2(&tag, quoted, expr)) {
+        return false;
+    }
+
+    return TYPE_ATOM == tag->type && 0 == strcmp("quote", tag->as_atom);
+}
+
 static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code) {
     guard_is_not_null(obj);
     guard_is_not_null(error_code);
@@ -50,6 +66,12 @@ static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code) {
             return writer_try_printf(w, error_code, "%s", obj->as_atom);
         }
         case TYPE_CONS: {
+            Object *quoted;
+            if (is_quote(obj, &quoted)) {
+                return writer_try_printf(w, error_code, "'")
+                       && object_try_write_repr(w, quoted, error_code);
+            }
+
             if (false == writer_try_printf(w, error_code, "(")) {
                 return false;
             }

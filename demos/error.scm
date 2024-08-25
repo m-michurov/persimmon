@@ -3,7 +3,7 @@
 (import "demos/types.scm")
 (import "demos/lists.scm")
 
-(defn error (error-type . fields)
+(defn error (error-type & fields)
   (let (tb (traceback))
     (if (not (atom? error-type))
       (throw (list
@@ -15,4 +15,4 @@
     (list
       error-type
       (list 'traceback (rest tb))
-      . fields)))
+      & fields)))

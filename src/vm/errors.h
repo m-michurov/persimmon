@@ -42,13 +42,13 @@ void create_call_error(VirtualMachine *vm, char const *name, size_t expected, bo
 #define call_error(VM, Name, Expected, IsVariadic, Got) \
     ERRORS__error(create_call_error, (VM), (Name), (Expected), (IsVariadic), (Got))
 
-void create_call_dot_before_error(VirtualMachine *vm);
+void create_call_ampersand_before_error(VirtualMachine *vm);
 
-#define call_dot_before_error(VM) ERRORS__error(create_call_dot_before_error, (VM))
+#define call_ampersand_before_error(VM) ERRORS__error(create_call_ampersand_before_error, (VM))
 
-void create_call_dot_after_error(VirtualMachine *vm);
+void create_call_ampersand_after_error(VirtualMachine *vm);
 
-#define call_dot_after_error(VM) ERRORS__error(create_call_dot_after_error, (VM))
+#define call_ampersand_after_error(VM) ERRORS__error(create_call_ampersand_after_error, (VM))
 
 void create_call_extra_args_error(VirtualMachine *vm, Object_Type extras_type);
 

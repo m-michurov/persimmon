@@ -16,6 +16,10 @@ bool string_is_blank(char const *str) {
     return true;
 }
 
+bool string_is_null_or_blank(char const *str) {
+    return nullptr == str || string_is_blank(str);
+}
+
 typedef struct {
     char value;
     char const *repr;

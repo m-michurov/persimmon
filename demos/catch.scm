@@ -4,23 +4,23 @@
 
 (defn error-get (name fields)
   (if fields
-    (let ((binding . rest) fields
-           (cur-name value . _) binding)
+    (let ((binding & rest) fields
+           (cur-name value & _) binding)
       (if (eq? name cur-name)
         value
         (error-get name rest)))))
 
 (defn print-traceback (err)
   (if (cons? err)
-    (let ((_ . fields) err)
+    (let ((_ & fields) err)
       (print "Traceback:")
       (apply print (error-get 'traceback fields)))))
 
-(defmacro run-catching (. code)
+(defmacro run-catching (& code)
   (list 'let (list '(val err) (list 'catch (concat '(do) code)))
         '(if err
            (if (cons? err)
-             (let ((type . fields) err)
+             (let ((type & fields) err)
                (print 'ERROR type '- (error-get 'message fields))
                (print-traceback err))
              (print 'ERROR err))
@@ -44,11 +44,11 @@
 
 (run-catching (define (x y) '(1 2 3)))
 (run-catching (define (x y z t) '(1 2 3)))
-(run-catching (define (x y . z t) '(1 2 3)))
-(run-catching (define (x y . z) '(1)))
-(run-catching (define (x y . 1) '(1 2 3)))
+(run-catching (define (x y & z t) '(1 2 3)))
+(run-catching (define (x y & z) '(1)))
+(run-catching (define (x y & 1) '(1 2 3)))
 (run-catching (define (x 1) '(1 2 3)))
-(run-catching (define (. x) 1))
+(run-catching (define (& x) 1))
 
 (run-catching (throw 1))
 (run-catching (throw (error 'TypeError '(message "unsupported type") '(expected integer) '(got nil))))

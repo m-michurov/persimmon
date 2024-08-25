@@ -48,3 +48,8 @@
       (inner (prepend (take n col) acc) (drop n col))
       (reverse acc)))
   (inner nil col))
+
+(defn reduce (f init col)
+  (if (not col)
+    init
+    (reduce f (f init (first col)) (rest col))))

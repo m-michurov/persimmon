@@ -1,13 +1,13 @@
 (import "demos/def.scm")
 
-(defn log-info (. args)
-  (print 'INFO . args))
+(defn log-info (& args)
+  (print 'INFO & args))
 
-(defn log-warning (. args)
-  (print 'WARNING . args))
+(defn log-warning (& args)
+  (print 'WARNING & args))
 
-(defn log-error (. args)
-  (print 'ERROR . args))
+(defn log-error (& args)
+  (print 'ERROR & args))
 
 (define address "192.168.0.1")
 (define timeout-limit 6)

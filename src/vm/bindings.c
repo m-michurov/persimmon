@@ -2,10 +2,7 @@
 
 #include "object/lists.h"
 #include "utility/guards.h"
-
-static bool is_dot(Object *obj) {
-    return TYPE_ATOM == obj->type && 0 == strcmp(".", obj->as_atom);
-}
+#include "variadic.h"
 
 bool binding_is_valid_target(Object *target, BindingTargetError *error) {
     guard_is_not_null(target);
@@ -27,7 +24,7 @@ bool binding_is_valid_target(Object *target, BindingTargetError *error) {
                     return false;
                 }
 
-                if (is_dot(it)) {
+                if (is_ampersand(it)) {
                     is_varargs = true;
                     continue;
                 }
@@ -75,7 +72,7 @@ static TargetsCount count_targets(Object *target) {
             return result;
         }
 
-        if (is_dot(it)) {
+        if (is_ampersand(it)) {
             result.is_variadic = true;
             continue;
         }
@@ -173,7 +170,7 @@ static bool env_try_bind_(ObjectAllocator *a, Object *env, Object *target, Objec
                     return env_try_bind_(a, env, it, value);
                 }
 
-                if (is_dot(it)) {
+                if (is_ampersand(it)) {
                     is_varargs = true;
                     continue;
                 }

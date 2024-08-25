@@ -375,7 +375,7 @@ void create_call_error(VirtualMachine *vm, char const *name, size_t expected, bo
     report_out_of_memory(vm, error_type);
 }
 
-void create_call_dot_before_error(VirtualMachine *vm) {
+void create_call_ampersand_before_error(VirtualMachine *vm) {
     create_error_with_message(
             vm,
             vm_get(vm, STATIC_CALL_ERROR_DEFAULT),
@@ -383,7 +383,7 @@ void create_call_dot_before_error(VirtualMachine *vm) {
     );
 }
 
-void create_call_dot_after_error(VirtualMachine *vm) {
+void create_call_ampersand_after_error(VirtualMachine *vm) {
     create_error_with_message(
             vm,
             vm_get(vm, STATIC_CALL_ERROR_DEFAULT),
