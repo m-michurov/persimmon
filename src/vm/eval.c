@@ -139,7 +139,8 @@ static bool try_begin_eval(
         case TYPE_PRIMITIVE:
         case TYPE_CLOSURE:
         case TYPE_MACRO:
-        case TYPE_NIL: {
+        case TYPE_NIL:
+        case TYPE_DICT: {
             if (EVAL_FRAME_REMOVE == current) {
                 return try_save_result_and_pop(vm, results_list, expr);
             }

@@ -364,8 +364,48 @@ void create_call_error(VirtualMachine *vm, char const *name, size_t expected, bo
                     (int64_t) expected,
                     object_list_nth(++field_index, *vm_error(vm))
             )
-            &&
-            try_create_int_field(vm, ERROR_FIELD_GOT, (int64_t) got, object_list_nth(++field_index, *vm_error(vm)))
+            && try_create_int_field(vm, ERROR_FIELD_GOT, (int64_t) got, object_list_nth(++field_index, *vm_error(vm)))
+            && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+    if (ok) {
+        return;
+    }
+
+    *vm_error(vm) = default_error;
+    report_out_of_memory(vm, error_type);
+}
+
+void create_call_parity_error(VirtualMachine *vm, char const *name, bool expected_even) {
+    guard_is_not_null(vm);
+
+    auto const a = vm_allocator(vm);
+    auto const default_error = vm_get(vm, STATIC_CALL_ERROR_DEFAULT);
+    auto const error_type = object_as_cons(default_error).first;
+
+    char message[MESSAGE_MIN_CAPACITY] = {0};
+    size_t capacity = sizeof(message);
+    auto buf = message;
+
+    auto const expected_str = expected_even ? "even" : "odd";
+    snprintf_checked(&buf, &capacity, "%s takes an %s number of arguments", name, expected_str);
+
+    auto field_index = 0;
+    auto const ok =
+            object_try_make_list(
+                    a, vm_error(vm),
+                    error_type,
+                    object_nil(),
+                    object_nil(),
+                    object_nil(),
+                    object_nil()
+            )
+            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth(++field_index, *vm_error(vm)))
+            && try_create_string_field(vm, ERROR_FIELD_NAME, name, object_list_nth(++field_index, *vm_error(vm)))
+            && try_create_atom_field(
+                    vm,
+                    ERROR_FIELD_EXPECTED,
+                    expected_str,
+                    object_list_nth(++field_index, *vm_error(vm))
+            )
             && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
     if (ok) {
         return;

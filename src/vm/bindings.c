@@ -42,7 +42,8 @@ bool binding_is_valid_target(Object *target, BindingTargetError *error) {
         case TYPE_STRING:
         case TYPE_PRIMITIVE:
         case TYPE_CLOSURE:
-        case TYPE_MACRO: {
+        case TYPE_MACRO:
+        case TYPE_DICT: {
             *error = (BindingTargetError) {
                     .type = BINDING_INVALID_TARGET_TYPE,
                     .as_invalid_target = {
@@ -139,7 +140,8 @@ static bool is_valid_value(Object *target, Object *value, BindingValueError *err
         case TYPE_STRING:
         case TYPE_PRIMITIVE:
         case TYPE_CLOSURE:
-        case TYPE_MACRO: {
+        case TYPE_MACRO:
+        case TYPE_DICT: {
             guard_unreachable();
         }
     }
@@ -189,7 +191,8 @@ static bool env_try_bind_(ObjectAllocator *a, Object *env, Object *target, Objec
         case TYPE_STRING:
         case TYPE_PRIMITIVE:
         case TYPE_CLOSURE:
-        case TYPE_MACRO: {
+        case TYPE_MACRO:
+        case TYPE_DICT: {
             guard_unreachable();
         }
     }

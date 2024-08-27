@@ -18,6 +18,9 @@ char const *object_type_str(Object_Type type) {
         case TYPE_CONS: {
             return "cons";
         }
+        case TYPE_DICT: {
+            return "dict";
+        }
         case TYPE_PRIMITIVE: {
             return "primitive";
         }
@@ -35,40 +38,24 @@ char const *object_type_str(Object_Type type) {
     guard_unreachable();
 }
 
-Object *object_nil() { return &NIL; }
-
-bool object_equals(Object *a, Object *b) { // NOLINT(*-no-recursion)
-    if (a->type != b->type) {
-        return false;
-    }
-
-    switch (a->type) {
-        case TYPE_INT: {
-            return a->as_int == b->as_int;
-        }
-        case TYPE_STRING: {
-            return 0 == strcmp(a->as_string, b->as_string);
-        }
-        case TYPE_ATOM: {
-            return 0 == strcmp(a->as_atom, b->as_atom);
-        }
-        case TYPE_CONS: {
-            return object_equals(a->as_cons.first, b->as_cons.first)
-                   && object_equals(a->as_cons.rest, b->as_cons.rest);
-        }
-        case TYPE_PRIMITIVE: {
-            return a->as_primitive == b->as_primitive;
-        }
-        case TYPE_CLOSURE:
-        case TYPE_MACRO: {
-            return object_equals(a->as_closure.env, b->as_closure.env)
-                   && object_equals(a->as_closure.args, b->as_closure.args)
-                   && object_equals(a->as_closure.body, b->as_closure.body);
-        }
-        case TYPE_NIL: {
+bool object_type_is_mutable(Object_Type type) {
+    switch (type) {
+        case TYPE_DICT: {
             return true;
+        }
+        case TYPE_INT:
+        case TYPE_STRING:
+        case TYPE_ATOM:
+        case TYPE_CONS:
+        case TYPE_PRIMITIVE:
+        case TYPE_CLOSURE:
+        case TYPE_MACRO:
+        case TYPE_NIL: {
+            return false;
         }
     }
 
     guard_unreachable();
 }
+
+Object *object_nil() { return &NIL; }

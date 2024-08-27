@@ -1,16 +1,34 @@
 #pragma once
 
-struct Object;
-struct ObjectAllocator;
+#include "object.h"
+#include "allocator.h"
+
+Object *object_dict_entry_next(Object *entry);
+
+Object *object_dict_entry_key(Object *entry);
+
+Object *object_dict_entry_value(Object *entry);
+
+typedef enum {
+    DICT_INVALID_KEY,
+    DICT_KEY_DOES_NOT_EXIST,
+    DICT_ALLOCATION_ERROR
+} Object_DictError;
 
 [[nodiscard]]
 bool object_dict_try_put(
-        struct ObjectAllocator *a,
-        struct Object *dict,
-        struct Object *key,
-        struct Object *value,
-        struct Object **result
+        ObjectAllocator *a,
+        Object *dict,
+        Object *key,
+        Object *value,
+        Object **key_value_pair,
+        Object_DictError *error
 );
 
 [[nodiscard]]
-bool object_dict_try_get(struct Object *dict, struct Object *key, struct Object **value);
+bool object_dict_try_get(
+        Object *dict,
+        Object *key,
+        Object **value,
+        Object_DictError *error
+);

@@ -110,6 +110,11 @@ static bool try_mark_children(Objects *gray, Object *obj) {
                    && try_mark_gray_if_white(gray, obj->as_closure.env)
                    && try_mark_gray_if_white(gray, obj->as_closure.body);
         }
+        case TYPE_DICT: {
+            mark_black(obj);
+
+            return try_mark_gray_if_white(gray, obj->as_dict.root);
+        }
     }
 
     guard_unreachable();

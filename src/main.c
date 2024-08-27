@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
                     .debug = {
                             .no_free = true,
                             .trace = false,
-                            .gc_mode = ALLOCATOR_SOFT_GC
+                            .gc_mode = ALLOCATOR_ALWAYS_GC
                     }
             },
             .reader_config = {

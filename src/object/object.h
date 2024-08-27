@@ -10,11 +10,14 @@ typedef enum {
     TYPE_STRING,
     TYPE_ATOM,
     TYPE_CONS,
+    TYPE_DICT,
     TYPE_PRIMITIVE,
     TYPE_CLOSURE,
     TYPE_MACRO,
     TYPE_NIL
 } Object_Type;
+
+bool object_type_is_mutable(Object_Type type);
 
 char const *object_type_str(Object_Type type);
 
@@ -41,6 +44,12 @@ typedef struct Object_Closure {
     Object *body;
 } Object_Closure;
 
+typedef struct Object_Dict {
+    size_t size;
+    Object *root;
+    Object *entries;
+} Object_Dict;
+
 typedef enum {
     OBJECT_WHITE,
     OBJECT_GRAY,
@@ -60,9 +69,8 @@ struct Object {
         Object_Cons as_cons;
         Object_Primitive as_primitive;
         Object_Closure as_closure;
+        Object_Dict as_dict;
     };
 };
 
 Object *object_nil();
-
-bool object_equals(Object *a, Object *b);

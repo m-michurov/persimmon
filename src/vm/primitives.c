@@ -8,6 +8,7 @@
 #include "object/constructors.h"
 #include "object/accessors.h"
 #include "object/repr.h"
+#include "object/compare.h"
 #include "env.h"
 #include "traceback.h"
 #include "errors.h"
@@ -445,12 +446,45 @@ static bool dict_get(VirtualMachine *vm, Object *args, Object **value) {
         call_error(vm, "get", 2, false, object_list_count(args));
     }
 
-    if (TYPE_CONS != dict->type && TYPE_NIL != dict->type) {
-        type_error(vm, dict->type, TYPE_CONS, TYPE_NIL);
+    if (TYPE_DICT != dict->type) {
+        type_error(vm, dict->type, TYPE_DICT);
     }
 
-    if (false == object_dict_try_get(dict, key, value)) {
+    Object_DictError error;
+    if (false == object_dict_try_get(dict, key, value, &error)) {
         key_error(vm, key);
+    }
+
+    return true;
+}
+
+static bool dict_dict(VirtualMachine *vm, Object *args, Object **dict) {
+    guard_is_not_null(vm);
+    guard_is_not_null(args);
+    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_not_null(dict);
+
+    auto const got = object_list_count(args);
+    if (0 != got % 2) {
+        call_parity_error(vm, "dict", true);
+    }
+
+    if (false == object_try_make_dict(vm_allocator(vm), dict)) {
+        out_of_memory_error(vm);
+    }
+
+    while (object_nil() != args) {
+        auto const key = object_list_shift(&args);
+        auto const value = object_list_shift(&args);
+
+        Object *key_value_pair;
+        Object_DictError error;
+        if (false == object_dict_try_put(vm_allocator(vm), *dict, key, value, &key_value_pair, &error)) {
+            printf("object_dict_try_put -> error#%d\n", error);
+
+            // FIXME error
+            key_error(vm, key);
+        }
     }
 
     return true;
@@ -460,6 +494,7 @@ static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_not_null(result);
 
     auto const got = object_list_count(args);
     typeof(got) expected = 3;
@@ -470,14 +505,18 @@ static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
     auto const key = *object_list_nth(0, args);
     auto const value = *object_list_nth(1, args);
     auto const dict = *object_list_nth(2, args);
-    if (TYPE_CONS != dict->type && TYPE_NIL != dict->type) {
-        type_error(vm, dict->type, TYPE_CONS, TYPE_NIL);
+    if (TYPE_DICT != dict->type) {
+        type_error(vm, dict->type, TYPE_DICT);
     }
 
-    if (false == object_dict_try_put(vm_allocator(vm), dict, key, value, result)) {
+    Object *key_value_pair;
+    Object_DictError error;
+    if (false == object_dict_try_put(vm_allocator(vm), dict, key, value, &key_value_pair, &error)) {
+        // FIXME error
         out_of_memory_error(vm);
     }
 
+    *result = object_nil();
     return true;
 }
 
@@ -503,6 +542,7 @@ bool try_define_primitives(ObjectAllocator *a, Object *env) {
            && try_define(a, env, "prepend", list_prepend)
            && try_define(a, env, "reverse", list_reverse)
            && try_define(a, env, "concat", list_concat)
+           && try_define(a, env, "dict", dict_dict)
            && try_define(a, env, "get", dict_get)
            && try_define(a, env, "put", dict_put)
            && try_define(a, env, "not", not)

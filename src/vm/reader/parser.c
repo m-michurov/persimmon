@@ -6,7 +6,6 @@
 #include "utility/slice.h"
 #include "object/lists.h"
 #include "object/constructors.h"
-#include "object/repr.h"
 
 bool parser_try_init(Parser *p, ObjectAllocator *a, Parser_Config config, errno_t *error_code) {
     guard_is_not_null(p);

@@ -42,6 +42,11 @@ void create_call_error(VirtualMachine *vm, char const *name, size_t expected, bo
 #define call_error(VM, Name, Expected, IsVariadic, Got) \
     ERRORS__error(create_call_error, (VM), (Name), (Expected), (IsVariadic), (Got))
 
+void create_call_parity_error(VirtualMachine *vm, char const *name, bool expected_even);
+
+#define call_parity_error(VM, Name, ExpectedEven) \
+    ERRORS__error(create_call_parity_error, (VM), (Name), (ExpectedEven))
+
 void create_call_ampersand_before_error(VirtualMachine *vm);
 
 #define call_ampersand_before_error(VM) ERRORS__error(create_call_ampersand_before_error, (VM))
@@ -70,6 +75,7 @@ void create_stack_overflow_error(VirtualMachine *vm);
 
 #define stack_overflow_error(VM) ERRORS__error(create_stack_overflow_error, (VM))
 
+// TODO special
 void create_too_few_args_error(VirtualMachine *vm, char const *name);
 
 #define too_few_args_error(VM, Name) ERRORS__error(create_too_few_args_error, (VM), (Name))
@@ -78,6 +84,7 @@ void create_too_many_args_error(VirtualMachine *vm, char const *name);
 
 #define too_many_args_error(VM, Name) ERRORS__error(create_too_many_args_error, (VM), (Name))
 
+// TODO special
 void create_args_count_error(VirtualMachine *vm, char const *name, size_t expected);
 
 #define args_count_error(VM, Name, Expected) \

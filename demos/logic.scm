@@ -1,3 +1,12 @@
+(print "-- eq? -- ")
+
+(print (eq? nil nil))
+(print (eq? '(1 2 3) nil))
+(print (eq? '(1 2 3) '(1 2 3)))
+(print (eq? '(1 2 3) '(1 2 3 4)))
+(print (eq? '(1 2 3) (list 1 2 3)))
+(print (eq? '(1 2 (a b)) (list 1 2 (list 'a 'b))))
+
 (print "-- and -- ")
 
 (print (and true true))

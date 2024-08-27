@@ -3,7 +3,7 @@
 #include "utility/guards.h"
 #include "object/lists.h"
 #include "object/constructors.h"
-#include "object/accessors.h"
+#include "object/compare.h"
 
 bool env_try_create(ObjectAllocator *a, Object *base_env, Object **env) {
     guard_is_not_null(a);
@@ -47,6 +47,7 @@ bool env_try_find(Object *env, Object *name, Object **value) {
     guard_is_not_null(env);
     guard_is_not_null(name);
     guard_is_not_null(value);
+    guard_is_equal(env->type, TYPE_CONS);
 
     if (TYPE_ATOM != name->type) { return false; }
 

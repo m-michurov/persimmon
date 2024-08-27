@@ -5,13 +5,6 @@
 (defmacro print-key (key-expr)
   (list 'print (list 'quote key-expr) "->" key-expr))
 
-(defn dict (& args)
-  (let (kw-pairs (chunk-by 2 args))
-    (reduce
-      (fn (acc (key value)) (put key value acc))
-      nil
-      kw-pairs)))
-
 (let (d (dict 1 2 "hello" "world" '(1 2 3) (fn (x) x) 'name "rei"))
   (print-key d.1)
   (print-key d."hello")
@@ -24,14 +17,16 @@
                 'constants (dict
                              'COMPILER "cc"
                              'VERSION "0.1")
+                'empty (dict)
                 'guards (dict
                           'assert (fn (& _) nil)
                           'unreachable nil
                           'double (fn (x) (* 2 x)))
                 'x (dict 'y (dict 'z 42))))
-;  (print-key utility.)
+  (print utility)
   (print-key utility.constants)
   (print-key utility.guards)
+  (print-key utility.empty)
   (print-key utility.constants.COMPILER)
   (print-key utility.constants.VERSION)
   (print-key utility.guards.assert)
@@ -49,8 +44,8 @@
 (print '---)
 
 (define d (reduce
-            (fn (dict value) (put value (* value value) dict))
-            nil
+            (fn (dict value) (put value (* value value) dict) dict)
+            (dict)
             (range 5)))
 (print d)
 (apply (fn (x) (print (get x d))) (range 5))

@@ -29,6 +29,10 @@ static size_t size_closure(void) {
     return offsetof(Object, as_closure) + sizeof(Object_Closure);
 }
 
+static size_t size_dict(void) {
+    return offsetof(Object, as_dict) + sizeof(Object_Closure);
+}
+
 static Object *init_int(Object *obj, int64_t value) {
     guard_is_not_null(obj);
 
@@ -109,6 +113,19 @@ static Object *init_macro(Object *obj, Object *env, Object *args, Object *body) 
             .env = env,
             .args = args,
             .body = body
+    };
+
+    return obj;
+}
+
+static Object *init_dict(Object *obj) {
+    guard_is_not_null(obj);
+
+    obj->type = TYPE_DICT;
+    obj->as_dict = (Object_Dict) {
+            .size = 0,
+            .root = object_nil(),
+            .entries = object_nil()
     };
 
     return obj;
@@ -209,6 +226,17 @@ bool object_try_make_macro(ObjectAllocator *a, Object *env, Object *args, Object
     init_macro(*obj, env, args, body);
     return true;
 }
+bool object_try_make_dict(ObjectAllocator *a, Object **obj) {
+    guard_is_not_null(a);
+    guard_is_not_null(obj);
+
+    if (false == allocator_try_allocate(a, size_dict(), obj)) {
+        return false;
+    }
+
+    init_dict(*obj);
+    return true;
+}
 
 bool object_try_copy(ObjectAllocator *a, Object *obj, Object **copy) {
     guard_is_not_null(a);
@@ -246,6 +274,10 @@ bool object_try_copy(ObjectAllocator *a, Object *obj, Object **copy) {
         case TYPE_NIL: {
             *copy = obj;
             return true;
+        }
+        case TYPE_DICT: {
+            return object_try_make_dict(a, copy)
+                   && object_try_copy(a, obj->as_dict.root, &(*copy)->as_dict.root);
         }
     }
 
