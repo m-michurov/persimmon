@@ -23,7 +23,7 @@ do {                                        \
 
 #define guard_is_not_null(Ptr) guard_assert((nullptr != (Ptr)), "expected " #Ptr " to not be null")
 
-#define guard_is_equal(It, Value) guard_assert(((It) == (Value)), "expected " #It " to be equal to " #Value "")
+#define guard_is_equal(It, Value) guard_assert(((It) == (Value)), "expected %s to be equal to %s", #It, #Value)
 
 #define GUARD__varargs_to_str(...) "{" #__VA_ARGS__ "}"
 
