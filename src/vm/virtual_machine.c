@@ -99,6 +99,7 @@ void vm_free(VirtualMachine **vm) {
     object_reader_free(&(*vm)->reader);
     allocator_free(&(*vm)->allocator);
     stack_free(&(*vm)->stack);
+    free((*vm)->constants.data);
 
     free(*vm);
     *vm = nullptr;
