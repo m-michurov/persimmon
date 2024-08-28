@@ -81,8 +81,18 @@ do {                                                \
 
 #define slice_for(It, Slice)                                                        \
 auto SLICE__concat(_s_, __LINE__) = (Slice);                                        \
+typeof((Slice).data) SLICE__concat(_s_data, __LINE__) =                             \
+    SLICE__concat(_s_, __LINE__).data;                                              \
 for (                                                                               \
-    auto It = SLICE__concat(_s_, __LINE__).data;                                    \
-    It != SLICE__concat(_s_, __LINE__).data + SLICE__concat(_s_, __LINE__).count;   \
+    auto It = SLICE__concat(_s_data, __LINE__);                                     \
+    It != SLICE__concat(_s_data, __LINE__) + SLICE__concat(_s_, __LINE__).count;    \
+    It++                                                                            \
+)
+
+#define slice_for_ptr(It, Slice)                                                    \
+auto SLICE__concat(_s_, __LINE__) = (Slice);                                        \
+for (                                                                               \
+    auto It = SLICE__concat(_s_, __LINE__)->data;                                   \
+    It != SLICE__concat(_s_, __LINE__)->data + SLICE__concat(_s_, __LINE__)->count; \
     It++                                                                            \
 )
