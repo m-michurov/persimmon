@@ -103,3 +103,7 @@ void create_binding_error(VirtualMachine *vm, BindingError error);
 void create_key_error(VirtualMachine *vm, Object *key);
 
 #define key_error(VM, Key) ERRORS__error(create_key_error, (VM), (Key))
+
+void create_unhashable_error(VirtualMachine *vm, Object_Type type);
+
+#define unhashable_error(VM, Type) ERRORS__error(create_unhashable_error, (VM), (Type))

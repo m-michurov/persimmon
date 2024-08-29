@@ -40,6 +40,8 @@
 (print (catch "".x))
 (print (catch nil.x))
 (print (catch ().x))
+(print (catch (dict).""))
+(print (catch (get eq? (dict))))
 
 (print '---)
 

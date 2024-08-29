@@ -447,11 +447,23 @@ static bool dict_get(VirtualMachine *vm, Object *args, Object **value) {
     }
 
     Object_DictError error;
-    if (false == object_dict_try_get(dict, key, value, &error)) {
-        key_error(vm, key);
+    if (object_dict_try_get(dict, key, value, &error)) {
+        return true;
     }
 
-    return true;
+    switch (error) {
+        case DICT_KEY_UNHASHABLE: {
+            unhashable_error(vm, key->type);
+        }
+        case DICT_KEY_DOES_NOT_EXIST: {
+            key_error(vm, key);
+        }
+        case DICT_ALLOCATION_ERROR: {
+            out_of_memory_error(vm);
+        }
+    }
+
+    guard_unreachable();
 }
 
 static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
@@ -478,10 +490,23 @@ static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
         auto const value = object_list_shift(&args);
 
         Object_DictError error;
-        if (false == object_dict_try_put(vm_allocator(vm), *result, key, value, &error)) {
-            // FIXME type error, key error or allocation error
-            key_error(vm, key);
+        if (object_dict_try_put(vm_allocator(vm), *result, key, value, &error)) {
+            continue;
         }
+
+        switch (error) {
+            case DICT_KEY_UNHASHABLE: {
+                unhashable_error(vm, key->type);
+            }
+            case DICT_KEY_DOES_NOT_EXIST: {
+                key_error(vm, key);
+            }
+            case DICT_ALLOCATION_ERROR: {
+                out_of_memory_error(vm);
+            }
+        }
+
+        guard_unreachable();
     }
 
     return true;
@@ -507,13 +532,24 @@ static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
     }
 
     Object_DictError error;
-    if (false == object_dict_try_put(vm_allocator(vm), dict, key, value, &error)) {
-        // FIXME type error, key error or allocation error
-        out_of_memory_error(vm);
+    if (object_dict_try_put(vm_allocator(vm), dict, key, value, &error)) {
+        *result = dict;
+        return true;
     }
 
-    *result = dict;
-    return true;
+    switch (error) {
+        case DICT_KEY_UNHASHABLE: {
+            unhashable_error(vm, key->type);
+        }
+        case DICT_KEY_DOES_NOT_EXIST: {
+            key_error(vm, key);
+        }
+        case DICT_ALLOCATION_ERROR: {
+            out_of_memory_error(vm);
+        }
+    }
+
+    guard_unreachable();
 }
 
 static bool try_define(ObjectAllocator *a, Object *env, char const *name, Object_Primitive value) {

@@ -812,6 +812,7 @@ void create_binding_error(VirtualMachine *vm, BindingError error) {
 
 void create_key_error(VirtualMachine *vm, Object *key) {
     guard_is_not_null(vm);
+    guard_is_not_null(key);
 
     auto const a = vm_allocator(vm);
     auto const default_error = vm_get(vm, STATIC_KEY_ERROR_DEFAULT);
@@ -843,4 +844,15 @@ void create_key_error(VirtualMachine *vm, Object *key) {
 
     *vm_error(vm) = default_error;
     report_out_of_system_memory(vm, error_type);
+}
+
+void create_unhashable_error(VirtualMachine *vm, Object_Type type) {
+    guard_is_not_null(vm);
+
+    char message[MESSAGE_MIN_CAPACITY] = {0};
+    auto capacity = sizeof(message);
+    auto buf = message;
+    snprintf_checked(&buf, &capacity, "unhashable type: %s", object_type_str(type));
+
+    create_error_with_message(vm, vm_get(vm, STATIC_TYPE_ERROR_DEFAULT), message);
 }
