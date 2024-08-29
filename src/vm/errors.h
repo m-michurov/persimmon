@@ -41,15 +41,15 @@ void create_syntax_error(VirtualMachine *vm, SyntaxError error, char const *file
 #define syntax_error(VM, Error, File, Text) \
     ERRORS__error(create_syntax_error, (VM), (Error), (File), (Text))
 
-void create_call_error(VirtualMachine *vm, char const *name, size_t expected, bool is_variadic, size_t got);
+void create_call_args_count_error(VirtualMachine *vm, char const *name, size_t expected, bool is_variadic, size_t got);
 
-#define call_error(VM, Name, Expected, IsVariadic, Got) \
-    ERRORS__error(create_call_error, (VM), (Name), (Expected), (IsVariadic), (Got))
+#define call_args_count_error(VM, Name, Expected, IsVariadic, Got) \
+    ERRORS__error(create_call_args_count_error, (VM), (Name), (Expected), (IsVariadic), (Got))
 
-void create_call_parity_error(VirtualMachine *vm, char const *name, bool expected_even);
+void create_call_args_parity_error(VirtualMachine *vm, char const *name, bool expected_even);
 
-#define call_parity_error(VM, Name, ExpectedEven) \
-    ERRORS__error(create_call_parity_error, (VM), (Name), (ExpectedEven))
+#define call_args_parity_error(VM, Name, ExpectedEven) \
+    ERRORS__error(create_call_args_parity_error, (VM), (Name), (ExpectedEven))
 
 void create_call_ampersand_before_error(VirtualMachine *vm);
 
@@ -59,9 +59,9 @@ void create_call_ampersand_after_error(VirtualMachine *vm);
 
 #define call_ampersand_after_error(VM) ERRORS__error(create_call_ampersand_after_error, (VM))
 
-void create_call_extra_args_error(VirtualMachine *vm, Object_Type extras_type);
+void create_call_extra_args_type_error(VirtualMachine *vm, Object_Type extras_type);
 
-#define call_extra_args_error(VM, ExtrasType) ERRORS__error(create_call_extra_args_error, (VM), (ExtrasType))
+#define call_extra_args_type_error(VM, ExtrasType) ERRORS__error(create_call_extra_args_type_error, (VM), (ExtrasType))
 
 void create_name_error(VirtualMachine *vm, char const *name);
 
@@ -79,28 +79,22 @@ void create_stack_overflow_error(VirtualMachine *vm);
 
 #define stack_overflow_error(VM) ERRORS__error(create_stack_overflow_error, (VM))
 
-// TODO name should contain info about error being related to special forms
-void create_too_few_args_error(VirtualMachine *vm, char const *name);
+void create_special_too_few_args_error(VirtualMachine *vm, char const *name);
 
-#define too_few_args_error(VM, Name) ERRORS__error(create_too_few_args_error, (VM), (Name))
+#define special_too_few_args_error(VM, Name) ERRORS__error(create_special_too_few_args_error, (VM), (Name))
 
-void create_too_many_args_error(VirtualMachine *vm, char const *name);
+void create_special_too_many_args_error(VirtualMachine *vm, char const *name);
 
-#define too_many_args_error(VM, Name) ERRORS__error(create_too_many_args_error, (VM), (Name))
+#define special_too_many_args_error(VM, Name) ERRORS__error(create_special_too_many_args_error, (VM), (Name))
 
-// TODO name should contain info about error being related to special forms
-void create_args_count_error(VirtualMachine *vm, char const *name, size_t expected);
+void create_special_args_count_error(VirtualMachine *vm, char const *name, size_t expected);
 
-#define args_count_error(VM, Name, Expected) \
-    ERRORS__error(create_args_count_error, (VM), (Name), (Expected))
+#define special_args_count_error(VM, Name, Expected) \
+    ERRORS__error(create_special_args_count_error, (VM), (Name), (Expected))
 
 void create_parameters_declaration_error(VirtualMachine *vm, BindingTargetError error);
 
 #define parameters_declaration_error(VM, Error) ERRORS__error(create_parameters_declaration_error, (VM), (Error))
-
-void create_import_path_type_error(VirtualMachine *vm);
-
-#define import_path_type_error(VM) ERRORS__error(create_import_path_type_error, (VM))
 
 void create_binding_error(VirtualMachine *vm, BindingError error);
 

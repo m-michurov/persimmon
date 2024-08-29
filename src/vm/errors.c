@@ -365,7 +365,7 @@ void create_syntax_error(
     report_out_of_memory(vm, error_type);
 }
 
-void create_call_error(VirtualMachine *vm, char const *name, size_t expected, bool is_variadic, size_t got) {
+void create_call_args_count_error(VirtualMachine *vm, char const *name, size_t expected, bool is_variadic, size_t got) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
@@ -410,7 +410,7 @@ void create_call_error(VirtualMachine *vm, char const *name, size_t expected, bo
     report_out_of_memory(vm, error_type);
 }
 
-void create_call_parity_error(VirtualMachine *vm, char const *name, bool expected_even) {
+void create_call_args_parity_error(VirtualMachine *vm, char const *name, bool expected_even) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
@@ -467,7 +467,7 @@ void create_call_ampersand_after_error(VirtualMachine *vm) {
     );
 }
 
-void create_call_extra_args_error(VirtualMachine *vm, Object_Type extras_type) {
+void create_call_extra_args_type_error(VirtualMachine *vm, Object_Type extras_type) {
     guard_is_not_null(vm);
 
     auto const a = vm_allocator(vm);
@@ -558,7 +558,7 @@ void create_stack_overflow_error(VirtualMachine *vm) {
     create_error_with_message(vm, vm_get(vm, STATIC_STACK_OVERFLOW_ERROR_DEFAULT), "stack capacity exceeded");
 }
 
-void create_too_few_args_error(VirtualMachine *vm, char const *name) {
+void create_special_too_few_args_error(VirtualMachine *vm, char const *name) {
     char message[MESSAGE_MIN_CAPACITY] = {0};
     auto capacity = sizeof(message);
     auto buf = message;
@@ -567,7 +567,7 @@ void create_too_few_args_error(VirtualMachine *vm, char const *name) {
     create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
 }
 
-void create_too_many_args_error(VirtualMachine *vm, char const *name) {
+void create_special_too_many_args_error(VirtualMachine *vm, char const *name) {
     char message[MESSAGE_MIN_CAPACITY] = {0};
     auto capacity = sizeof(message);
     auto buf = message;
@@ -576,7 +576,7 @@ void create_too_many_args_error(VirtualMachine *vm, char const *name) {
     create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
 }
 
-void create_args_count_error(VirtualMachine *vm, char const *name, size_t expected) {
+void create_special_args_count_error(VirtualMachine *vm, char const *name, size_t expected) {
     char message[MESSAGE_MIN_CAPACITY] = {0};
     auto capacity = sizeof(message);
     auto buf = message;

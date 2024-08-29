@@ -239,7 +239,7 @@ static bool try_step_call(VirtualMachine *vm) {
 
         auto const extra_args = object_list_nth(0, frame->evaluated);
         if (TYPE_CONS != (*extra_args)->type && TYPE_NIL != (*extra_args)->type) {
-            call_extra_args_error(vm, (*extra_args)->type);
+            call_extra_args_type_error(vm, (*extra_args)->type);
         }
 
         object_list_reverse(extra_args);
@@ -334,7 +334,7 @@ static bool try_step_macro_or_fn(VirtualMachine *vm) {
 
     auto const len = object_list_count(frame->unevaluated);
     if (len < 2) {
-        too_few_args_error(vm, FRAME_MACRO == frame->type ? "macro" : "fn");
+        special_too_few_args_error(vm, FRAME_MACRO == frame->type ? "macro" : "fn");
     }
 
     auto const args = object_as_cons(frame->unevaluated).first;
@@ -380,11 +380,11 @@ static bool try_step_if(VirtualMachine *vm) {
     if (object_nil() == frame->evaluated) {
         auto const len = object_list_count(frame->unevaluated);
         if (len < 2) {
-            too_few_args_error(vm, "if");
+            special_too_few_args_error(vm, "if");
         }
 
         if (len > 3) {
-            too_many_args_error(vm, "if");
+            special_too_many_args_error(vm, "if");
         }
 
         auto const cond = object_as_cons(frame->unevaluated).first;
@@ -449,7 +449,7 @@ static bool try_step_define(VirtualMachine *vm) {
     if (object_nil() == frame->evaluated) {
         size_t const expected = 2;
         if (expected != object_list_count(frame->unevaluated)) {
-            args_count_error(vm, "define", expected);
+            special_args_count_error(vm, "define", expected);
         }
 
         return try_begin_eval(
@@ -480,12 +480,12 @@ static bool try_step_import(VirtualMachine *vm) {
 
     size_t const expected = 1;
     if (expected != object_list_count(frame->unevaluated)) {
-        args_count_error(vm, "import", expected);
+        special_args_count_error(vm, "import", expected);
     }
 
     auto const file_name = object_as_cons(frame->unevaluated).first;
     if (TYPE_STRING != file_name->type) {
-        import_path_type_error(vm);
+        type_error(vm, file_name->type, TYPE_STRING);
     }
 
     Object **exprs;
@@ -520,7 +520,7 @@ static bool try_step_quote(VirtualMachine *vm) {
 
     size_t const expected = 1;
     if (expected != object_list_count(frame->unevaluated)) {
-        args_count_error(vm, "quote", expected);
+        special_args_count_error(vm, "quote", expected);
     }
 
     auto const value = object_as_cons(frame->unevaluated).first;

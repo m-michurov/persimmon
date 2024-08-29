@@ -23,7 +23,7 @@ static bool eq(VirtualMachine *vm, Object *args, Object **value) {
 
     Object *lhs, *rhs;
     if (false == object_list_try_unpack_2(&lhs, &rhs, args)) {
-        call_error(vm, "eq?", 2, false, object_list_count(args));
+        call_args_count_error(vm, "eq?", 2, false, object_list_count(args));
     }
 
     *value = vm_get(vm, object_equals(lhs, rhs) ? STATIC_TRUE : STATIC_FALSE);
@@ -71,7 +71,7 @@ static bool repr(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_error(vm, "repr", expected, false, got);
+        call_args_count_error(vm, "repr", expected, false, got);
     }
 
     auto sb = (StringBuilder) {0};
@@ -255,7 +255,7 @@ static bool list_first(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_error(vm, "first", expected, false, got);
+        call_args_count_error(vm, "first", expected, false, got);
     }
 
     auto const list = object_as_cons(args).first;
@@ -276,7 +276,7 @@ static bool list_rest(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_error(vm, "rest", expected, false, got);
+        call_args_count_error(vm, "rest", expected, false, got);
     }
 
     auto const list = object_as_cons(args).first;
@@ -296,7 +296,7 @@ static bool list_prepend(VirtualMachine *vm, Object *args, Object **value) {
 
     Object *element, *list;
     if (false == object_list_try_unpack_2(&element, &list, args)) {
-        call_error(vm, "prepend", 2, false, object_list_count(args));
+        call_args_count_error(vm, "prepend", 2, false, object_list_count(args));
     }
 
     if (list->type != TYPE_NIL && list->type != TYPE_CONS) {
@@ -319,7 +319,7 @@ static bool list_reverse(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_error(vm, "reverse", expected, false, got);
+        call_args_count_error(vm, "reverse", expected, false, got);
     }
 
     auto const list = object_as_cons(args).first;
@@ -366,7 +366,7 @@ static bool not(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_error(vm, "not", expected, false, got);
+        call_args_count_error(vm, "not", expected, false, got);
     }
 
     *value = vm_get(vm, object_nil() == args->as_cons.first ? STATIC_TRUE : STATIC_FALSE);
@@ -383,7 +383,7 @@ static bool type(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_error(vm, "type", expected, false, got);
+        call_args_count_error(vm, "type", expected, false, got);
     }
 
     auto const arg = args->as_cons.first;
@@ -399,7 +399,7 @@ static bool traceback(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 0;
     if (expected != got) {
-        call_error(vm, "traceback", expected, false, got);
+        call_args_count_error(vm, "traceback", expected, false, got);
     }
 
     if (false == traceback_try_get(vm_allocator(vm), *vm_stack(vm), value)) {
@@ -419,7 +419,7 @@ static bool throw(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_error(vm, "throw", expected, false, got);
+        call_args_count_error(vm, "throw", expected, false, got);
     }
 
     auto const error = args->as_cons.first;
@@ -439,7 +439,7 @@ static bool dict_get(VirtualMachine *vm, Object *args, Object **value) {
 
     Object *key, *dict;
     if (false == object_list_try_unpack_2(&key, &dict, args)) {
-        call_error(vm, "get", 2, false, object_list_count(args));
+        call_args_count_error(vm, "get", 2, false, object_list_count(args));
     }
 
     if (TYPE_DICT != dict->type) {
@@ -462,7 +462,7 @@ static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
 
     auto const got = object_list_count(args);
     if (0 != got % 2) {
-        call_parity_error(vm, "dict", true);
+        call_args_parity_error(vm, "dict", true);
     }
 
     if (false == object_try_make_dict_entries(vm_allocator(vm), /* TODO named constant */ 32, result)) {
@@ -496,7 +496,7 @@ static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
     auto const got = object_list_count(args);
     typeof(got) expected = 3;
     if (expected != got) {
-        call_error(vm, "put", expected, false, got);
+        call_args_count_error(vm, "put", expected, false, got);
     }
 
     auto const key = *object_list_nth(0, args);
