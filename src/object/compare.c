@@ -1,6 +1,7 @@
 #include "compare.h"
 
 #include "utility/guards.h"
+#include "utility/slice.h"
 #include "lists.h"
 #include "dict.h"
 
@@ -34,25 +35,11 @@ static bool equals(Object *a, Object *b) { // NOLINT(*-no-recursion)
 
             return object_nil() == a && object_nil() == b;
         }
+        case TYPE_DICT_ENTRIES: {
+            guard_unreachable();
+        }
         case TYPE_DICT: {
-            if (a->as_dict.size != b->as_dict.size) {
-                return false;
-            }
-
-            for (auto entry = a->as_dict.entries; object_nil() != entry; entry = object_dict_entry_next(entry)) {
-                auto const key = object_dict_entry_key(entry);
-                auto const value = object_dict_entry_value(entry);
-
-                Object *other_value;
-                Object_DictError error;
-                guard_is_true(object_dict_try_get(b, key, &other_value, &error));
-
-                if (false == equals(value, other_value)) {
-                    return false;
-                }
-            }
-
-            return true;
+            guard_unreachable();
         }
         case TYPE_PRIMITIVE: {
             return a->as_primitive == b->as_primitive;
@@ -77,38 +64,6 @@ static bool try_compare_less(Object *a, Object *b, bool *result) {
     guard_is_not_null(result);
 
     if (a->type != b->type) {
-        switch (a->type) {
-            case TYPE_INT:
-            case TYPE_STRING:
-            case TYPE_ATOM:
-            case TYPE_CONS: {
-                switch (b->type) {
-                    case TYPE_INT:
-                    case TYPE_STRING:
-                    case TYPE_ATOM:
-                    case TYPE_CONS: {
-                        *result = a->type < b->type;
-                        return true;
-                    }
-                    case TYPE_DICT:
-                    case TYPE_PRIMITIVE:
-                    case TYPE_CLOSURE:
-                    case TYPE_MACRO:
-                    case TYPE_NIL: {
-                        return false;
-                    }
-                }
-
-                guard_unreachable();
-            }
-            case TYPE_DICT:
-            case TYPE_PRIMITIVE:
-            case TYPE_CLOSURE:
-            case TYPE_MACRO:
-            case TYPE_NIL: {
-                return false;
-            }
-        }
         return false;
     }
 
@@ -144,6 +99,7 @@ static bool try_compare_less(Object *a, Object *b, bool *result) {
             *result = object_nil() == a && object_nil() != b;
             return true;
         }
+        case TYPE_DICT_ENTRIES:
         case TYPE_DICT:
         case TYPE_PRIMITIVE:
         case TYPE_CLOSURE:

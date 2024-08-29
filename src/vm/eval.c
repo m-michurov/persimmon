@@ -136,11 +136,12 @@ static bool try_begin_eval(
     switch (expr->type) {
         case TYPE_INT:
         case TYPE_STRING:
+        case TYPE_DICT_ENTRIES:
+        case TYPE_DICT:
         case TYPE_PRIMITIVE:
         case TYPE_CLOSURE:
         case TYPE_MACRO:
-        case TYPE_NIL:
-        case TYPE_DICT: {
+        case TYPE_NIL: {
             if (EVAL_FRAME_REMOVE == current) {
                 return try_save_result_and_pop(vm, results_list, expr);
             }

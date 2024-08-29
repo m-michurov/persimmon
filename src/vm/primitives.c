@@ -424,11 +424,7 @@ static bool throw(VirtualMachine *vm, Object *args, Object **value) {
 
     auto const error = args->as_cons.first;
     if (TYPE_NIL == error->type) {
-        type_error(
-                vm,
-                error->type,
-                TYPE_CONS, TYPE_INT, TYPE_ATOM, TYPE_MACRO, TYPE_CLOSURE, TYPE_PRIMITIVE, TYPE_STRING
-        );
+        type_error_unexpected(vm, error->type);
     }
 
     *vm_error(vm) = error;
@@ -458,18 +454,22 @@ static bool dict_get(VirtualMachine *vm, Object *args, Object **value) {
     return true;
 }
 
-static bool dict_dict(VirtualMachine *vm, Object *args, Object **dict) {
+static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
-    guard_is_not_null(dict);
+    guard_is_not_null(result);
 
     auto const got = object_list_count(args);
     if (0 != got % 2) {
         call_parity_error(vm, "dict", true);
     }
 
-    if (false == object_try_make_dict(vm_allocator(vm), dict)) {
+    if (false == object_try_make_dict_entries(vm_allocator(vm), /* TODO named constant */ 32, result)) {
+        out_of_memory_error(vm);
+    }
+
+    if (false == object_try_make_dict(vm_allocator(vm), *result, result)) {
         out_of_memory_error(vm);
     }
 
@@ -479,10 +479,8 @@ static bool dict_dict(VirtualMachine *vm, Object *args, Object **dict) {
 
         Object *key_value_pair;
         Object_DictError error;
-        if (false == object_dict_try_put(vm_allocator(vm), *dict, key, value, &key_value_pair, &error)) {
-            printf("object_dict_try_put -> error#%d\n", error);
-
-            // FIXME error
+        if (false == object_dict_try_put(vm_allocator(vm), *result, key, value, &key_value_pair, &error)) {
+            // FIXME type error, key error or allocation error
             key_error(vm, key);
         }
     }
@@ -512,11 +510,11 @@ static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
     Object *key_value_pair;
     Object_DictError error;
     if (false == object_dict_try_put(vm_allocator(vm), dict, key, value, &key_value_pair, &error)) {
-        // FIXME error
+        // FIXME type error, key error or allocation error
         out_of_memory_error(vm);
     }
 
-    *result = object_nil();
+    *result = dict;
     return true;
 }
 

@@ -18,6 +18,9 @@ char const *object_type_str(Object_Type type) {
         case TYPE_CONS: {
             return "cons";
         }
+        case TYPE_DICT_ENTRIES: {
+            return "dict_entries";
+        }
         case TYPE_DICT: {
             return "dict";
         }
@@ -32,26 +35,6 @@ char const *object_type_str(Object_Type type) {
         }
         case TYPE_NIL: {
             return "nil";
-        }
-    }
-
-    guard_unreachable();
-}
-
-bool object_type_is_mutable(Object_Type type) {
-    switch (type) {
-        case TYPE_DICT: {
-            return true;
-        }
-        case TYPE_INT:
-        case TYPE_STRING:
-        case TYPE_ATOM:
-        case TYPE_CONS:
-        case TYPE_PRIMITIVE:
-        case TYPE_CLOSURE:
-        case TYPE_MACRO:
-        case TYPE_NIL: {
-            return false;
         }
     }
 

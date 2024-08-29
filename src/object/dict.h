@@ -3,14 +3,8 @@
 #include "object.h"
 #include "allocator.h"
 
-Object *object_dict_entry_next(Object *entry);
-
-Object *object_dict_entry_key(Object *entry);
-
-Object *object_dict_entry_value(Object *entry);
-
 typedef enum {
-    DICT_INVALID_KEY,
+    DICT_KEY_UNHASHABLE,
     DICT_KEY_DOES_NOT_EXIST,
     DICT_ALLOCATION_ERROR
 } Object_DictError;

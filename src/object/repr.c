@@ -6,8 +6,8 @@
 #include "utility/guards.h"
 #include "utility/strings.h"
 #include "utility/writer.h"
+#include "utility/slice.h"
 #include "lists.h"
-#include "dict.h"
 
 static bool is_quote(Object *expr, Object **quoted) {
     guard_is_not_null(expr);
@@ -94,7 +94,7 @@ static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code) {
             return writer_try_printf(w, error_code, ")");
         }
         case TYPE_DICT: {
-            if (object_nil() == obj->as_dict.entries) {
+            if (slice_empty(obj->as_dict.entries->as_dict_entries)) {
                 return writer_try_printf(w, error_code, "{}");
             }
 
@@ -102,8 +102,19 @@ static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code) {
                 return false;
             }
 
-            for (auto entry = obj->as_dict.entries; object_nil() != entry; entry = object_dict_entry_next(entry)) {
-                if (false == object_try_write_repr(w, object_dict_entry_key(entry), error_code)) {
+            auto first_entry = true;
+            slice_ptr_for(entry, &obj->as_dict.entries->as_dict_entries) {
+                if (false == entry->used) {
+                    continue;
+                }
+
+                if (false == first_entry) {
+                    if (false == writer_try_printf(w, error_code, ", ")) {
+                        return false;
+                    }
+                }
+
+                if (false == object_try_write_repr(w, entry->key, error_code)) {
                     return false;
                 }
 
@@ -111,17 +122,11 @@ static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code) {
                     return false;
                 }
 
-                if (false == object_try_write_repr(w, object_dict_entry_value(entry), error_code)) {
+                if (false == object_try_write_repr(w, entry->value, error_code)) {
                     return false;
                 }
 
-                if (object_nil() == object_dict_entry_next(entry)) {
-                    break;
-                }
-
-                if (false == writer_try_printf(w, error_code, ", ")) {
-                    return false;
-                }
+                first_entry = false;
             }
 
             return writer_try_printf(w, error_code, "}");
@@ -129,6 +134,7 @@ static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code) {
         case TYPE_NIL: {
             return writer_try_printf(w, error_code, "()");
         }
+        case TYPE_DICT_ENTRIES:
         case TYPE_PRIMITIVE:
         case TYPE_CLOSURE:
         case TYPE_MACRO: {
@@ -150,6 +156,7 @@ static bool object_try_write_str(Writer w, Object *obj, errno_t *error_code) {
         case TYPE_INT:
         case TYPE_ATOM:
         case TYPE_CONS:
+        case TYPE_DICT_ENTRIES:
         case TYPE_DICT:
         case TYPE_NIL:
         case TYPE_PRIMITIVE:

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+// FIXME use formatting to insert stringified values
 #define GUARD__print_error(Format, ...)                                                                 \
 do {                                                                                                    \
     fprintf(stderr, "[%s:%d] %s - " Format "\n", __FILE_NAME__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
@@ -54,16 +55,16 @@ guard_assert(                                       \
     "expected " #It " to not be equal to " #Value \
 )
 
-#define guard_is_less(It, Value)                    \
-guard_assert(                                       \
-    ((It) < (Value)),                               \
-    "expected " #It " to be greater than " #Value \
+#define guard_is_less(It, Value)                \
+guard_assert(                                   \
+    ((It) < (Value)),                           \
+    "expected " #It " to be less than " #Value  \
 )
 
-#define guard_is_less_or_equal(It, Value)                       \
-guard_assert(                                                   \
-    ((It) <= (Value)),                                          \
-    "expected " #It " to be greater than or equal to " #Value \
+#define guard_is_less_or_equal(It, Value)                   \
+guard_assert(                                               \
+    ((It) <= (Value)),                                      \
+    "expected " #It " to be less than or equal to " #Value  \
 )
 
 #define guard_is_greater(It, Value)                 \

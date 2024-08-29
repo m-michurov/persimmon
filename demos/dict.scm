@@ -44,12 +44,13 @@
 (print '---)
 
 (define d (reduce
-            (fn (dict value) (put value (* value value) dict) dict)
+            (fn (dict value) (put value (* value value) dict))
             (dict)
-            (range 5)))
+            (range 48)))
 (print d)
-(apply (fn (x) (print (get x d))) (range 5))
+(apply (fn (x) (print (get x d))) (range 48))
 (print d.1 d.2 d.3 d.4 d.5)
+(print d)
 
 (print '---)
 

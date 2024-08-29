@@ -32,6 +32,10 @@ create_type_error_(                                                     \
 
 #define type_error(VM, Got, ...) ERRORS__error(create_type_error, (VM), (Got), __VA_ARGS__)
 
+void create_type_error_unexpected(VirtualMachine *vm, Object_Type got);
+
+#define type_error_unexpected(VM, Got) ERRORS__error(create_type_error_unexpected, (VM), (Got))
+
 void create_syntax_error(VirtualMachine *vm, SyntaxError error, char const *file, char const *text);
 
 #define syntax_error(VM, Error, File, Text) \
@@ -75,7 +79,7 @@ void create_stack_overflow_error(VirtualMachine *vm);
 
 #define stack_overflow_error(VM) ERRORS__error(create_stack_overflow_error, (VM))
 
-// TODO special
+// TODO name should contain info about error being related to special forms
 void create_too_few_args_error(VirtualMachine *vm, char const *name);
 
 #define too_few_args_error(VM, Name) ERRORS__error(create_too_few_args_error, (VM), (Name))
@@ -84,7 +88,7 @@ void create_too_many_args_error(VirtualMachine *vm, char const *name);
 
 #define too_many_args_error(VM, Name) ERRORS__error(create_too_many_args_error, (VM), (Name))
 
-// TODO special
+// TODO name should contain info about error being related to special forms
 void create_args_count_error(VirtualMachine *vm, char const *name, size_t expected);
 
 #define args_count_error(VM, Name, Expected) \

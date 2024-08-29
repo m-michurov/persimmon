@@ -117,6 +117,8 @@ static void create_error_with_message(VirtualMachine *vm, Object *default_error,
     report_out_of_memory(vm, error_type);
 }
 
+// TODO dont create unnecessary fields, only use message and traceback
+// TODO use dicts for errors?
 void create_os_error(VirtualMachine *vm, errno_t error_code) {
     guard_is_not_null(vm);
 
@@ -221,6 +223,40 @@ void create_type_error_(
          && object_try_make_atom(a, ERROR_FIELD_EXPECTED, object_list_nth(0, *expected_types_list))
          &&
          try_create_atom_field(vm, ERROR_FIELD_GOT, object_type_str(got), object_list_nth(++field_index, *vm_error(vm)))
+         && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+    if (ok) {
+        return;
+    }
+
+    *vm_error(vm) = default_error;
+    report_out_of_memory(vm, error_type);
+}
+
+void create_type_error_unexpected(VirtualMachine *vm, Object_Type got) {
+    guard_is_not_null(vm);
+
+    auto const a = vm_allocator(vm);
+    auto const default_error = vm_get(vm, STATIC_TYPE_ERROR_DEFAULT);
+    auto const error_type = object_as_cons(default_error).first;
+
+    char message[MESSAGE_MIN_CAPACITY] = {0};
+    size_t capacity = sizeof(message);
+    auto buf = message;
+    snprintf_checked(&buf, &capacity, "unsupported type (got %s)", object_type_str(got));
+
+    auto field_index = 0;
+    auto ok =
+            object_try_make_list(
+                    a, vm_error(vm),
+                    error_type,
+                    object_nil(),
+                    object_nil(),
+                    object_nil()
+            )
+            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth(++field_index, *vm_error(vm)));
+
+    ok = ok
+         && try_create_atom_field(vm, ERROR_FIELD_GOT, object_type_str(got), object_list_nth(++field_index, *vm_error(vm)))
          && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
     if (ok) {
         return;

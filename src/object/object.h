@@ -10,14 +10,13 @@ typedef enum {
     TYPE_STRING,
     TYPE_ATOM,
     TYPE_CONS,
+    TYPE_DICT_ENTRIES,
     TYPE_DICT,
     TYPE_PRIMITIVE,
     TYPE_CLOSURE,
     TYPE_MACRO,
-    TYPE_NIL
+    TYPE_NIL,
 } Object_Type;
-
-bool object_type_is_mutable(Object_Type type);
 
 char const *object_type_str(Object_Type type);
 
@@ -38,16 +37,27 @@ struct VirtualMachine;
 
 typedef bool (*Object_Primitive)(struct VirtualMachine *, Object *args, Object **value);
 
-typedef struct Object_Closure {
+typedef struct {
     Object *env;
     Object *args;
     Object *body;
 } Object_Closure;
 
-typedef struct Object_Dict {
-    size_t size;
-    Object *root;
+typedef struct {
+    bool used;
+    Object *key;
+    Object *value;
+} Object_DictEntry;
+
+typedef struct {
+    size_t used;
+    size_t count;
+    Object_DictEntry data[];
+} Object_DictEntries;
+
+typedef struct {
     Object *entries;
+    Object *new_entries;
 } Object_Dict;
 
 typedef enum {
@@ -69,6 +79,7 @@ struct Object {
         Object_Cons as_cons;
         Object_Primitive as_primitive;
         Object_Closure as_closure;
+        Object_DictEntries as_dict_entries;
         Object_Dict as_dict;
     };
 };

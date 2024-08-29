@@ -2,83 +2,56 @@
 
 #include "utility/guards.h"
 #include "utility/exchange.h"
+#include "utility/slice.h"
 #include "allocator.h"
+#include "constructors.h"
 #include "object.h"
-#include "lists.h"
 #include "compare.h"
+#include "hash.h"
 
-static bool entry_try_init(ObjectAllocator *a, Object *key, Object *value, Object **entry) {
-    return object_try_make_list(a, entry, object_nil(), object_nil(), object_nil(), object_nil(), key, value);
+#define LOAD_FACTOR_THRESHOLD ((double) 0.5)
+
+#define dict_error(ErrorType, Error)    \
+do {                                    \
+    *(Error) = (ErrorType);             \
+    return false;                       \
+} while (false)                         \
+
+static double entries_load_factor(Object_DictEntries entries) {
+    return ((double) entries.used) / ((double) entries.count);
 }
 
-static Object **entry_prev(Object *entry) {
-    guard_is_not_null(entry);
+#define entries_next_count(OldCapacity) (2 * (OldCapacity) + 10)
 
-    return object_list_nth(0, entry);
-}
-
-static Object **entry_next(Object *entry) {
-    guard_is_not_null(entry);
-
-    return object_list_nth(1, entry);
-}
-
-static Object **entry_left(Object *entry) {
-    guard_is_not_null(entry);
-
-    return object_list_nth(2, entry);
-}
-
-static Object **entry_right(Object *entry) {
-    guard_is_not_null(entry);
-
-    return object_list_nth(3, entry);
-}
-
-static Object **entry_key(Object *entry) {
-    guard_is_not_null(entry);
-
-    return object_list_nth(4, entry);
-}
-
-static Object **entry_value(Object *entry) {
-    guard_is_not_null(entry);
-
-    return object_list_nth(5, entry);
-}
-
-Object *object_dict_entry_next(Object *entry) {
-    return *entry_next(entry);
-}
-
-Object *object_dict_entry_key(Object *entry) {
-    return *entry_key(entry);
-}
-
-Object *object_dict_entry_value(Object *entry) {
-    return *entry_value(entry);
-}
-
-static bool try_find_entry_or_nil(Object *dict, Object *key, Object ***entry) {
-    guard_is_not_null(dict);
+static Object_DictEntry *entries_lookup(Object_DictEntries *entries, Object *key, size_t hash) {
+    guard_is_not_null(entries);
     guard_is_not_null(key);
-    guard_is_equal(dict->type, TYPE_DICT);
+    guard_is_greater(entries->count, 0);
+    guard_is_less(entries_load_factor(*entries), LOAD_FACTOR_THRESHOLD);
 
-    *entry = &dict->as_dict.root;
-    while (object_nil() != **entry) {
-        if (object_equals(key, *entry_key(**entry))) {
-            return true;
-        }
-
-        bool is_less;
-        if (false == object_try_compare(key, *entry_key(**entry), COMPARE_LESS, &is_less)) {
-            return false;
-        }
-
-        *entry = is_less ? entry_left(**entry) : entry_right(**entry);
+    auto i = hash % entries->count;
+    while (slice_ptr_at(entries, i)->used && false == object_equals(key, slice_ptr_at(entries, i)->key)) {
+        i = (i + 1) % entries->count;
     }
 
-    return true;
+    return slice_ptr_at(entries, i);
+}
+
+static void entries_rebuild(Object_DictEntries const *entries, Object_DictEntries *new_entries) {
+    guard_is_not_null(entries);
+    guard_is_not_null(new_entries);
+    guard_is_greater_or_equal(new_entries->count, entries->count);
+
+    slice_ptr_for(entry, entries) {
+        if (false == entry->used) {
+            continue;
+        }
+
+        size_t hash;
+        guard_is_true(object_try_hash(entry->key, &hash));
+
+        *entries_lookup(new_entries, entry->key, hash) = *entry;
+    }
 }
 
 bool object_dict_try_put(
@@ -95,33 +68,39 @@ bool object_dict_try_put(
     guard_is_not_null(value);
     guard_is_not_null(key_value_pair);
     guard_is_not_null(error);
-    guard_is_one_of(dict->type, TYPE_DICT);
+    guard_is_equal(dict->type, TYPE_DICT);;
+    guard_is_equal(dict->as_dict.entries->type, TYPE_DICT_ENTRIES);
 
-    *key_value_pair = object_nil();
+    auto const entries = &dict->as_dict.entries;
 
-    Object **entry;
-    if (false == try_find_entry_or_nil(dict, key, &entry)) {
-        *error = DICT_INVALID_KEY;
-        return false;
+    if (entries_load_factor((*entries)->as_dict_entries) >= LOAD_FACTOR_THRESHOLD) {
+        auto const next_count = entries_next_count((*entries)->as_dict_entries.count);
+        if (false == object_try_make_dict_entries(a, next_count, &dict->as_dict.new_entries)) {
+            dict_error(DICT_ALLOCATION_ERROR, error);
+        }
+
+        entries_rebuild(&(*entries)->as_dict_entries, &dict->as_dict.new_entries->as_dict_entries);
+        dict->as_dict.entries = exchange(dict->as_dict.new_entries, object_nil());
     }
 
-    if (object_nil() != *entry) {
-        *entry_value(*entry) = value;
+    size_t hash;
+    if (false == object_try_hash(key, &hash)) {
+        dict_error(DICT_KEY_UNHASHABLE, error);
+    }
+
+    auto const entry = entries_lookup(&(*entries)->as_dict_entries, key, hash);
+    if (entry->used) {
+        entry->value = value;
         return true;
     }
 
-    if (false == entry_try_init(a, key, value, entry)) {
-        *error = DICT_ALLOCATION_ERROR;
-        return false;
-    }
+    (*entries)->as_dict_entries.used++;
 
-    // FIXME rebalance
-
-    auto const entries = exchange(dict->as_dict.entries, *entry);
-    if (object_nil() != entries) {
-        *entry_next(*entry) = entries;
-        *entry_prev(entries) = *entry;
-    }
+    *entry = (Object_DictEntry) {
+            .used = true,
+            .key = key,
+            .value = value
+    };
 
     return true;
 }
@@ -135,19 +114,22 @@ bool object_dict_try_get(
     guard_is_not_null(dict);
     guard_is_not_null(key);
     guard_is_not_null(value);
+    guard_is_not_null(error);
     guard_is_equal(dict->type, TYPE_DICT);
+    guard_is_equal(dict->as_dict.entries->type, TYPE_DICT_ENTRIES);
 
-    Object **entry;
-    if (false == try_find_entry_or_nil(dict, key, &entry)) {
-        *error = DICT_INVALID_KEY;
-        return false;
+    auto const entries = &dict->as_dict.entries->as_dict_entries;
+
+    size_t hash;
+    if (false == object_try_hash(key, &hash)) {
+        dict_error(DICT_KEY_UNHASHABLE, error);
     }
 
-    if (object_nil() == *entry) {
-        *error = DICT_KEY_DOES_NOT_EXIST;
-        return false;
+    auto const entry = entries_lookup(entries, key, hash);
+    if (entry->used) {
+        *value = entry->value;
+        return true;
     }
 
-    *value = *entry_value(*entry);
-    return true;
+    dict_error(DICT_KEY_DOES_NOT_EXIST, error);
 }

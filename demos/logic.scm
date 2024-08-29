@@ -6,6 +6,8 @@
 (print (eq? '(1 2 3) '(1 2 3 4)))
 (print (eq? '(1 2 3) (list 1 2 3)))
 (print (eq? '(1 2 (a b)) (list 1 2 (list 'a 'b))))
+(print (eq? (dict 1 2 3 4) (dict 1 4 3 9)))
+(print (eq? (dict 1 2 3 4) (dict 3 4 1 2)))
 
 (print "-- and -- ")
 

@@ -1,3 +1,3 @@
 #pragma once
 
-#define exchange(Dst, Src) ({auto _dst = (Dst); (Dst) = (Src); _dst; })
+#define exchange(OldValue, NewValue) ({auto _old = (OldValue); (OldValue) = (NewValue); _old; })
