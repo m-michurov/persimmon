@@ -15,7 +15,6 @@ bool object_dict_try_put(
         Object *dict,
         Object *key,
         Object *value,
-        Object **key_value_pair,
         Object_DictError *error
 );
 

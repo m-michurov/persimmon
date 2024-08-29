@@ -477,9 +477,8 @@ static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
         auto const key = object_list_shift(&args);
         auto const value = object_list_shift(&args);
 
-        Object *key_value_pair;
         Object_DictError error;
-        if (false == object_dict_try_put(vm_allocator(vm), *result, key, value, &key_value_pair, &error)) {
+        if (false == object_dict_try_put(vm_allocator(vm), *result, key, value, &error)) {
             // FIXME type error, key error or allocation error
             key_error(vm, key);
         }
@@ -507,9 +506,8 @@ static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
         type_error(vm, dict->type, TYPE_DICT);
     }
 
-    Object *key_value_pair;
     Object_DictError error;
-    if (false == object_dict_try_put(vm_allocator(vm), dict, key, value, &key_value_pair, &error)) {
+    if (false == object_dict_try_put(vm_allocator(vm), dict, key, value, &error)) {
         // FIXME type error, key error or allocation error
         out_of_memory_error(vm);
     }

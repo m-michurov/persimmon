@@ -59,16 +59,14 @@ bool object_dict_try_put(
         Object *dict,
         Object *key,
         Object *value,
-        Object **key_value_pair,
         Object_DictError *error
 ) {
     guard_is_not_null(a);
     guard_is_not_null(dict);
     guard_is_not_null(key);
     guard_is_not_null(value);
-    guard_is_not_null(key_value_pair);
     guard_is_not_null(error);
-    guard_is_equal(dict->type, TYPE_DICT);;
+    guard_is_equal(dict->type, TYPE_DICT);
     guard_is_equal(dict->as_dict.entries->type, TYPE_DICT_ENTRIES);
 
     auto const entries = &dict->as_dict.entries;
