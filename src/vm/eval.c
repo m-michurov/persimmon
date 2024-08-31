@@ -206,7 +206,7 @@ static bool try_step_call(VirtualMachine *vm) {
         auto const formal_args = fn->as_closure.args;
 
         Object **arg_bindings;
-        if (false == stack_try_create_local(s, &arg_bindings)) {
+        if (false == stack_try_create_local(stack_locals(s), &arg_bindings)) {
             stack_overflow_error(vm);
         }
 
@@ -286,7 +286,7 @@ static bool try_step_call(VirtualMachine *vm) {
 
     if (TYPE_PRIMITIVE == fn->type) {
         Object **value;
-        if (false == stack_try_create_local(s, &value)) {
+        if (false == stack_try_create_local(stack_locals(s), &value)) {
             stack_overflow_error(vm);
         }
 
@@ -303,7 +303,7 @@ static bool try_step_call(VirtualMachine *vm) {
     auto const formal_args = fn->as_closure.args;
 
     Object **arg_bindings;
-    if (false == stack_try_create_local(s, &arg_bindings)) {
+    if (false == stack_try_create_local(stack_locals(s), &arg_bindings)) {
         stack_overflow_error(vm);
     }
 
@@ -346,7 +346,7 @@ static bool try_step_macro_or_fn(VirtualMachine *vm) {
     auto const body_items = object_as_cons(frame->unevaluated).rest;
 
     Object **body;
-    if (false == stack_try_create_local(s, &body)) {
+    if (false == stack_try_create_local(stack_locals(s), &body)) {
         stack_overflow_error(vm);
     }
 
@@ -355,7 +355,7 @@ static bool try_step_macro_or_fn(VirtualMachine *vm) {
     }
 
     Object **closure;
-    if (false == stack_try_create_local(s, &closure)) {
+    if (false == stack_try_create_local(stack_locals(s), &closure)) {
         stack_overflow_error(vm);
     }
 
@@ -489,7 +489,7 @@ static bool try_step_import(VirtualMachine *vm) {
     }
 
     Object **exprs;
-    if (false == stack_try_create_local(s, &exprs)) {
+    if (false == stack_try_create_local(stack_locals(s), &exprs)) {
         stack_overflow_error(vm);
     }
 
@@ -540,12 +540,12 @@ static bool try_step_catch(VirtualMachine *vm) {
         guard_is_equal(frame->evaluated, object_nil());
 
         Object **error;
-        if (false == stack_try_create_local(s, &error)) {
+        if (false == stack_try_create_local(stack_locals(s), &error)) {
             stack_overflow_error(vm);
         }
 
         Object **result;
-        if (false == stack_try_create_local(s, &result)) {
+        if (false == stack_try_create_local(stack_locals(s), &result)) {
             stack_overflow_error(vm);
         }
 
@@ -562,7 +562,7 @@ static bool try_step_catch(VirtualMachine *vm) {
         guard_is_equal(*vm_error(vm), object_nil());
 
         Object **body;
-        if (false == stack_try_create_local(s, &body)) {
+        if (false == stack_try_create_local(stack_locals(s), &body)) {
             stack_overflow_error(vm);
         }
 
@@ -580,7 +580,7 @@ static bool try_step_catch(VirtualMachine *vm) {
     guard_is_equal(frame->unevaluated, object_nil());
 
     Object **result;
-    if (false == stack_try_create_local(s, &result)) {
+    if (false == stack_try_create_local(stack_locals(s), &result)) {
         stack_overflow_error(vm);
     }
 

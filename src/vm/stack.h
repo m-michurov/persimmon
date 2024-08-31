@@ -63,20 +63,28 @@ bool stack_try_push_frame(Stack *s, Stack_Frame frame);
 
 void stack_swap_top(Stack *s, Stack_Frame frame);
 
-[[nodiscard]]
-bool stack_try_create_local(Stack *s, Object ***obj);
+typedef struct {
+    uint8_t *_end;
+    Object ***_top;
+} Stack_Locals;
 
 [[nodiscard]]
-bool stack_try_get_prev(Stack s, Stack_Frame *frame, Stack_Frame **prev);
+Stack_Locals stack_locals(Stack *s);
 
-#define stack_for_reversed(It, Stack_)      \
-for (                                       \
-    Stack_Frame *It =                       \
-        stack_is_empty((Stack_))            \
-            ? nullptr                       \
-            : stack_top((Stack_));          \
-    nullptr != It;                          \
-    stack_try_get_prev((Stack_), It, &It)   \
-        ? nullptr                           \
-        : (It = nullptr)                    \
+[[nodiscard]]
+bool stack_try_create_local(Stack_Locals locals, Object ***obj);
+
+[[nodiscard]]
+bool STACK__try_get_prev_frame(Stack s, Stack_Frame *frame, Stack_Frame **prev);
+
+#define stack_for_reversed(It, Stack_)              \
+for (                                               \
+    Stack_Frame *It =                               \
+        stack_is_empty((Stack_))                    \
+            ? nullptr                               \
+            : stack_top((Stack_));                  \
+    nullptr != It;                                  \
+    STACK__try_get_prev_frame((Stack_), It, &It)    \
+        ? nullptr                                   \
+        : (It = nullptr)                            \
 )

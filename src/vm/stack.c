@@ -84,7 +84,7 @@ void stack_pop(Stack *s) {
     s->_top = s->_top->prev;
 }
 
-bool stack_try_get_prev(Stack s, Stack_Frame *frame, Stack_Frame **prev) {
+bool STACK__try_get_prev_frame(Stack s, Stack_Frame *frame, Stack_Frame **prev) {
     auto const wrapped_frame = container_of(frame, Stack_WrappedFrame, frame);
     guard_is_in_range(wrapped_frame, s._data, s._end - sizeof(Stack_WrappedFrame));
 
@@ -125,17 +125,25 @@ void stack_swap_top(Stack *s, Stack_Frame frame) {
     s->_top->frame = frame;
 }
 
-bool stack_try_create_local(Stack *s, Object ***obj) {
+Stack_Locals stack_locals(Stack *s) {
     guard_is_not_null(s);
-    guard_is_not_null(obj);
-    guard_is_not_null(s->_top);
 
-    auto new_locals_end = s->_top->locals_end + 1;
-    if ((uint8_t *) new_locals_end > s->_end) {
+    return (Stack_Locals) {
+        ._end = s->_end,
+        ._top = &s->_top->locals_end
+    };
+}
+
+bool stack_try_create_local(Stack_Locals locals, Object ***obj) {
+    guard_is_not_null(obj);
+    guard_is_not_null(locals._top);
+
+    auto new_top = (*locals._top) + 1;
+    if ((uint8_t *) new_top > locals._end) {
         return false;
     }
 
-    *obj = exchange(s->_top->locals_end, new_locals_end);
+    *obj = exchange(*locals._top, new_top);
     **obj = object_nil();
     return true;
 }
