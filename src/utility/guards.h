@@ -115,4 +115,4 @@ do {                                    \
     _r;                                     \
 })
 
-#define guard_unreachable() guard_assert(false, "this code must never be reached")
+#define guard_unreachable(...) guard_assert(false, "this code must never be reached: " __VA_ARGS__)

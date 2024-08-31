@@ -1,10 +1,8 @@
 #pragma once
 
+#include "macros.h"
 #include "guards.h"
 #include "math.h"
-
-#define SLICE__concat_(A, B) A ## B
-#define SLICE__concat(A, B) SLICE__concat_(A, B)
 
 #define slice_at(SlicePtr, Index)                       \
 ({                                                      \
@@ -47,6 +45,12 @@
     _ok;                                                \
 })
 
+#define slice_end(SlicePtr)             \
+({                                      \
+    auto const _slice = (SlicePtr);     \
+    _slice->data + _slice->count;       \
+})
+
 #define slice_empty(Slice) (0 == (Slice).count)
 
 #define slice_last(SlicePtr)            \
@@ -56,20 +60,20 @@
     &_slice->data[_slice->count - 1];   \
 })
 
-#define slice_for_v(It, Slice)                                                      \
-auto SLICE__concat(_s_, __LINE__) = (Slice);                                        \
-typeof((Slice).data) SLICE__concat(_s_data, __LINE__) =                             \
-    SLICE__concat(_s_, __LINE__).data;                                              \
-for (                                                                               \
-    auto It = SLICE__concat(_s_data, __LINE__);                                     \
-    It != SLICE__concat(_s_data, __LINE__) + SLICE__concat(_s_, __LINE__).count;    \
-    It++                                                                            \
+#define slice_for_v(It, Slice)                                                              \
+auto concat_identifiers(_s_, __LINE__) = (Slice);                                           \
+typeof((Slice).data) concat_identifiers(_s_data, __LINE__) =                                \
+    concat_identifiers(_s_, __LINE__).data;                                                 \
+for (                                                                                       \
+    auto It = concat_identifiers(_s_data, __LINE__);                                        \
+    It != concat_identifiers(_s_data, __LINE__) + concat_identifiers(_s_, __LINE__).count;  \
+    It++                                                                                    \
 )
 
-#define slice_for(It, SlicePtr)                                                     \
-auto SLICE__concat(_s_, __LINE__) = (SlicePtr);                                     \
-for (                                                                               \
-    auto It = SLICE__concat(_s_, __LINE__)->data;                                   \
-    It != SLICE__concat(_s_, __LINE__)->data + SLICE__concat(_s_, __LINE__)->count; \
-    It++                                                                            \
+#define slice_for(It, SlicePtr)                                                                 \
+auto concat_identifiers(_s_, __LINE__) = (SlicePtr);                                            \
+for (                                                                                           \
+    auto It = concat_identifiers(_s_, __LINE__)->data;                                          \
+    It != concat_identifiers(_s_, __LINE__)->data + concat_identifiers(_s_, __LINE__)->count;   \
+    It++                                                                                        \
 )

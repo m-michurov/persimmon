@@ -2,6 +2,7 @@
 
 #include "utility/guards.h"
 #include "utility/slice.h"
+#include "accessors.h"
 #include "lists.h"
 #include "dict.h"
 
@@ -36,10 +37,28 @@ static bool equals(Object *a, Object *b) { // NOLINT(*-no-recursion)
             return object_nil() == a && object_nil() == b;
         }
         case TYPE_DICT_ENTRIES: {
-            guard_unreachable();
+            guard_unreachable("dict entries must not be compared directly");
         }
         case TYPE_DICT: {
-            guard_unreachable();
+            if (object_as_dict_entries(a->as_dict.entries)->used != object_as_dict_entries(b->as_dict.entries)->used) {
+                return false;
+            }
+
+            object_dict_for(entry, a) {
+                Object *other_value;
+                Object_DictError error;
+                if (false == object_dict_try_get(b, entry->key, &other_value, &error)) {
+                    guard_is_equal(error, DICT_KEY_DOES_NOT_EXIST);
+
+                    return false;
+                }
+
+                if (false == equals(entry->value, other_value)) {
+                    return false;
+                }
+            }
+
+            return true;
         }
         case TYPE_PRIMITIVE: {
             return a->as_primitive == b->as_primitive;

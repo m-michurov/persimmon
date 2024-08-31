@@ -131,3 +131,18 @@ bool object_dict_try_get(
 
     dict_error(DICT_KEY_DOES_NOT_EXIST, error);
 }
+
+Object_DictEntry *OBJECT_DICT__find_next_used(Object_DictEntries *entries, Object_DictEntry *current) {
+    guard_is_not_null(entries);
+    guard_is_not_null(current);
+
+    while (current < slice_end(entries)) {
+        if (current->used) {
+            break;
+        }
+
+        current++;
+    }
+
+    return current;
+}

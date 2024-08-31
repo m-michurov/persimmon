@@ -13,3 +13,5 @@ Object_Cons object_as_cons(Object *obj);
 Object_Primitive object_as_primitive(Object *obj);
 
 Object_Closure object_as_closure(Object *obj);
+
+Object_DictEntries *object_as_dict_entries(Object *obj);
