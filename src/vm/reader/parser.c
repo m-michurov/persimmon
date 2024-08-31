@@ -70,9 +70,9 @@ do {                                        \
 static bool try_complete_dot(Parser *p, Parser_Error *error) {
     guard_is_not_null(p);
     guard_is_not_null(error);
-    guard_is_equal(slice_last(p->exprs_stack)->type, PARSER_DOT);
+    guard_is_equal(slice_last(&p->exprs_stack)->type, PARSER_DOT);
 
-    auto const last = slice_last(p->exprs_stack)->last;
+    auto const last = slice_last(&p->exprs_stack)->last;
     auto const quoted_key = object_list_nth(1, last);
 
     if (false == object_try_make_list(p->_a, quoted_key, object_nil(), p->expr)) {
@@ -83,7 +83,7 @@ static bool try_complete_dot(Parser *p, Parser_Error *error) {
         parser_allocation_error(error);
     }
 
-    p->expr = slice_last(p->exprs_stack)->last;
+    p->expr = slice_last(&p->exprs_stack)->last;
     object_list_reverse(&p->expr);
     slice_try_pop(&p->exprs_stack, nullptr);
 
@@ -99,12 +99,12 @@ static bool try_unwind_quotes_(Parser *p, Parser_Error *error) {
         return true;
     }
 
-    while (PARSER_QUOTE == slice_last(p->exprs_stack)->type) {
-        if (false == object_list_try_prepend(p->_a, p->expr, &slice_last(p->exprs_stack)->last)) {
+    while (PARSER_QUOTE == slice_last(&p->exprs_stack)->type) {
+        if (false == object_list_try_prepend(p->_a, p->expr, &slice_last(&p->exprs_stack)->last)) {
             parser_allocation_error(error);
         }
 
-        p->expr = slice_last(p->exprs_stack)->last;
+        p->expr = slice_last(&p->exprs_stack)->last;
         object_list_reverse(&p->expr);
         slice_try_pop(&p->exprs_stack, nullptr);
 
@@ -129,7 +129,7 @@ static bool try_make_dot(Parser *p, Position pos, Parser_Error *error) {
         parser_syntax_error(SYNTAX_ERROR_NESTING_TOO_DEEP, pos, error);
     }
 
-    auto const dot_expr = &slice_last(p->exprs_stack)->last;
+    auto const dot_expr = &slice_last(&p->exprs_stack)->last;
     auto const ok = object_list_try_prepend(p->_a, object_nil(), dot_expr)
                     && object_try_make_atom(p->_a, "get", object_list_nth(0, *dot_expr))
                     && object_list_try_prepend(p->_a, object_nil(), dot_expr)
@@ -183,7 +183,7 @@ bool parser_try_accept(Parser *p, Token token, Parser_Error *error) {
                 return true;
             }
 
-            parser_syntax_error(SYNTAX_ERROR_NO_MATCHING_CLOSE_PAREN, slice_last(p->exprs_stack)->begin, error);
+            parser_syntax_error(SYNTAX_ERROR_NO_MATCHING_CLOSE_PAREN, slice_last(&p->exprs_stack)->begin, error);
         }
         case TOKEN_INT:
         case TOKEN_STRING:
@@ -197,7 +197,7 @@ bool parser_try_accept(Parser *p, Token token, Parser_Error *error) {
                 return true;
             }
 
-            if (false == slice_empty(p->exprs_stack) && PARSER_DOT == slice_last(p->exprs_stack)->type) {
+            if (false == slice_empty(p->exprs_stack) && PARSER_DOT == slice_last(&p->exprs_stack)->type) {
                 if (false == try_complete_dot(p, error)) {
                     return false;
                 }
@@ -215,7 +215,7 @@ bool parser_try_accept(Parser *p, Token token, Parser_Error *error) {
                 return true;
             }
 
-            if (object_list_try_prepend(p->_a, p->expr, &slice_last(p->exprs_stack)->last)) {
+            if (object_list_try_prepend(p->_a, p->expr, &slice_last(&p->exprs_stack)->last)) {
                 return true;
             }
 
@@ -229,11 +229,11 @@ bool parser_try_accept(Parser *p, Token token, Parser_Error *error) {
             parser_syntax_error(SYNTAX_ERROR_NESTING_TOO_DEEP, token.pos, error);
         }
         case TOKEN_CLOSE_PAREN: {
-            if (slice_empty(p->exprs_stack) || PARSER_QUOTE == slice_last(p->exprs_stack)->type) {
+            if (slice_empty(p->exprs_stack) || PARSER_QUOTE == slice_last(&p->exprs_stack)->type) {
                 parser_syntax_error(SYNTAX_ERROR_UNEXPECTED_CLOSE_PAREN, token.pos, error);
             }
 
-            p->expr = slice_last(p->exprs_stack)->last;
+            p->expr = slice_last(&p->exprs_stack)->last;
             object_list_reverse(&p->expr);
             slice_try_pop(&p->exprs_stack, nullptr);
 
@@ -242,7 +242,7 @@ bool parser_try_accept(Parser *p, Token token, Parser_Error *error) {
                 return true;
             }
 
-            if (false == slice_empty(p->exprs_stack) && PARSER_DOT == slice_last(p->exprs_stack)->type) {
+            if (false == slice_empty(p->exprs_stack) && PARSER_DOT == slice_last(&p->exprs_stack)->type) {
                 if (false == try_complete_dot(p, error)) {
                     return false;
                 }
@@ -260,7 +260,7 @@ bool parser_try_accept(Parser *p, Token token, Parser_Error *error) {
                 return true;
             }
 
-            if (object_list_try_prepend(p->_a, p->expr, &slice_last(p->exprs_stack)->last)) {
+            if (object_list_try_prepend(p->_a, p->expr, &slice_last(&p->exprs_stack)->last)) {
                 return true;
             }
 
@@ -277,11 +277,11 @@ bool parser_try_accept(Parser *p, Token token, Parser_Error *error) {
                 parser_syntax_error(SYNTAX_ERROR_NESTING_TOO_DEEP, token.pos, error);
             }
 
-            if (false == object_list_try_prepend(p->_a, object_nil(), &slice_last(p->exprs_stack)->last)) {
+            if (false == object_list_try_prepend(p->_a, object_nil(), &slice_last(&p->exprs_stack)->last)) {
                 parser_allocation_error(error);
             }
 
-            if (false == object_try_make_atom(p->_a, "quote", &slice_last(p->exprs_stack)->last->as_cons.first)) {
+            if (false == object_try_make_atom(p->_a, "quote", &slice_last(&p->exprs_stack)->last->as_cons.first)) {
                 parser_allocation_error(error);
             }
 

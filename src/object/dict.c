@@ -30,11 +30,11 @@ static Object_DictEntry *entries_lookup(Object_DictEntries *entries, Object *key
     guard_is_less(entries_load_factor(*entries), LOAD_FACTOR_THRESHOLD);
 
     auto i = hash % entries->count;
-    while (slice_ptr_at(entries, i)->used && false == object_equals(key, slice_ptr_at(entries, i)->key)) {
+    while (slice_at(entries, i)->used && false == object_equals(key, slice_at(entries, i)->key)) {
         i = (i + 1) % entries->count;
     }
 
-    return slice_ptr_at(entries, i);
+    return slice_at(entries, i);
 }
 
 static void entries_rebuild(Object_DictEntries const *entries, Object_DictEntries *new_entries) {
@@ -42,7 +42,7 @@ static void entries_rebuild(Object_DictEntries const *entries, Object_DictEntrie
     guard_is_not_null(new_entries);
     guard_is_greater_or_equal(new_entries->count, entries->count);
 
-    slice_ptr_for(entry, entries) {
+    slice_for(entry, entries) {
         if (false == entry->used) {
             continue;
         }

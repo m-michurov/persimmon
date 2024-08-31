@@ -84,7 +84,7 @@ static bool try_parse_line(
 
         SyntaxError syntax_error;
         if (false == scanner_try_accept(&r->_s, char_pos, *it, &syntax_error)) {
-            auto const erroneous_line = slice_at(lines, syntax_error.pos.lineno - 1)->data;
+            auto const erroneous_line = slice_at(&lines, syntax_error.pos.lineno - 1)->data;
             syntax_error(r->_vm, syntax_error, file_name, erroneous_line);
         }
 
@@ -96,7 +96,7 @@ static bool try_parse_line(
         if (false == parser_try_accept(&r->_p, r->_s.token, &parser_error)) {
             switch (parser_error.type) {
                 case PARSER_SYNTAX_ERROR: {
-                    auto const erroneous_line = slice_at(lines, parser_error.as_syntax_error.pos.lineno - 1)->data;
+                    auto const erroneous_line = slice_at(&lines, parser_error.as_syntax_error.pos.lineno - 1)->data;
                     syntax_error(r->_vm, parser_error.as_syntax_error, file_name, erroneous_line);
                 }
                 case PARSER_ALLOCATION_ERROR: {
@@ -207,7 +207,7 @@ static bool try_read_all(
     if (false == parser_try_accept(&r->_p, (Token) {.type = TOKEN_EOF}, &parser_error)) {
         switch (parser_error.type) {
             case PARSER_SYNTAX_ERROR: {
-                auto const erroneous_line = slice_at(lines, parser_error.as_syntax_error.pos.lineno - 1)->data;
+                auto const erroneous_line = slice_at(&lines, parser_error.as_syntax_error.pos.lineno - 1)->data;
                 syntax_error(r->_vm, parser_error.as_syntax_error, file_name, erroneous_line);
             }
             case PARSER_ALLOCATION_ERROR: {

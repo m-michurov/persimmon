@@ -6,20 +6,7 @@
 #define SLICE__concat_(A, B) A ## B
 #define SLICE__concat(A, B) SLICE__concat_(A, B)
 
-// TODO make pointer versions default or rename
-#define slice_at(Slice, Index)                      \
-({                                                  \
-    auto _slice = (Slice);                          \
-    typeof((Slice).data) _data = _slice.data;       \
-    long long _index = (Index);                     \
-    if (_index < 0) {                               \
-        _index += _slice.count;                     \
-    }                                               \
-    guard_is_in_range(_index + 1, 1, _slice.count); \
-    &_data[_index];                                 \
-})
-
-#define slice_ptr_at(SlicePtr, Index)                   \
+#define slice_at(SlicePtr, Index)                       \
 ({                                                      \
     auto _slice = (SlicePtr);                           \
     long long _index = (Index);                         \
@@ -62,15 +49,14 @@
 
 #define slice_empty(Slice) (0 == (Slice).count)
 
-#define slice_last(Slice)                       \
-({                                              \
-    auto _slice = (Slice);                      \
-    typeof((Slice).data) _data = _slice.data;   \
-    guard_is_greater(_slice.count, 0);          \
-    &_data[_slice.count - 1];                   \
+#define slice_last(SlicePtr)            \
+({                                      \
+    auto const _slice = (SlicePtr);     \
+    guard_is_greater(_slice->count, 0); \
+    &_slice->data[_slice->count - 1];   \
 })
 
-#define slice_for(It, Slice)                                                        \
+#define slice_for_v(It, Slice)                                                      \
 auto SLICE__concat(_s_, __LINE__) = (Slice);                                        \
 typeof((Slice).data) SLICE__concat(_s_data, __LINE__) =                             \
     SLICE__concat(_s_, __LINE__).data;                                              \
@@ -80,8 +66,8 @@ for (                                                                           
     It++                                                                            \
 )
 
-#define slice_ptr_for(It, Slice)                                                    \
-auto SLICE__concat(_s_, __LINE__) = (Slice);                                        \
+#define slice_for(It, SlicePtr)                                                     \
+auto SLICE__concat(_s_, __LINE__) = (SlicePtr);                                     \
 for (                                                                               \
     auto It = SLICE__concat(_s_, __LINE__)->data;                                   \
     It != SLICE__concat(_s_, __LINE__)->data + SLICE__concat(_s_, __LINE__)->count; \

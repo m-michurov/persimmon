@@ -37,20 +37,20 @@ static bool try_init_static(ObjectAllocator *a, Objects *constants) {
     guard_is_not_null(constants);
     guard_is_greater_or_equal(constants->count, STATIC_CONSTANTS_COUNT);
 
-    return object_try_make_atom(a, "true", slice_at(*constants, STATIC_TRUE))
-           && (*slice_at(*constants, STATIC_FALSE) = object_nil())
-           && object_try_make_atom(a, "do", slice_at(*constants, STATIC_ATOM_DO))
-           && try_wrap_atom(a, "OSError", slice_at(*constants, STATIC_OS_ERROR_DEFAULT))
-           && try_wrap_atom(a, "TypeError", slice_at(*constants, STATIC_TYPE_ERROR_DEFAULT))
-           && try_wrap_atom(a, "CallError", slice_at(*constants, STATIC_CALL_ERROR_DEFAULT))
-           && try_wrap_atom(a, "NameError", slice_at(*constants, STATIC_NAME_ERROR_DEFAULT))
-           && try_wrap_atom(a, "ZeroDivisionError", slice_at(*constants, STATIC_ZERO_DIVISION_ERROR_DEFAULT))
-           && try_wrap_atom(a, "OutOfMemoryError", slice_at(*constants, STATIC_OUT_OF_MEMORY_ERROR_DEFAULT))
-           && try_wrap_atom(a, "StackOverflowError", slice_at(*constants, STATIC_STACK_OVERFLOW_ERROR_DEFAULT))
-           && try_wrap_atom(a, "SyntaxError", slice_at(*constants, STATIC_SYNTAX_ERROR_DEFAULT))
-           && try_wrap_atom(a, "SpecialFormError", slice_at(*constants, STATIC_SPECIAL_ERROR_DEFAULT))
-           && try_wrap_atom(a, "BindingError", slice_at(*constants, STATIC_BINDING_ERROR_DEFAULT))
-           && try_wrap_atom(a, "KeyError", slice_at(*constants, STATIC_KEY_ERROR_DEFAULT));
+    return object_try_make_atom(a, "true", slice_at(constants, STATIC_TRUE))
+           && (*slice_at(constants, STATIC_FALSE) = object_nil())
+           && object_try_make_atom(a, "do", slice_at(constants, STATIC_ATOM_DO))
+           && try_wrap_atom(a, "OSError", slice_at(constants, STATIC_OS_ERROR_DEFAULT))
+           && try_wrap_atom(a, "TypeError", slice_at(constants, STATIC_TYPE_ERROR_DEFAULT))
+           && try_wrap_atom(a, "CallError", slice_at(constants, STATIC_CALL_ERROR_DEFAULT))
+           && try_wrap_atom(a, "NameError", slice_at(constants, STATIC_NAME_ERROR_DEFAULT))
+           && try_wrap_atom(a, "ZeroDivisionError", slice_at(constants, STATIC_ZERO_DIVISION_ERROR_DEFAULT))
+           && try_wrap_atom(a, "OutOfMemoryError", slice_at(constants, STATIC_OUT_OF_MEMORY_ERROR_DEFAULT))
+           && try_wrap_atom(a, "StackOverflowError", slice_at(constants, STATIC_STACK_OVERFLOW_ERROR_DEFAULT))
+           && try_wrap_atom(a, "SyntaxError", slice_at(constants, STATIC_SYNTAX_ERROR_DEFAULT))
+           && try_wrap_atom(a, "SpecialFormError", slice_at(constants, STATIC_SPECIAL_ERROR_DEFAULT))
+           && try_wrap_atom(a, "BindingError", slice_at(constants, STATIC_BINDING_ERROR_DEFAULT))
+           && try_wrap_atom(a, "KeyError", slice_at(constants, STATIC_KEY_ERROR_DEFAULT));
 }
 
 VirtualMachine *vm_new(VirtualMachine_Config config) {
@@ -83,8 +83,8 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
 
     guard_is_true(env_try_create(&vm->allocator, object_nil(), &vm->globals));
 
-    auto const key_root = slice_at(vm->constants, 0);
-    auto const value_root = slice_at(vm->constants, 1);
+    auto const key_root = slice_at(&vm->constants, 0);
+    auto const value_root = slice_at(&vm->constants, 1);
 
     guard_is_true(try_define_constants(&vm->allocator, key_root, value_root, vm->globals));
     guard_is_true(try_define_primitives(&vm->allocator, key_root, value_root, vm->globals));
@@ -151,7 +151,7 @@ Object **vm_exprs(VirtualMachine *vm) {
 Object *vm_get(VirtualMachine const *vm, VirtualMachine_StaticConstantName name) {
     guard_is_not_null(vm);
 
-    auto const value = *slice_at(vm->constants, name);
+    auto const value = *slice_at(&vm->constants, name);
     guard_is_not_null(value);
     return value;
 }

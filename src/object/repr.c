@@ -103,7 +103,7 @@ static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code) {
             }
 
             auto first_entry = true;
-            slice_ptr_for(entry, &obj->as_dict.entries->as_dict_entries) {
+            slice_for(entry, &obj->as_dict.entries->as_dict_entries) {
                 if (false == entry->used) {
                     continue;
                 }

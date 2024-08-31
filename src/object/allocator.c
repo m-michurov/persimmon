@@ -113,7 +113,7 @@ static bool try_mark_children(Objects *gray, Object *obj) {
         case TYPE_DICT_ENTRIES: {
             mark_black(obj);
 
-            slice_ptr_for(entry, &obj->as_dict_entries) {
+            slice_for(entry, &obj->as_dict_entries) {
                 if (false == try_mark_gray_if_white(gray, entry->key)) {
                     return false;
                 }
@@ -158,14 +158,14 @@ static bool try_mark_(ObjectAllocator *a, Objects *gray) {
             }
         }
 
-        slice_for(it, frame_locals(frame)) {
+        slice_for_v(it, frame_locals(frame)) {
             if (false == try_mark_gray_if_white(gray, *it)) {
                 return false;
             }
         }
     }
 
-    slice_for(it, *a->_roots.parser_stack) {
+    slice_for(it, a->_roots.parser_stack) {
         if (false == try_mark_gray_if_white(gray, it->last)) {
             return false;
         }
@@ -181,7 +181,7 @@ static bool try_mark_(ObjectAllocator *a, Objects *gray) {
         return false;
     }
 
-    slice_for(it, *a->_roots.constants) {
+    slice_for(it, a->_roots.constants) {
         if (false == try_mark_gray_if_white(gray, *it)) {
             return false;
         }

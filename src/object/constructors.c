@@ -124,7 +124,7 @@ static void init_dict_entries(Object *obj, size_t count) {
 //            .data = obj->as_dict_entries._data
     };
 
-    slice_ptr_for(entry, &obj->as_dict_entries) {
+    slice_for(entry, &obj->as_dict_entries) {
         *entry = (Object_DictEntry) {
                 .key = object_nil(),
                 .value = object_nil()
