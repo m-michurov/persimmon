@@ -9,6 +9,8 @@ typedef enum {
     DICT_ALLOCATION_ERROR
 } Object_DictError;
 
+#define OBJECT_DICT_DEFAULT_CAPACITY 32
+
 [[nodiscard]]
 bool object_dict_try_put(
         ObjectAllocator *a,
