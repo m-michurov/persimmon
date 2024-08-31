@@ -163,7 +163,7 @@ static bool env_try_bind_(ObjectAllocator *a, Object *env, Object *target, Objec
             return true;
         }
         case TYPE_ATOM: {
-            return env_try_define(a, env, target, value, nullptr);
+            return env_try_define(a, env, target, value);
         }
         case TYPE_CONS: {
             guard_is_one_of(value->type, TYPE_CONS, TYPE_NIL);

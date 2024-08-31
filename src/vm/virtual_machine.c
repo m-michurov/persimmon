@@ -2,6 +2,7 @@
 
 #include "utility/guards.h"
 #include "utility/slice.h"
+#include "utility/dynamic_array.h"
 #include "object/constructors.h"
 #include "reader/reader.h"
 #include "env.h"
@@ -31,7 +32,7 @@ static bool try_wrap_atom(ObjectAllocator *a, char const *name, Object **value) 
            && object_try_make_atom(a, name, &(*value)->as_cons.first);
 }
 
-static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
+static bool try_init_static(ObjectAllocator *a, Objects *constants) {
     guard_is_not_null(a);
     guard_is_not_null(constants);
     guard_is_greater_or_equal(constants->count, STATIC_CONSTANTS_COUNT);
@@ -55,26 +56,13 @@ static bool try_init_static_constants(ObjectAllocator *a, Objects *constants) {
 VirtualMachine *vm_new(VirtualMachine_Config config) {
     auto const vm = (VirtualMachine *) guard_succeeds(calloc, (1, sizeof(VirtualMachine)));
 
-    auto const constants = (Objects) {
-            .data = (Object **) guard_succeeds(calloc, (STATIC_CONSTANTS_COUNT, sizeof(Object *))),
-            .count = STATIC_CONSTANTS_COUNT,
-    };
-    slice_for(it, constants) {
-        *it = object_nil();
-    }
-
     *vm = (VirtualMachine) {
             .allocator = allocator_make(config.allocator_config),
             .globals = object_nil(),
             .value = object_nil(),
             .error = object_nil(),
             .exprs = object_nil(),
-            .constants = constants
     };
-
-    errno_t error_code;
-    guard_is_true(stack_try_init(&vm->stack, config.stack_config, &error_code));
-    guard_is_true(object_reader_try_init(&vm->reader, vm, config.reader_config, &error_code));
 
     allocator_set_roots(&vm->allocator, (ObjectAllocator_Roots) {
             .stack = &vm->stack,
@@ -85,10 +73,23 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
             .constants = &vm->constants
     });
 
-    guard_is_true(try_init_static_constants(&vm->allocator, &vm->constants));
+    for (size_t i = 0; i < STATIC_CONSTANTS_COUNT + 2; i++) {
+        guard_is_true(da_try_append(&vm->constants, object_nil()));
+    }
+
+    errno_t error_code;
+    guard_is_true(stack_try_init(&vm->stack, config.stack_config, &error_code));
+    guard_is_true(object_reader_try_init(&vm->reader, vm, config.reader_config, &error_code));
+
     guard_is_true(env_try_create(&vm->allocator, object_nil(), &vm->globals));
-    guard_is_true(try_define_constants(vm, vm->globals));
-    guard_is_true(try_define_primitives(&vm->allocator, vm->globals));
+
+    auto const key_root = slice_at(vm->constants, 0);
+    auto const value_root = slice_at(vm->constants, 1);
+
+    guard_is_true(try_define_constants(&vm->allocator, key_root, value_root, vm->globals));
+    guard_is_true(try_define_primitives(&vm->allocator, key_root, value_root, vm->globals));
+
+    guard_is_true(try_init_static(&vm->allocator, &vm->constants));
 
     return vm;
 }

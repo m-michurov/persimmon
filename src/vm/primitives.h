@@ -4,4 +4,4 @@
 #include "object/allocator.h"
 
 [[nodiscard]]
-bool try_define_primitives(ObjectAllocator *a, Object *env);
+bool try_define_primitives(ObjectAllocator *a, Object **key_root, Object **value_root, Object *env);

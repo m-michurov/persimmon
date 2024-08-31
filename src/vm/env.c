@@ -12,7 +12,7 @@ bool env_try_create(ObjectAllocator *a, Object *base_env, Object **env) {
     return object_try_make_cons(a, object_nil(), base_env, env);
 }
 
-bool env_try_define(ObjectAllocator *a, Object *env, Object *name, Object *value, Object **binding) {
+bool env_try_define(ObjectAllocator *a, Object *env, Object *name, Object *value) {
     guard_is_not_null(a);
     guard_is_not_null(env);
     guard_is_not_null(name);
@@ -33,13 +33,7 @@ bool env_try_define(ObjectAllocator *a, Object *env, Object *name, Object *value
         return false;
     }
 
-    auto const new_binding = &(*current_env)->as_cons.first;
-    if (nullptr == binding) {
-        return object_try_make_list(a, new_binding, name, value);
-    }
-
-    auto const ok = object_try_make_list(a, new_binding, name, value);
-    *binding = *new_binding;
+    auto const ok = object_try_make_list(a, &(*current_env)->as_cons.first, name, value);
     return ok;
 }
 

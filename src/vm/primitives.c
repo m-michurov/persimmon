@@ -552,34 +552,35 @@ static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
     guard_unreachable();
 }
 
-static bool try_define(ObjectAllocator *a, Object *env, char const *name, Object_Primitive value) {
-    Object *binding;
-    return env_try_define(a, env, object_nil(), object_nil(), &binding)
-           && object_try_make_atom(a, name, object_list_nth(0, binding))
-           && object_try_make_primitive(a, value, object_list_nth(1, binding));
+static bool
+try_define(ObjectAllocator *a, Object **key_root, Object **value_root, char const *name, Object_Primitive value,
+           Object *env) {
+    return object_try_make_atom(a, name, key_root)
+           && object_try_make_primitive(a, value, value_root)
+           && env_try_define(a, env, *key_root, *value_root);
 }
 
-bool try_define_primitives(ObjectAllocator *a, Object *env) {
-    return try_define(a, env, "eq?", eq)
-           && try_define(a, env, "str", str)
-           && try_define(a, env, "repr", repr)
-           && try_define(a, env, "print", print)
-           && try_define(a, env, "+", plus)
-           && try_define(a, env, "-", minus)
-           && try_define(a, env, "*", multiply)
-           && try_define(a, env, "/", divide)
-           && try_define(a, env, "list", list_list)
-           && try_define(a, env, "first", list_first)
-           && try_define(a, env, "rest", list_rest)
-           && try_define(a, env, "prepend", list_prepend)
-           && try_define(a, env, "reverse", list_reverse)
-           && try_define(a, env, "concat", list_concat)
-           && try_define(a, env, "dict", dict_dict)
-           && try_define(a, env, "get", dict_get)
-           && try_define(a, env, "put", dict_put)
-           && try_define(a, env, "not", not)
-           && try_define(a, env, "type", type)
-           && try_define(a, env, "traceback", traceback)
-           && try_define(a, env, "throw", throw);
+bool try_define_primitives(ObjectAllocator *a, Object **key_root, Object **value_root, Object *env) {
+    return try_define(a, key_root, value_root, "eq?", eq, env)
+           && try_define(a, key_root, value_root, "str", str, env)
+           && try_define(a, key_root, value_root, "repr", repr, env)
+           && try_define(a, key_root, value_root, "print", print, env)
+           && try_define(a, key_root, value_root, "+", plus, env)
+           && try_define(a, key_root, value_root, "-", minus, env)
+           && try_define(a, key_root, value_root, "*", multiply, env)
+           && try_define(a, key_root, value_root, "/", divide, env)
+           && try_define(a, key_root, value_root, "list", list_list, env)
+           && try_define(a, key_root, value_root, "first", list_first, env)
+           && try_define(a, key_root, value_root, "rest", list_rest, env)
+           && try_define(a, key_root, value_root, "prepend", list_prepend, env)
+           && try_define(a, key_root, value_root, "reverse", list_reverse, env)
+           && try_define(a, key_root, value_root, "concat", list_concat, env)
+           && try_define(a, key_root, value_root, "dict", dict_dict, env)
+           && try_define(a, key_root, value_root, "get", dict_get, env)
+           && try_define(a, key_root, value_root, "put", dict_put, env)
+           && try_define(a, key_root, value_root, "not", not, env)
+           && try_define(a, key_root, value_root, "type", type, env)
+           && try_define(a, key_root, value_root, "traceback", traceback, env)
+           && try_define(a, key_root, value_root, "throw", throw, env);
 }
 
