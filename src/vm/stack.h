@@ -35,11 +35,11 @@ Stack_Frame frame_make(
 
 Objects frame_locals(Stack_Frame const *frame);
 
-struct Stack_WrappedFrame;
+typedef struct Stack_WrappedFrame Stack_WrappedFrame;
 
 typedef struct Stack Stack;
 struct Stack {
-    struct Stack_WrappedFrame *_top;
+    Stack_WrappedFrame *_top;
     uint8_t *_end;
     uint8_t *_data;
 };
