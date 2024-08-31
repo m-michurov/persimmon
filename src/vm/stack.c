@@ -127,6 +127,7 @@ void stack_swap_top(Stack *s, Stack_Frame frame) {
 
 Stack_Locals stack_locals(Stack *s) {
     guard_is_not_null(s);
+    guard_is_false(stack_is_empty(*s));
 
     return (Stack_Locals) {
         ._end = s->_end,
