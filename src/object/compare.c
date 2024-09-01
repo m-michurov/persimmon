@@ -3,7 +3,7 @@
 #include "utility/guards.h"
 #include "utility/slice.h"
 #include "accessors.h"
-#include "lists.h"
+#include "list.h"
 #include "dict.h"
 
 static bool equals(Object *a, Object *b) { // NOLINT(*-no-recursion)

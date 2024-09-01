@@ -1,7 +1,7 @@
 #include "traceback.h"
 
 #include "utility/guards.h"
-#include "object/lists.h"
+#include "object/list.h"
 #include "object/repr.h"
 #include "object/constructors.h"
 

@@ -4,7 +4,7 @@
 
 #include "utility/guards.h"
 #include "utility/slice.h"
-#include "object/lists.h"
+#include "object/list.h"
 #include "object/constructors.h"
 
 bool parser_try_init(Parser *p, ObjectAllocator *a, Parser_Config config, errno_t *error_code) {

@@ -1,7 +1,7 @@
 #include "env.h"
 
 #include "utility/guards.h"
-#include "object/lists.h"
+#include "object/list.h"
 #include "object/dict.h"
 #include "object/compare.h"
 #include "object/constructors.h"

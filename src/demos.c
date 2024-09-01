@@ -8,7 +8,7 @@
 #include "object/object.h"
 #include "object/allocator.h"
 #include "object/constructors.h"
-#include "object/lists.h"
+#include "object/list.h"
 #include "vm/eval.h"
 #include "utility/strings.h"
 #include "utility/guards.h"

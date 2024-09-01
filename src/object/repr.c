@@ -7,7 +7,7 @@
 #include "utility/strings.h"
 #include "utility/writer.h"
 #include "utility/slice.h"
-#include "lists.h"
+#include "list.h"
 
 static bool is_quote(Object *expr, Object **quoted) {
     guard_is_not_null(expr);

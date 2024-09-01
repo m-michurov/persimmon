@@ -1,6 +1,6 @@
 #include "bindings.h"
 
-#include "object/lists.h"
+#include "object/list.h"
 #include "utility/guards.h"
 #include "variadic.h"
 

@@ -8,7 +8,7 @@
 #include "utility/exchange.h"
 #include "utility/arena_append.h"
 #include "object/constructors.h"
-#include "object/lists.h"
+#include "object/list.h"
 #include "vm/errors.h"
 #include "vm/virtual_machine.h"
 #include "line_reader.h"

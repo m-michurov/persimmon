@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
 #include "utility/guards.h"
-#include "object/lists.h"
+#include "object/list.h"
 #include "object/repr.h"
 #include "vm/reader/reader.h"
 #include "vm/eval.h"

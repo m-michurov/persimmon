@@ -5,7 +5,7 @@
 #include "utility/guards.h"
 #include "utility/string_builder.h"
 #include "object/constructors.h"
-#include "object/lists.h"
+#include "object/list.h"
 #include "object/accessors.h"
 #include "object/repr.h"
 #include "traceback.h"
