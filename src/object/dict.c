@@ -9,6 +9,8 @@
 #include "compare.h"
 #include "hash.h"
 
+#define DEFAULT_CAPACITY 32
+
 #define LOAD_FACTOR_THRESHOLD ((double) 0.5)
 
 #define dict_error(ErrorType, Error)    \
@@ -22,6 +24,14 @@ static double entries_load_factor(Object_DictEntries entries) {
 }
 
 #define entries_next_count(OldCapacity) (2 * (OldCapacity) + 10)
+
+bool object_try_make_empty_dict(ObjectAllocator *a, Object **dict) {
+    guard_is_not_null(a);
+    guard_is_not_null(dict);
+
+    return object_try_make_dict_entries(a, DEFAULT_CAPACITY, dict)
+           && object_try_make_dict(a, *dict, dict);
+}
 
 static Object_DictEntry *entries_lookup(Object_DictEntries *entries, Object *key, size_t hash) {
     guard_is_not_null(entries);

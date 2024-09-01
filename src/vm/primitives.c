@@ -477,11 +477,7 @@ static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
         call_args_parity_error(vm, "dict", true);
     }
 
-    if (false == object_try_make_dict_entries(vm_allocator(vm), OBJECT_DICT_DEFAULT_CAPACITY, result)) {
-        out_of_memory_error(vm);
-    }
-
-    if (false == object_try_make_dict(vm_allocator(vm), *result, result)) {
+    if (false == object_try_make_empty_dict(vm_allocator(vm), result)) {
         out_of_memory_error(vm);
     }
 

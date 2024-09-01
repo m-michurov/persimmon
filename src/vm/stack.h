@@ -33,6 +33,9 @@ Stack_Frame frame_make(
         Object *unevaluated
 );
 
+// TODO use this while initialising globals
+Stack_Frame frame_nil(void);
+
 Objects frame_locals(Stack_Frame const *frame);
 
 typedef struct Stack_WrappedFrame Stack_WrappedFrame;
@@ -63,6 +66,7 @@ bool stack_try_push_frame(Stack *s, Stack_Frame frame);
 
 void stack_swap_top(Stack *s, Stack_Frame frame);
 
+// TODO pass to primitives and error constructors
 typedef struct {
     uint8_t *_end;
     Object ***_top;
