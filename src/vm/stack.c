@@ -63,10 +63,6 @@ Stack_Frame frame_make(
     };
 }
 
-Stack_Frame frame_nil(void) {
-    return frame_make(FRAME_CALL, object_nil(), object_nil(), nullptr, object_nil());
-}
-
 Objects frame_locals(Stack_Frame const *frame) {
     auto const wrapped_frame = container_of(frame, Stack_WrappedFrame, frame);
     return (Objects) {

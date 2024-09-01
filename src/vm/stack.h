@@ -33,9 +33,6 @@ Stack_Frame frame_make(
         Object *unevaluated
 );
 
-// TODO use this while initialising globals
-Stack_Frame frame_nil(void);
-
 Objects frame_locals(Stack_Frame const *frame);
 
 typedef struct Stack_WrappedFrame Stack_WrappedFrame;
