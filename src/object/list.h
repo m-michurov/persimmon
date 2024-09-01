@@ -1,7 +1,5 @@
 #pragma once
 
-// TODO rename to list.h
-
 #include "utility/macros.h"
 #include "object.h"
 #include "allocator.h"
