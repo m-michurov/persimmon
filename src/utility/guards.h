@@ -116,3 +116,5 @@ do {                                    \
 })
 
 #define guard_unreachable(...) guard_assert(false, "this code must never be reached: " __VA_ARGS__)
+
+#define guard_todo() guard_unreachable("TODO")

@@ -442,28 +442,15 @@ static bool dict_get(VirtualMachine *vm, Object *args, Object **value) {
         call_args_count_error(vm, "get", 2, false, object_list_count(args));
     }
 
-    if (TYPE_DICT != dict->type) {
-        type_error(vm, dict->type, TYPE_DICT);
+    if (TYPE_NIL != dict->type && TYPE_DICT != dict->type) {
+        type_error(vm, dict->type, TYPE_NIL, TYPE_DICT);
     }
 
-    Object_DictError error;
-    if (object_dict_try_get(dict, key, value, &error)) {
+    if (object_dict_try_get(dict, key, value)) {
         return true;
     }
 
-    switch (error) {
-        case DICT_KEY_UNHASHABLE: {
-            unhashable_error(vm, key->type);
-        }
-        case DICT_KEY_DOES_NOT_EXIST: {
-            key_error(vm, key);
-        }
-        case DICT_ALLOCATION_ERROR: {
-            out_of_memory_error(vm);
-        }
-    }
-
-    guard_unreachable();
+    key_error(vm, key);
 }
 
 static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
@@ -477,32 +464,17 @@ static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
         call_args_parity_error(vm, "dict", true);
     }
 
-    if (false == object_try_make_empty_dict(vm_allocator(vm), result)) {
-        out_of_memory_error(vm);
-    }
+    *result = object_nil();
 
     while (object_nil() != args) {
         auto const key = object_list_shift(&args);
         auto const value = object_list_shift(&args);
 
-        Object_DictError error;
-        if (object_dict_try_put(vm_allocator(vm), *result, key, value, &error)) {
+        if (object_dict_try_put(vm_allocator(vm), *result, key, value, result)) {
             continue;
         }
 
-        switch (error) {
-            case DICT_KEY_UNHASHABLE: {
-                unhashable_error(vm, key->type);
-            }
-            case DICT_KEY_DOES_NOT_EXIST: {
-                key_error(vm, key);
-            }
-            case DICT_ALLOCATION_ERROR: {
-                out_of_memory_error(vm);
-            }
-        }
-
-        guard_unreachable();
+        out_of_memory_error(vm);
     }
 
     return true;
@@ -523,34 +495,25 @@ static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
     auto const key = *object_list_nth(0, args);
     auto const value = *object_list_nth(1, args);
     auto const dict = *object_list_nth(2, args);
-    if (TYPE_DICT != dict->type) {
-        type_error(vm, dict->type, TYPE_DICT);
+    if (TYPE_NIL != dict->type && TYPE_DICT != dict->type) {
+        type_error(vm, dict->type, TYPE_NIL, TYPE_DICT);
     }
 
-    Object_DictError error;
-    if (object_dict_try_put(vm_allocator(vm), dict, key, value, &error)) {
-        *result = dict;
+    if (object_dict_try_put(vm_allocator(vm), dict, key, value, result)) {
         return true;
     }
 
-    switch (error) {
-        case DICT_KEY_UNHASHABLE: {
-            unhashable_error(vm, key->type);
-        }
-        case DICT_KEY_DOES_NOT_EXIST: {
-            key_error(vm, key);
-        }
-        case DICT_ALLOCATION_ERROR: {
-            out_of_memory_error(vm);
-        }
-    }
-
-    guard_unreachable();
+    out_of_memory_error(vm);
 }
 
-static bool
-try_define(ObjectAllocator *a, Object **key_root, Object **value_root, char const *name, Object_Primitive value,
-           Object *env) {
+static bool try_define(
+        ObjectAllocator *a,
+        Object **key_root,
+        Object **value_root,
+        char const *name,
+        Object_Primitive value,
+        Object *env
+) {
     return object_try_make_atom(a, name, key_root)
            && object_try_make_primitive(a, value, value_root)
            && env_try_define(a, env, *key_root, *value_root);

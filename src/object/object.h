@@ -10,7 +10,6 @@ typedef enum {
     TYPE_STRING,
     TYPE_ATOM,
     TYPE_CONS,
-    TYPE_DICT_ENTRIES,
     TYPE_DICT,
     TYPE_PRIMITIVE,
     TYPE_CLOSURE,
@@ -44,20 +43,11 @@ typedef struct {
 } Object_Closure;
 
 typedef struct {
-    bool used;
     Object *key;
     Object *value;
-} Object_DictEntry;
 
-typedef struct {
-    size_t used;
-    size_t count;
-    Object_DictEntry data[];
-} Object_DictEntries;
-
-typedef struct {
-    Object *entries;
-    Object *new_entries;
+    Object *left;
+    Object *right;
 } Object_Dict;
 
 typedef enum {
@@ -79,7 +69,6 @@ struct Object {
         Object_Cons as_cons;
         Object_Primitive as_primitive;
         Object_Closure as_closure;
-        Object_DictEntries as_dict_entries;
         Object_Dict as_dict;
     };
 };

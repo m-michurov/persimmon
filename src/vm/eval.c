@@ -136,7 +136,6 @@ static bool try_begin_eval(
     switch (expr->type) {
         case TYPE_INT:
         case TYPE_STRING:
-        case TYPE_DICT_ENTRIES:
         case TYPE_DICT:
         case TYPE_PRIMITIVE:
         case TYPE_CLOSURE:

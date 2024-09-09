@@ -6,6 +6,7 @@
 #include "utility/guards.h"
 #include "utility/pointers.h"
 #include "utility/slice.h"
+#include "dict.h"
 
 static size_t size_int(void) {
     return offsetof(Object, as_int) + sizeof(int64_t);
@@ -29,14 +30,6 @@ static size_t size_primitive(void) {
 
 static size_t size_closure(void) {
     return offsetof(Object, as_closure) + sizeof(Object_Closure);
-}
-
-static size_t size_dict_entries(size_t count) {
-    guard_is_greater(count, 0);
-
-    return offsetof(Object, as_dict_entries)
-           + sizeof(Object_DictEntries)
-           + count * sizeof(Object_DictEntry);
 }
 
 static size_t size_dict(void) {
@@ -70,9 +63,6 @@ static void init_cons(Object *obj, Object *first, Object *rest) {
     guard_is_not_null(obj);
     guard_is_not_null(first);
     guard_is_not_null(rest);
-    if (TYPE_CONS != rest->type && TYPE_NIL != rest->type) {
-        printf("%d\n", rest->type);
-    }
     guard_is_one_of(rest->type, TYPE_CONS, TYPE_NIL);
 
     obj->type = TYPE_CONS;
@@ -114,33 +104,21 @@ static void init_macro(Object *obj, Object *env, Object *args, Object *body) {
     };
 }
 
-static void init_dict_entries(Object *obj, size_t count) {
+static void init_dict(Object *obj, Object *key, Object *value, Object *left, Object *right) {
     guard_is_not_null(obj);
-    guard_is_greater(count, 0);
-
-    obj->type = TYPE_DICT_ENTRIES;
-    obj->as_dict_entries = (Object_DictEntries) {
-            .count = count,
-//            .data = obj->as_dict_entries._data
-    };
-
-    slice_for(entry, &obj->as_dict_entries) {
-        *entry = (Object_DictEntry) {
-                .key = object_nil(),
-                .value = object_nil()
-        };
-    }
-}
-
-static void init_dict(Object *obj, Object *entries) {
-    guard_is_not_null(obj);
-    guard_is_not_null(entries);
-    guard_is_equal(entries->type, TYPE_DICT_ENTRIES);
+    guard_is_not_null(key);
+    guard_is_not_null(value);
+    guard_is_not_null(left);
+    guard_is_not_null(right);
+    guard_is_one_of(left->type, TYPE_NIL, TYPE_DICT);
+    guard_is_one_of(right->type, TYPE_NIL, TYPE_DICT);
 
     obj->type = TYPE_DICT;
     obj->as_dict = (Object_Dict) {
-            .entries = entries,
-            .new_entries = object_nil()
+            .key = key,
+            .value = value,
+            .left = left,
+            .right = right
     };
 }
 
@@ -240,30 +218,21 @@ bool object_try_make_macro(ObjectAllocator *a, Object *env, Object *args, Object
     return true;
 }
 
-bool object_try_make_dict_entries(ObjectAllocator *a, size_t count, Object **obj) {
+bool object_try_make_dict(ObjectAllocator *a, Object *key, Object *value, Object *left, Object *right, Object **obj) {
     guard_is_not_null(a);
+    guard_is_not_null(key);
+    guard_is_not_null(value);
+    guard_is_not_null(left);
+    guard_is_not_null(right);
     guard_is_not_null(obj);
-    guard_is_greater(count, 0);
-
-    if (false == allocator_try_allocate(a, size_dict_entries(count), obj)) {
-        return false;
-    }
-
-    init_dict_entries(*obj, count);
-    return true;
-}
-
-bool object_try_make_dict(ObjectAllocator *a, Object *entries, Object **obj) {
-    guard_is_not_null(a);
-    guard_is_not_null(entries);
-    guard_is_not_null(obj);
-    guard_is_equal(entries->type, TYPE_DICT_ENTRIES);
+    guard_is_one_of(left->type, TYPE_NIL, TYPE_DICT);
+    guard_is_one_of(right->type, TYPE_NIL, TYPE_DICT);
 
     if (false == allocator_try_allocate(a, size_dict(), obj)) {
         return false;
     }
 
-    init_dict(*obj, entries);
+    init_dict(*obj, key, value, left, right);
     return true;
 }
 
@@ -287,17 +256,10 @@ bool object_try_copy(ObjectAllocator *a, Object *obj, Object **copy) { // NOLINT
                    && object_try_copy(a, obj->as_cons.first, &(*copy)->as_cons.first)
                    && object_try_copy(a, obj->as_cons.rest, &(*copy)->as_cons.rest);
         }
-        case TYPE_DICT_ENTRIES: {
-            if (false == object_try_make_dict_entries(a, obj->as_dict_entries.count, copy)) {
-                return false;
-            }
-
-            memcpy(*copy, obj, size_dict_entries(obj->as_dict_entries.count));
-            return true;
-        }
         case TYPE_DICT: {
-            return object_try_make_dict(a, obj->as_dict.entries, copy)
-                   && object_try_copy(a, obj->as_dict.entries, &(*copy)->as_dict.entries);
+            return object_try_make_dict(a, obj->as_dict.key, obj->as_dict.value, object_nil(), object_nil(), copy)
+                   && object_try_copy(a, obj->as_dict.left, &(*copy)->as_dict.left)
+                   && object_try_copy(a, obj->as_dict.right, &(*copy)->as_dict.right);
         }
         case TYPE_PRIMITIVE: {
             return object_try_make_primitive(a, obj->as_primitive, copy);

@@ -43,10 +43,3 @@ Object_Closure object_as_closure(Object *obj) {
 
     return obj->as_closure;
 }
-
-Object_DictEntries *object_as_dict_entries(Object *obj) {
-    guard_is_not_null(obj);
-    guard_is_equal(obj->type, TYPE_DICT_ENTRIES);
-
-    return &obj->as_dict_entries;
-}

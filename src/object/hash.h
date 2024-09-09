@@ -2,4 +2,4 @@
 
 #include "object.h"
 
-bool object_try_hash(Object *obj, size_t *hash);
+size_t object_hash(Object *obj);

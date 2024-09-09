@@ -18,9 +18,6 @@ char const *object_type_str(Object_Type type) {
         case TYPE_CONS: {
             return "cons";
         }
-        case TYPE_DICT_ENTRIES: {
-            return "dict_entries";
-        }
         case TYPE_DICT: {
             return "dict";
         }

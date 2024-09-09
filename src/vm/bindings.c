@@ -40,7 +40,6 @@ bool binding_is_valid_target(Object *target, BindingTargetError *error) {
         }
         case TYPE_INT:
         case TYPE_STRING:
-        case TYPE_DICT_ENTRIES:
         case TYPE_DICT:
         case TYPE_PRIMITIVE:
         case TYPE_CLOSURE:
@@ -140,7 +139,6 @@ static bool is_valid_value(Object *target, Object *value, BindingValueError *err
         case TYPE_INT:
         case TYPE_STRING:
         case TYPE_DICT:
-        case TYPE_DICT_ENTRIES:
         case TYPE_PRIMITIVE:
         case TYPE_CLOSURE:
         case TYPE_MACRO: {
@@ -191,7 +189,6 @@ static bool env_try_bind_(ObjectAllocator *a, Object *env, Object *target, Objec
         }
         case TYPE_INT:
         case TYPE_STRING:
-        case TYPE_DICT_ENTRIES:
         case TYPE_DICT:
         case TYPE_PRIMITIVE:
         case TYPE_CLOSURE:

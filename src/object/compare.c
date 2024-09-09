@@ -6,6 +6,22 @@
 #include "list.h"
 #include "dict.h"
 
+static bool dict_contains_all(Object *a, Object *b) {
+    guard_is_not_null(a);
+    guard_is_not_null(b);
+    guard_is_one_of(a->type, TYPE_NIL, TYPE_DICT);
+
+    if (object_nil() == a) {
+        return true;
+    }
+
+    Object *other_value;
+    return object_dict_try_get(b, a->as_dict.key, &other_value)
+           && object_equals(a->as_dict.key, other_value)
+           && dict_contains_all(a->as_dict.left, b)
+           && dict_contains_all(a->as_dict.right, b);
+}
+
 static bool equals(Object *a, Object *b) { // NOLINT(*-no-recursion)
     guard_is_not_null(a);
     guard_is_not_null(b);
@@ -36,29 +52,12 @@ static bool equals(Object *a, Object *b) { // NOLINT(*-no-recursion)
 
             return object_nil() == a && object_nil() == b;
         }
-        case TYPE_DICT_ENTRIES: {
-            guard_unreachable("dict entries must not be compared directly");
-        }
         case TYPE_DICT: {
-            if (object_as_dict_entries(a->as_dict.entries)->used != object_as_dict_entries(b->as_dict.entries)->used) {
+            if (object_dict_size(a)!= object_dict_size(b)) {
                 return false;
             }
 
-            object_dict_for(entry, a) {
-                Object *other_value;
-                Object_DictError error;
-                if (false == object_dict_try_get(b, entry->key, &other_value, &error)) {
-                    guard_is_equal(error, DICT_KEY_DOES_NOT_EXIST);
-
-                    return false;
-                }
-
-                if (false == equals(entry->value, other_value)) {
-                    return false;
-                }
-            }
-
-            return true;
+            return dict_contains_all(a, b);
         }
         case TYPE_PRIMITIVE: {
             return a->as_primitive == b->as_primitive;
@@ -118,7 +117,6 @@ static bool try_compare_less(Object *a, Object *b, bool *result) {
             *result = object_nil() == a && object_nil() != b;
             return true;
         }
-        case TYPE_DICT_ENTRIES:
         case TYPE_DICT:
         case TYPE_PRIMITIVE:
         case TYPE_CLOSURE:

@@ -110,26 +110,13 @@ static bool try_mark_children(Objects *gray, Object *obj) {
                    && try_mark_gray_if_white(gray, obj->as_closure.env)
                    && try_mark_gray_if_white(gray, obj->as_closure.body);
         }
-        case TYPE_DICT_ENTRIES: {
-            mark_black(obj);
-
-            slice_for(entry, &obj->as_dict_entries) {
-                if (false == try_mark_gray_if_white(gray, entry->key)) {
-                    return false;
-                }
-
-                if (false == try_mark_gray_if_white(gray, entry->value)) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
         case TYPE_DICT: {
             mark_black(obj);
 
-            return try_mark_gray_if_white(gray, obj->as_dict.entries)
-                   && try_mark_gray_if_white(gray, obj->as_dict.new_entries);
+            return try_mark_gray_if_white(gray, obj->as_dict.key)
+                   && try_mark_gray_if_white(gray, obj->as_dict.value)
+                   && try_mark_gray_if_white(gray, obj->as_dict.left)
+                   && try_mark_gray_if_white(gray, obj->as_dict.right);
         }
     }
 

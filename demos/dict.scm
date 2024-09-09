@@ -5,6 +5,18 @@
 (defmacro print-key (key-expr)
   (list 'print (list 'quote key-expr) "->" key-expr))
 
+(define d1 (dict 1 2 "hello" "world"))
+(define d2 (put 2 4 d1))
+(define d3 (put 3 9 d1))
+(define d4 (put d1 d2 d1))
+
+(print d1)
+(print d2)
+(print d3)
+(print d4)
+
+(print '---)
+
 (let (d (dict 1 2 "hello" "world" '(1 2 3) (fn (x) x) 'name "rei"))
   (print-key d.1)
   (print-key d."hello")
