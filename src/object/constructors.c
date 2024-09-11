@@ -5,8 +5,6 @@
 
 #include "utility/guards.h"
 #include "utility/pointers.h"
-#include "utility/slice.h"
-#include "dict.h"
 
 static size_t size_int(void) {
     return offsetof(Object, as_int) + sizeof(int64_t);

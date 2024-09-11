@@ -6,7 +6,6 @@
 #include "utility/guards.h"
 #include "utility/strings.h"
 #include "utility/writer.h"
-#include "utility/slice.h"
 #include "list.h"
 
 static bool is_quote(Object *expr, Object **quoted) {
@@ -27,7 +26,7 @@ static bool is_quote(Object *expr, Object **quoted) {
 
 static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code);
 
-static bool dict_try_write_repr_(Writer w, Object *obj, errno_t *error_code) {
+static bool dict_try_write_repr_(Writer w, Object *obj, errno_t *error_code) { // NOLINT(*-no-recursion)
     guard_is_not_null(obj);
     guard_is_not_null(error_code);
     guard_is_one_of(obj->type, TYPE_NIL, TYPE_DICT);
@@ -44,7 +43,7 @@ static bool dict_try_write_repr_(Writer w, Object *obj, errno_t *error_code) {
            && dict_try_write_repr_(w, obj->as_dict.right, error_code);
 }
 
-static bool dict_try_write_repr(Writer w, Object *obj, errno_t *error_code) {
+static bool dict_try_write_repr(Writer w, Object *obj, errno_t *error_code) { // NOLINT(*-no-recursion)
     guard_is_not_null(obj);
     guard_is_not_null(error_code);
     guard_is_one_of(obj->type, TYPE_NIL, TYPE_DICT);
@@ -56,7 +55,7 @@ static bool dict_try_write_repr(Writer w, Object *obj, errno_t *error_code) {
            && dict_try_write_repr_(w, obj->as_dict.right, error_code);
 }
 
-static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code) {
+static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code) { // NOLINT(*-no-recursion)
     guard_is_not_null(obj);
     guard_is_not_null(error_code);
 

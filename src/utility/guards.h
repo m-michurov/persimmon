@@ -93,16 +93,6 @@ do {                                                        \
     );                                                      \
 } while (false)
 
-#define guard_errno_is_not_set()        \
-do {                                    \
-    auto const __errno = errno;         \
-    guard_assert(                       \
-        0 == __errno,                   \
-        "expected errno to be 0: %s",   \
-        strerror(__errno)               \
-    );                                  \
-} while (false)
-
 #define guard_succeeds(Callee, ArgsList)    \
 ({                                          \
     errno = 0;                              \

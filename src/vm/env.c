@@ -24,11 +24,7 @@ bool env_try_define(ObjectAllocator *a, Object *env, Object *name, Object *value
     auto const scope = &env->as_cons.first;
     guard_is_one_of((*scope)->type, TYPE_NIL, TYPE_DICT);
 
-    if (object_dict_try_put(a, *scope, name, value, scope)) {
-        return true;
-    }
-
-    return false;
+    return object_dict_try_put(a, *scope, name, value, scope);
 }
 
 bool env_try_find(Object *env, Object *name, Object **value) {

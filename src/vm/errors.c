@@ -614,10 +614,6 @@ void create_parameters_declaration_error(VirtualMachine *vm, BindingTargetError 
     create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
 }
 
-void create_import_path_type_error(VirtualMachine *vm) {
-    create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), "import path must be a string");
-}
-
 static void message_create_bind_count_error(
         size_t capacity,
         char *message,
@@ -846,13 +842,3 @@ void create_key_error(VirtualMachine *vm, Object *key) {
     report_out_of_system_memory(vm, error_type);
 }
 
-void create_unhashable_error(VirtualMachine *vm, Object_Type type) {
-    guard_is_not_null(vm);
-
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    auto capacity = sizeof(message);
-    auto buf = message;
-    snprintf_checked(&buf, &capacity, "unhashable type: %s", object_type_str(type));
-
-    create_error_with_message(vm, vm_get(vm, STATIC_TYPE_ERROR_DEFAULT), message);
-}

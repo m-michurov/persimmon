@@ -28,12 +28,6 @@ while (false)
     0 == errno;                                 \
 })
 
-#define da_try_reserve(DynArray, Capacity)  \
-({                                          \
-    auto const _da = (DynArray);            \
-    DA__try_reserve(_da, (Capacity));       \
-})
-
 #define da_try_append(DynArray, Item)                           \
 ({                                                              \
     auto const _da = (DynArray);                                \

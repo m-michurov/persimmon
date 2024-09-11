@@ -100,6 +100,8 @@ bool sb_try_printf_realloc(StringBuilder *sb, errno_t *error_code, char const *f
         }
     }
 
+    guard_is_not_null(sb->str);
+
     va_start(args, format);
     sb_format(sb, format, args);
     va_end(args);

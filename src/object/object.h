@@ -6,6 +6,7 @@
 #include "utility/string_builder.h"
 
 typedef enum {
+    TYPE_NIL,
     TYPE_INT,
     TYPE_STRING,
     TYPE_ATOM,
@@ -14,7 +15,6 @@ typedef enum {
     TYPE_PRIMITIVE,
     TYPE_CLOSURE,
     TYPE_MACRO,
-    TYPE_NIL,
 } Object_Type;
 
 char const *object_type_str(Object_Type type);
@@ -72,5 +72,10 @@ struct Object {
         Object_Dict as_dict;
     };
 };
+
+typedef struct {
+    bool has_value;
+    Object *value;
+} ObjectOption;
 
 Object *object_nil();

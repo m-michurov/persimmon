@@ -36,14 +36,14 @@ void allocator_free(ObjectAllocator *a) {
 void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots) {
     guard_is_not_null(a);
 
-    update_root(a->_roots, roots, stack);
-    update_root(a->_roots, roots, parser_stack);
+    update_root(a->_roots, roots, stack); // NOLINT(*-sizeof-expression)
+    update_root(a->_roots, roots, parser_stack); // NOLINT(*-sizeof-expression)
     update_root(a->_roots, roots, parser_expr);
     update_root(a->_roots, roots, globals);
     update_root(a->_roots, roots, value);
     update_root(a->_roots, roots, error);
     update_root(a->_roots, roots, exprs);
-    update_root(a->_roots, roots, constants);
+    update_root(a->_roots, roots, constants); // NOLINT(*-sizeof-expression)
 }
 
 [[nodiscard]]
@@ -52,7 +52,7 @@ static bool try_mark_gray(Objects *gray, Object *obj) {
     guard_is_not_null(obj);
     guard_is_equal(obj->color, OBJECT_WHITE);
 
-    if (false == da_try_append(gray, obj)) {
+    if (false == da_try_append(gray, obj)) { // NOLINT(*-sizeof-expression)
         return false;
     }
 

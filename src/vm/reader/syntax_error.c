@@ -1,9 +1,7 @@
 #include "syntax_error.h"
 
-#include <ctype.h>
 
 #include "utility/guards.h"
-#include "utility/strings.h"
 
 char const *syntax_error_str(SyntaxError_Code error_type) {
     switch (error_type) {

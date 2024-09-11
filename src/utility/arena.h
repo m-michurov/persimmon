@@ -34,12 +34,6 @@ bool arena_try_allocate_copy(
         errno_t *error_code
 );
 
-#define arena_try_allocate_array(Arena_, T, Count, Ptr, ErrorCode) \
-    ((T *) arena_try_allocate((Arena_), _Alignof(T), sizeof(T) * (Count), (Ptr), (ErrorCode)))
-
-#define arena_try_allocate_single(Arena_, T, Ptr, ErrorCode) \
-    arena_try_allocate_array((Arena_), T, 1, (Ptr), (ErrorCode))
-
 #define arena_try_copy(Arena_, Src, SrcCount, TotalCount, Ptr, ErrorCode)   \
 ((typeof_unqual(*(Src)) *) arena_try_allocate_copy(                         \
     (Arena_),                                                               \
@@ -53,6 +47,3 @@ bool arena_try_allocate_copy(
 
 #define arena_try_copy_all(Arena_, Src, SrcCount, Ptr, ErrorCode) \
     arena_try_copy((Arena_), (Src), (SrcCount), (SrcCount), (Ptr), (ErrorCode))
-
-#define arena_try_emplace(Arena_, Init, Ptr, ErrorCode) \
-    ((typeof(Init) *) arena_try_copy((Arena_), (typeof(Init)[]) {(Init)}, 1, 1, (Ptr), (ErrorCode)))

@@ -74,7 +74,7 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
     });
 
     for (size_t i = 0; i < STATIC_CONSTANTS_COUNT + 2; i++) {
-        guard_is_true(da_try_append(&vm->constants, object_nil()));
+        guard_is_true(da_try_append(&vm->constants, object_nil())); // NOLINT(*-sizeof-expression)
     }
 
     errno_t error_code;

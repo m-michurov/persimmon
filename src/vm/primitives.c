@@ -30,6 +30,25 @@ static bool eq(VirtualMachine *vm, Object *args, Object **value) {
     return true;
 }
 
+static bool compare(VirtualMachine *vm, Object *args, Object **value) {
+    guard_is_not_null(vm);
+    guard_is_not_null(args);
+    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_not_null(value);
+
+    Object *lhs, *rhs;
+    if (false == object_list_try_unpack_2(&lhs, &rhs, args)) {
+        call_args_count_error(vm, "compare", 2, false, object_list_count(args));
+    }
+
+    auto const compare_result = object_compare(lhs, rhs);
+    if (object_try_make_int(vm_allocator(vm), compare_result, value)) {
+        return true;
+    }
+
+    out_of_memory_error(vm);
+}
+
 static bool str(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
@@ -521,6 +540,7 @@ static bool try_define(
 
 bool try_define_primitives(ObjectAllocator *a, Object **key_root, Object **value_root, Object *env) {
     return try_define(a, key_root, value_root, "eq?", eq, env)
+           && try_define(a, key_root, value_root, "compare", compare, env)
            && try_define(a, key_root, value_root, "str", str, env)
            && try_define(a, key_root, value_root, "repr", repr, env)
            && try_define(a, key_root, value_root, "print", print, env)

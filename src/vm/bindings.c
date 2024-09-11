@@ -4,7 +4,7 @@
 #include "utility/guards.h"
 #include "variadic.h"
 
-bool binding_is_valid_target(Object *target, BindingTargetError *error) {
+bool binding_is_valid_target(Object *target, BindingTargetError *error) { // NOLINT(*-no-recursion)
     guard_is_not_null(target);
 
     switch (target->type) {
@@ -84,7 +84,7 @@ static TargetsCount count_targets(Object *target) {
     return result;
 }
 
-static bool is_valid_value(Object *target, Object *value, BindingValueError *error) {
+static bool is_valid_value(Object *target, Object *value, BindingValueError *error) { // NOLINT(*-no-recursion)
     guard_is_not_null(target);
     guard_is_not_null(value);
     guard_is_not_null(error);
@@ -149,7 +149,7 @@ static bool is_valid_value(Object *target, Object *value, BindingValueError *err
     guard_unreachable();
 }
 
-static bool env_try_bind_(ObjectAllocator *a, Object *env, Object *target, Object *value) {
+static bool env_try_bind_(ObjectAllocator *a, Object *env, Object *target, Object *value) { // NOLINT(*-no-recursion)
     guard_is_not_null(a);
     guard_is_not_null(env);
     guard_is_not_null(target);

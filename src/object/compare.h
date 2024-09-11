@@ -3,13 +3,11 @@
 #include "object.h"
 
 typedef enum {
-    COMPARE_LESS,
-    COMPARE_LESS_OR_EQUAL,
-    COMPARE_GREATER,
-    COMPARE_GREATER_OR_EQUAL,
-    COMPARE_EQUAL
-} Object_CompareKind;
+    OBJECT_LESS = -1,
+    OBJECT_EQUALS = 0,
+    OBJECT_GREATER = 1
+} Object_CompareResult;
 
-bool object_try_compare(Object *a, Object *b, Object_CompareKind kind, bool *result);
+Object_CompareResult object_compare(Object *a, Object *b);
 
 bool object_equals(Object *a, Object *b);

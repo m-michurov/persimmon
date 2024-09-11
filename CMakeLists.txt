@@ -27,19 +27,13 @@ add_executable(persimmon
         src/object/object.c
         src/vm/env.c
         src/vm/reader/named_file.c
-        src/vm/reader/named_file.h
         src/vm/constants.c
         src/vm/bindings.c
         src/object/repr.c
         src/utility/writer.c
         src/object/dict.c
-        src/object/dict.h
         src/vm/variadic.c
-        src/vm/variadic.h
         src/object/compare.c
-        src/object/compare.h
-        src/object/hash.c
-        src/object/hash.h
 )
 
 target_compile_options(persimmon PRIVATE
