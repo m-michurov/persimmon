@@ -70,7 +70,7 @@ Following types are available:
  * `string` - an immutable ASCII string.
  * `atom` - an immutable sequence of printable non-whitespace characters.
  * `cons` - an immutable singly linked list.
- * `dict` - a mutable mapping.
+ * `dict` - a persistent immutable mapping.
  * `primitive` - a native function implemented as part of the interpreter.
  * `closure` - a closure.
  * `macro` - a closure that returns code instead of a value.
@@ -212,8 +212,7 @@ Example:
 {1 2, 3 4, "hello" "world"}
 ```
 
- * `(get key dict)` - returns a value at given `key` or throws a `KeyError`; throws 
-`TypeError` if the `key` is unhashable.
+ * `(get key dict)` - returns a value at given `key` or throws a `KeyError`.
 
 The `.` (dot) operator can be used if keys are known literals.
 
@@ -234,15 +233,10 @@ KeyError: key does not exist: 2
 Traceback (most recent call last):
     (get '2 d)
 Some calls may be missing due to tail call optimization.
->>> (get (dict) d)
-TypeError: unhashable type: dict
-Traceback (most recent call last):
-    (get (dict) d)
-Some calls may be missing due to tail call optimization.
 ```
 
- * `(put key value dict)` - create or update mapping between `key` and `value` in `dict` 
-and return `dict`; throws `TypeError` if the `key` is unhashable.
+ * `(put key value dict)` - returns a new dict with `key` mapped to `value`; old 
+dict is unchanged.
  * `(not it)` - returns `'true` if `it` is `nil` and `nil` otherwise.
  * `(type it)` - returns the name of the type of `it` as an atom.
  * `(traceback)` - returns the current expression stack as a list, most recent call comes last.
