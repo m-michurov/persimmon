@@ -285,14 +285,14 @@ bool object_dict_try_get(Object *dict, Object *key, Object **value) { // NOLINT(
 
     auto compare_result = object_compare(key, dict->as_dict.key);
 
-    if (0 == compare_result) {
-        *value = dict->as_dict.value;
-        return true;
+    if (compare_result < 0) {
+        return object_dict_try_get(dict->as_dict.left, key, value);
     }
 
     if (compare_result > 0) {
         return object_dict_try_get(dict->as_dict.right, key, value);
     }
 
-    return object_dict_try_get(dict->as_dict.left, key, value);
+    *value = dict->as_dict.value;
+    return true;
 }
