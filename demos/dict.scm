@@ -57,14 +57,19 @@
 
 (print '---)
 
-(define d (reduce
-            (fn (dict value) (put value (* value value) dict))
-            (dict)
-            (range 48)))
-(print d)
-(apply (fn (x) (print (get x d))) (range 48))
-(print d.1 d.2 d.3 d.4 d.5)
-(print d)
+(let (n 10
+       d (reduce
+           (fn (d value)
+             (-> d
+               (put value (* value value))
+               (put 'prev d)))
+           (dict)
+           (range 10)))
+  (print d)
+  (apply (fn (x) (print (get x d))) (range n))
+  (print d.1 d.2 d.3 d.4 d.5)
+  (print d))
+
 
 (print '---)
 
