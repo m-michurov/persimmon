@@ -231,7 +231,7 @@ static bool reader_call(
     auto line_reader = line_reader_make(file.handle);
 
     auto const ok = fn(r, &line_reader, &lines_arena, file.name, exprs);
-    object_list_reverse(exprs);
+    object_list_reverse_inplace(exprs);
 
     arena_free(&lines_arena);
     line_reader_free(&line_reader);

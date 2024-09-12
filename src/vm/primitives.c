@@ -346,11 +346,11 @@ static bool list_reverse(VirtualMachine *vm, Object *args, Object **value) {
         type_error(vm, list->type, TYPE_CONS, TYPE_NIL);
     }
 
-    if (false == object_try_copy(vm_allocator(vm), list, value)) {
+    if (false == object_try_deep_copy(vm_allocator(vm), list, value)) {
         out_of_memory_error(vm);
     }
 
-    object_list_reverse(value);
+    object_list_reverse_inplace(value);
     return true;
 }
 
@@ -366,11 +366,11 @@ static bool list_concat(VirtualMachine *vm, Object *args, Object **value) {
             type_error(vm, it->type, TYPE_CONS, TYPE_NIL);
         }
 
-        if (false == object_try_copy(vm_allocator(vm), it, rest)) {
+        if (false == object_try_deep_copy(vm_allocator(vm), it, rest)) {
             out_of_memory_error(vm);
         }
 
-        rest = object_list_last(value);
+        rest = object_list_end_mutable(value);
     }
 
     return true;
@@ -505,15 +505,11 @@ static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(result);
 
-    auto const got = object_list_count(args);
-    typeof(got) expected = 3;
-    if (expected != got) {
-        call_args_count_error(vm, "put", expected, false, got);
+    Object *key, *value, *dict;
+    if (false == object_list_try_unpack_3(&key, &value, &dict, args)) {
+        call_args_count_error(vm, "put", 3, false, object_list_count(args));
     }
 
-    auto const key = *object_list_nth(0, args);
-    auto const value = *object_list_nth(1, args);
-    auto const dict = *object_list_nth(2, args);
     if (TYPE_NIL != dict->type && TYPE_DICT != dict->type) {
         type_error(vm, dict->type, TYPE_NIL, TYPE_DICT);
     }

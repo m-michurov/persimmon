@@ -21,7 +21,7 @@ bool traceback_try_get(ObjectAllocator *a, Stack s, Object **traceback) {
         }
     }
 
-    object_list_reverse(traceback);
+    object_list_reverse_inplace(traceback);
     return true;
 }
 

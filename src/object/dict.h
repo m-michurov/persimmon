@@ -9,6 +9,8 @@
 
 size_t object_dict_size(Object *dict);
 
+int64_t object_dict_height(Object *root);
+
 Object_CompareResult object_dict_compare(Object *a, Object *b);
 
 [[nodiscard]]

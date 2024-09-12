@@ -26,8 +26,9 @@ static bool is_quote(Object *expr, Object **quoted) {
 
 static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code);
 
-static bool dict_try_write_repr_(Writer w, Object *obj, errno_t *error_code) { // NOLINT(*-no-recursion)
+static bool dict_try_write_repr_(Writer w, Object *obj, bool *is_min, errno_t *error_code) { // NOLINT(*-no-recursion)
     guard_is_not_null(obj);
+    guard_is_not_null(is_min);
     guard_is_not_null(error_code);
     guard_is_one_of(obj->type, TYPE_NIL, TYPE_DICT);
 
@@ -35,24 +36,27 @@ static bool dict_try_write_repr_(Writer w, Object *obj, errno_t *error_code) { /
         return true;
     }
 
-    return writer_try_printf(w, error_code, ", ")
-           && object_try_write_repr(w, obj->as_dict.key, error_code)
-           && writer_try_printf(w, error_code, " ")
-           && object_try_write_repr(w, obj->as_dict.value, error_code)
-           && dict_try_write_repr_(w, obj->as_dict.left, error_code)
-           && dict_try_write_repr_(w, obj->as_dict.right, error_code);
-}
+    if (false == dict_try_write_repr_(w, obj->as_dict.left, is_min, error_code)) {
+        return false;
+    }
 
-static bool dict_try_write_repr(Writer w, Object *obj, errno_t *error_code) { // NOLINT(*-no-recursion)
-    guard_is_not_null(obj);
-    guard_is_not_null(error_code);
-    guard_is_one_of(obj->type, TYPE_NIL, TYPE_DICT);
+    if (false == *is_min && false == writer_try_printf(w, error_code, ", ")) {
+        return false;
+    }
+
+    if (*is_min && object_nil() == obj->as_dict.left) {
+        *is_min = false;
+    }
 
     return object_try_write_repr(w, obj->as_dict.key, error_code)
            && writer_try_printf(w, error_code, " ")
            && object_try_write_repr(w, obj->as_dict.value, error_code)
-           && dict_try_write_repr_(w, obj->as_dict.left, error_code)
-           && dict_try_write_repr_(w, obj->as_dict.right, error_code);
+           && dict_try_write_repr_(w, obj->as_dict.right, is_min, error_code);
+}
+
+static bool dict_try_write_repr(Writer w, Object *obj, errno_t *error_code) { // NOLINT(*-no-recursion)
+    auto is_min = true;
+    return dict_try_write_repr_(w, obj, &is_min, error_code);
 }
 
 static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code) { // NOLINT(*-no-recursion)

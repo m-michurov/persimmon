@@ -28,8 +28,8 @@ static bool try_wrap_atom(ObjectAllocator *a, char const *name, Object **value) 
     guard_is_not_null(name);
     guard_is_not_null(value);
 
-    return object_try_make_cons(a, object_nil(), object_nil(), value)
-           && object_try_make_atom(a, name, &(*value)->as_cons.first);
+    return object_try_make_atom(a, name, value)
+           && object_try_make_cons(a, *value, object_nil(), value);
 }
 
 static bool try_init_static(ObjectAllocator *a, Objects *constants) {

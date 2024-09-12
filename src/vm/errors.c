@@ -43,8 +43,8 @@ static bool try_create_int_field(VirtualMachine *vm, char const *key, int64_t va
 
     auto const a = vm_allocator(vm);
     return object_try_make_list(a, field, object_nil(), object_nil())
-           && object_try_make_atom(a, key, object_list_nth(0, *field))
-           && object_try_make_int(a, value, object_list_nth(1, *field));
+           && object_try_make_atom(a, key, object_list_nth_mutable(0, *field))
+           && object_try_make_int(a, value, object_list_nth_mutable(1, *field));
 }
 
 static bool try_create_string_field(VirtualMachine *vm, char const *key, char const *value, Object **field) {
@@ -55,8 +55,8 @@ static bool try_create_string_field(VirtualMachine *vm, char const *key, char co
 
     auto const a = vm_allocator(vm);
     return object_try_make_list(a, field, object_nil(), object_nil())
-           && object_try_make_atom(a, key, object_list_nth(0, *field))
-           && object_try_make_string(a, value, object_list_nth(1, *field));
+           && object_try_make_atom(a, key, object_list_nth_mutable(0, *field))
+           && object_try_make_string(a, value, object_list_nth_mutable(1, *field));
 }
 
 static bool try_create_atom_field(VirtualMachine *vm, char const *key, char const *value, Object **field) {
@@ -67,8 +67,8 @@ static bool try_create_atom_field(VirtualMachine *vm, char const *key, char cons
 
     auto const a = vm_allocator(vm);
     return object_try_make_list(a, field, object_nil(), object_nil())
-           && object_try_make_atom(a, key, object_list_nth(0, *field))
-           && object_try_make_atom(a, value, object_list_nth(1, *field));
+           && object_try_make_atom(a, key, object_list_nth_mutable(0, *field))
+           && object_try_make_atom(a, value, object_list_nth_mutable(1, *field));
 }
 
 static bool try_create_object_field(VirtualMachine *vm, char const *key, Object *value, Object **field) {
@@ -79,7 +79,7 @@ static bool try_create_object_field(VirtualMachine *vm, char const *key, Object 
 
     auto const a = vm_allocator(vm);
     return object_try_make_list(a, field, object_nil(), value)
-           && object_try_make_atom(a, key, object_list_nth(0, *field));
+           && object_try_make_atom(a, key, object_list_nth_mutable(0, *field));
 }
 
 static bool try_create_traceback(VirtualMachine *vm, Object **field) {
@@ -88,8 +88,8 @@ static bool try_create_traceback(VirtualMachine *vm, Object **field) {
 
     auto const a = vm_allocator(vm);
     return object_try_make_list(a, field, object_nil(), object_nil())
-           && object_try_make_atom(a, ERROR_FIELD_TRACEBACK, object_list_nth(0, *field))
-           && traceback_try_get(a, *vm_stack(vm), object_list_nth(1, *field));
+           && object_try_make_atom(a, ERROR_FIELD_TRACEBACK, object_list_nth_mutable(0, *field))
+           && traceback_try_get(a, *vm_stack(vm), object_list_nth_mutable(1, *field));
 }
 
 static void create_error_with_message(VirtualMachine *vm, Object *default_error, char const *message) {
@@ -107,8 +107,8 @@ static void create_error_with_message(VirtualMachine *vm, Object *default_error,
                     object_nil(),
                     object_nil()
             )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth(++field_index, *vm_error(vm)))
-            && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
+            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }
@@ -139,10 +139,10 @@ void create_os_error(VirtualMachine *vm, errno_t error_code) {
                     vm,
                     ERROR_FIELD_MESSAGE,
                     strerror(error_code),
-                    object_list_nth(++field_index, *vm_error(vm))
+                    object_list_nth_mutable(++field_index, *vm_error(vm))
             )
-            && try_create_int_field(vm, "errno", error_code, object_list_nth(++field_index, *vm_error(vm)))
-            && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+            && try_create_int_field(vm, "errno", error_code, object_list_nth_mutable(++field_index, *vm_error(vm)))
+            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }
@@ -210,20 +210,20 @@ void create_type_error_(
                     object_nil(),
                     object_nil()
             )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth(++field_index, *vm_error(vm)));
+            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)));
 
-    auto const expected_types_list = object_list_nth(++field_index, *vm_error(vm));
+    auto const expected_types_list = object_list_nth_mutable(++field_index, *vm_error(vm));
     for (size_t i = 0; ok && i < expected_count; i++) {
         ok = object_try_make_cons(a, object_nil(), *expected_types_list, expected_types_list)
-             && object_try_make_atom(a, object_type_str(expected[i]), object_list_nth(0, *expected_types_list));
+             && object_try_make_atom(a, object_type_str(expected[i]), object_list_nth_mutable(0, *expected_types_list));
     }
 
     ok = ok
          && object_try_make_cons(a, object_nil(), *expected_types_list, expected_types_list)
-         && object_try_make_atom(a, ERROR_FIELD_EXPECTED, object_list_nth(0, *expected_types_list))
+         && object_try_make_atom(a, ERROR_FIELD_EXPECTED, object_list_nth_mutable(0, *expected_types_list))
          &&
-         try_create_atom_field(vm, ERROR_FIELD_GOT, object_type_str(got), object_list_nth(++field_index, *vm_error(vm)))
-         && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+         try_create_atom_field(vm, ERROR_FIELD_GOT, object_type_str(got), object_list_nth_mutable(++field_index, *vm_error(vm)))
+         && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }
@@ -253,11 +253,11 @@ void create_type_error_unexpected(VirtualMachine *vm, Object_Type got) {
                     object_nil(),
                     object_nil()
             )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth(++field_index, *vm_error(vm)));
+            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)));
 
     ok = ok
-         && try_create_atom_field(vm, ERROR_FIELD_GOT, object_type_str(got), object_list_nth(++field_index, *vm_error(vm)))
-         && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+         && try_create_atom_field(vm, ERROR_FIELD_GOT, object_type_str(got), object_list_nth_mutable(++field_index, *vm_error(vm)))
+         && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }
@@ -343,20 +343,20 @@ void create_syntax_error(
             && try_create_string_field(
                     vm,
                     ERROR_FIELD_MESSAGE, message,
-                    object_list_nth(++field_index, *vm_error(vm))
+                    object_list_nth_mutable(++field_index, *vm_error(vm))
             )
-            && try_create_string_field(vm, "file", file, object_list_nth(++field_index, *vm_error(vm)))
+            && try_create_string_field(vm, "file", file, object_list_nth_mutable(++field_index, *vm_error(vm)))
             &&
-            try_create_int_field(vm, "line", (int64_t) error.pos.lineno, object_list_nth(++field_index, *vm_error(vm)))
-            && try_create_int_field(vm, "col", (int64_t) error.pos.col, object_list_nth(++field_index, *vm_error(vm)))
+            try_create_int_field(vm, "line", (int64_t) error.pos.lineno, object_list_nth_mutable(++field_index, *vm_error(vm)))
+            && try_create_int_field(vm, "col", (int64_t) error.pos.col, object_list_nth_mutable(++field_index, *vm_error(vm)))
             && try_create_int_field(
                     vm,
                     "end_col",
                     (int64_t) error.pos.end_col,
-                    object_list_nth(++field_index, *vm_error(vm))
+                    object_list_nth_mutable(++field_index, *vm_error(vm))
             )
-            && try_create_string_field(vm, "text", text, object_list_nth(++field_index, *vm_error(vm)))
-            && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+            && try_create_string_field(vm, "text", text, object_list_nth_mutable(++field_index, *vm_error(vm)))
+            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }
@@ -392,16 +392,16 @@ void create_call_args_count_error(VirtualMachine *vm, char const *name, size_t e
                     object_nil(),
                     object_nil()
             )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth(++field_index, *vm_error(vm)))
-            && try_create_string_field(vm, ERROR_FIELD_NAME, name, object_list_nth(++field_index, *vm_error(vm)))
+            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
+            && try_create_string_field(vm, ERROR_FIELD_NAME, name, object_list_nth_mutable(++field_index, *vm_error(vm)))
             && try_create_int_field(
                     vm,
                     ERROR_FIELD_EXPECTED,
                     (int64_t) expected,
-                    object_list_nth(++field_index, *vm_error(vm))
+                    object_list_nth_mutable(++field_index, *vm_error(vm))
             )
-            && try_create_int_field(vm, ERROR_FIELD_GOT, (int64_t) got, object_list_nth(++field_index, *vm_error(vm)))
-            && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+            && try_create_int_field(vm, ERROR_FIELD_GOT, (int64_t) got, object_list_nth_mutable(++field_index, *vm_error(vm)))
+            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }
@@ -434,15 +434,15 @@ void create_call_args_parity_error(VirtualMachine *vm, char const *name, bool ex
                     object_nil(),
                     object_nil()
             )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth(++field_index, *vm_error(vm)))
-            && try_create_string_field(vm, ERROR_FIELD_NAME, name, object_list_nth(++field_index, *vm_error(vm)))
+            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
+            && try_create_string_field(vm, ERROR_FIELD_NAME, name, object_list_nth_mutable(++field_index, *vm_error(vm)))
             && try_create_atom_field(
                     vm,
                     ERROR_FIELD_EXPECTED,
                     expected_str,
-                    object_list_nth(++field_index, *vm_error(vm))
+                    object_list_nth_mutable(++field_index, *vm_error(vm))
             )
-            && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }
@@ -488,14 +488,14 @@ void create_call_extra_args_type_error(VirtualMachine *vm, Object_Type extras_ty
                     object_nil(),
                     object_nil()
             )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth(++field_index, *vm_error(vm)))
+            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
             && try_create_atom_field(
                     vm,
                     ERROR_FIELD_GOT,
                     object_type_str(extras_type),
-                    object_list_nth(++field_index, *vm_error(vm))
+                    object_list_nth_mutable(++field_index, *vm_error(vm))
             )
-            && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }
@@ -525,9 +525,9 @@ void create_name_error(VirtualMachine *vm, char const *name) {
                     object_nil(),
                     object_nil()
             )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth(++field_index, *vm_error(vm)))
-            && try_create_string_field(vm, ERROR_FIELD_NAME, name, object_list_nth(++field_index, *vm_error(vm)))
-            && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
+            && try_create_string_field(vm, ERROR_FIELD_NAME, name, object_list_nth_mutable(++field_index, *vm_error(vm)))
+            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }
@@ -652,21 +652,21 @@ static void create_binding_count_error(VirtualMachine *vm, size_t expected, bool
                     object_nil(),
                     object_nil()
             )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth(++field_index, *vm_error(vm)))
+            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
             && try_create_int_field(
                     vm,
                     ERROR_FIELD_EXPECTED,
                     (int64_t) expected,
-                    object_list_nth(++field_index, *vm_error(vm))
+                    object_list_nth_mutable(++field_index, *vm_error(vm))
             )
             && try_create_atom_field(
                     vm,
                     "variadic",
                     (is_variadic ? "true" : "false"),
-                    object_list_nth(++field_index, *vm_error(vm))
+                    object_list_nth_mutable(++field_index, *vm_error(vm))
             )
-            && try_create_int_field(vm, ERROR_FIELD_GOT, (int64_t) got, object_list_nth(++field_index, *vm_error(vm)))
-            && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+            && try_create_int_field(vm, ERROR_FIELD_GOT, (int64_t) got, object_list_nth_mutable(++field_index, *vm_error(vm)))
+            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }
@@ -697,14 +697,14 @@ static void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_ty
                     object_nil()
             )
             &&
-            try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth(++field_index, *vm_error(vm)))
+            try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
             && try_create_atom_field(
                     vm,
                     ERROR_FIELD_TYPE,
                     object_type_str(value_type),
-                    object_list_nth(++field_index, *vm_error(vm))
+                    object_list_nth_mutable(++field_index, *vm_error(vm))
             )
-            && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }
@@ -735,14 +735,14 @@ static void create_binding_target_error(VirtualMachine *vm, Object_Type target_t
                     object_nil()
             )
             &&
-            try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth(++field_index, *vm_error(vm)))
+            try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
             && try_create_string_field(
                     vm,
                     ERROR_FIELD_TYPE,
                     object_type_str(target_type),
-                    object_list_nth(++field_index, *vm_error(vm))
+                    object_list_nth_mutable(++field_index, *vm_error(vm))
             )
-            && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }
@@ -829,9 +829,9 @@ void create_key_error(VirtualMachine *vm, Object *key) {
                  object_nil(),
                  object_nil()
          )
-         && try_create_string_field(vm, ERROR_FIELD_MESSAGE, sb.str, object_list_nth(++field_index, *vm_error(vm)))
-         && try_create_object_field(vm, "key", key, object_list_nth(++field_index, *vm_error(vm)))
-         && try_create_traceback(vm, object_list_nth(++field_index, *vm_error(vm)));
+         && try_create_string_field(vm, ERROR_FIELD_MESSAGE, sb.str, object_list_nth_mutable(++field_index, *vm_error(vm)))
+         && try_create_object_field(vm, "key", key, object_list_nth_mutable(++field_index, *vm_error(vm)))
+         && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
     if (ok) {
         return;
     }

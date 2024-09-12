@@ -45,7 +45,8 @@ typedef struct {
 typedef struct {
     Object *key;
     Object *value;
-
+    int64_t height;
+    size_t size;
     Object *left;
     Object *right;
 } Object_Dict;
@@ -57,10 +58,11 @@ typedef enum {
 } Object_Color;
 
 struct Object {
-    Object_Type type;
     size_t size;
     Object_Color color;
     Object *next;
+
+    Object_Type type;
 
     union {
         int64_t as_int;

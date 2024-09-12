@@ -16,7 +16,7 @@ bool object_list_try_prepend(ObjectAllocator *a, Object *value, Object **list) {
     return object_try_make_cons(a, value, *list, list);
 }
 
-bool object_list_try_append(ObjectAllocator *a, Object *value, Object **list) {
+bool object_list_try_append_inplace(ObjectAllocator *a, Object *value, Object **list) {
     guard_is_not_null(a);
     guard_is_not_null(value);
     guard_is_not_null(list);
@@ -24,13 +24,13 @@ bool object_list_try_append(ObjectAllocator *a, Object *value, Object **list) {
     guard_is_one_of((*list)->type, TYPE_NIL, TYPE_CONS);
 
     while (object_nil() != *list) {
-        list = &(*list)->as_cons.rest;
+        list = (Object **) &(*list)->as_cons.rest;
     }
 
     return object_try_make_cons(a, value, object_nil(), list);
 }
 
-void object_list_concat(Object **head, Object *tail) {
+void object_list_concat_inplace(Object **head, Object *tail) {
     guard_is_not_null(head);
     guard_is_not_null(*head);
     guard_is_not_null(tail);
@@ -38,10 +38,26 @@ void object_list_concat(Object **head, Object *tail) {
     guard_is_one_of(tail->type, TYPE_NIL, TYPE_CONS);
 
     while (object_nil() != *head) {
-        head = &(*head)->as_cons.rest;
+        head = (Object **) &(*head)->as_cons.rest;
     }
 
     *head = tail;
+}
+
+static bool try_shift(Object **list, Object **head) {
+    guard_is_not_null(list);
+    guard_is_not_null(*list);
+    guard_is_not_null(head);
+    guard_is_one_of((*list)->type, TYPE_NIL, TYPE_CONS);
+
+    if (object_nil() == *list) {
+        return false;
+    }
+
+    *head = (*list)->as_cons.first;
+    *list = (*list)->as_cons.rest;
+
+    return true;
 }
 
 Object *object_list_shift(Object **list) {
@@ -49,9 +65,9 @@ Object *object_list_shift(Object **list) {
     guard_is_not_null(*list);
     guard_is_equal((*list)->type, TYPE_CONS);
 
-    auto const first = (*list)->as_cons.first;
-    *list = (*list)->as_cons.rest;
-    return first;
+    Object *head;
+    guard_is_true(try_shift(list, &head));
+    return head;
 }
 
 bool object_try_make_list_(ObjectAllocator *a, Object **list, ...) {
@@ -73,7 +89,7 @@ bool object_try_make_list_(ObjectAllocator *a, Object **list, ...) {
         }
     }
 
-    object_list_reverse(list);
+    object_list_reverse_inplace(list);
     return true;
 }
 
@@ -89,7 +105,7 @@ size_t object_list_count(Object *list) {
     return count;
 }
 
-void object_list_reverse(Object **list) {
+void object_list_reverse_inplace(Object **list) {
     guard_is_not_null(list);
     guard_is_not_null(*list);
     guard_is_one_of((*list)->type, TYPE_CONS, TYPE_NIL);
@@ -97,14 +113,18 @@ void object_list_reverse(Object **list) {
     auto prev = object_nil();
     auto current = *list;
     while (object_nil() != current) {
-        auto const next = exchange(current->as_cons.rest, prev);
+        auto const next = exchange(current->as_cons.rest, prev); // NOLINT(*-sizeof-expression)
         prev = exchange(current, next);
     }
 
     *list = prev;
 }
 
-Object **object_list_nth(size_t n, Object *list) {
+Object *object_list_nth(size_t n, Object *list) {
+    return *object_list_nth_mutable(n, list);
+}
+
+Object **object_list_nth_mutable(size_t n, Object *list) {
     guard_is_not_null(list);
     guard_is_one_of(list->type, TYPE_CONS, TYPE_NIL);
 
@@ -125,10 +145,10 @@ Object **object_list_nth(size_t n, Object *list) {
     guard_assert(false, "list index %zu is out of range for prim_list_list of %zu elements", n, i);
 }
 
-Object **object_list_last(Object **list) {
+Object **object_list_end_mutable(Object **list) {
     guard_is_not_null(list);
     guard_is_not_null(*list);
-    guard_is_one_of((*list)->type, TYPE_CONS, TYPE_NIL);\
+    guard_is_one_of((*list)->type, TYPE_CONS, TYPE_NIL);
 
     while (object_nil() != *list) {
         list = &(*list)->as_cons.rest;
@@ -166,16 +186,22 @@ bool object_list_try_unpack_2(Object **_1, Object **_2, Object *list) {
     guard_is_not_null(list);
     guard_is_one_of(list->type, TYPE_CONS, TYPE_NIL);
 
-    if (2 != object_list_count(list)) {
-        return false;
-    }
+    return try_shift(&list, _1)
+           && try_shift(&list, _2)
+           && object_nil() == list;
+}
 
-    *_1 = list->as_cons.first;
-    list = list->as_cons.rest;
-    *_2 = list->as_cons.first;
-    list = list->as_cons.rest;
-    (void) list;
-    return true;
+bool object_list_try_unpack_3(Object **_1, Object **_2, Object **_3, Object *list) {
+    guard_is_not_null(_1);
+    guard_is_not_null(_2);
+    guard_is_not_null(_3);
+    guard_is_not_null(list);
+    guard_is_one_of(list->type, TYPE_CONS, TYPE_NIL);
+
+    return try_shift(&list, _1)
+           && try_shift(&list, _2)
+           && try_shift(&list, _3)
+           && object_nil() == list;
 }
 
 bool object_list_is_tagged(Object *list, char const **tag) {

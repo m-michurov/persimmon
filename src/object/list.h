@@ -8,9 +8,9 @@
 bool object_list_try_prepend(ObjectAllocator *a, Object *value, Object **list);
 
 [[nodiscard]]
-bool object_list_try_append(ObjectAllocator *a, Object *value, Object **list);
+bool object_list_try_append_inplace(ObjectAllocator *a, Object *value, Object **list);
 
-void object_list_concat(Object **head, Object *tail);
+void object_list_concat_inplace(Object **head, Object *tail);
 
 Object *object_list_shift(Object **list);
 
@@ -36,16 +36,21 @@ for (                                                                   \
 
 size_t object_list_count(Object *list);
 
-void object_list_reverse(Object **list);
+void object_list_reverse_inplace(Object **list);
 
-Object **object_list_nth(size_t n, Object *list);
+Object *object_list_nth(size_t n, Object *list);
 
-Object **object_list_last(Object **list);
+Object **object_list_nth_mutable(size_t n, Object *list);
+
+Object **object_list_end_mutable(Object **list);
 
 Object *object_list_skip(size_t n, Object *list);
 
 [[nodiscard]]
 bool object_list_try_unpack_2(Object **_1, Object **_2, Object *list);
+
+[[nodiscard]]
+bool object_list_try_unpack_3(Object **_1, Object **_2, Object **_3, Object *list);
 
 [[nodiscard]]
 bool object_list_is_tagged(Object *list, char const **tag);

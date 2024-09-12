@@ -28,4 +28,7 @@ bool object_try_make_macro(ObjectAllocator *a, Object *env, Object *args, Object
 bool object_try_make_dict(ObjectAllocator *a, Object *key, Object *value, Object *left, Object *right, Object **obj);
 
 [[nodiscard]]
-bool object_try_copy(ObjectAllocator *a, Object *obj, Object **copy);
+bool object_try_deep_copy(ObjectAllocator *a, Object *obj, Object **copy);
+
+[[nodiscard]]
+bool object_try_shallow_copy(ObjectAllocator *a, Object *obj, Object **copy);

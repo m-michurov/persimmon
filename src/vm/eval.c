@@ -236,22 +236,22 @@ static bool try_step_call(VirtualMachine *vm) {
     if (is_ampersand(frame->unevaluated)) {
         guard_is_not_equal(frame->evaluated, object_nil());
 
-        auto const extra_args = object_list_nth(0, frame->evaluated);
+        auto const extra_args = object_list_nth_mutable(0, frame->evaluated);
         if (TYPE_CONS != (*extra_args)->type && TYPE_NIL != (*extra_args)->type) {
             call_extra_args_type_error(vm, (*extra_args)->type);
         }
 
-        object_list_reverse(extra_args);
-        object_list_concat(extra_args, object_list_skip(1, frame->evaluated));
+        object_list_reverse_inplace(extra_args);
+        object_list_concat_inplace(extra_args, object_list_skip(1, frame->evaluated));
 
-        frame->evaluated = *object_list_nth(0, frame->evaluated);
+        frame->evaluated = object_list_nth(0, frame->evaluated);
         frame->unevaluated = object_nil();
 
         return true;
     }
 
     if (object_nil() != frame->unevaluated) {
-        auto const next = *object_list_nth(0, frame->unevaluated);
+        auto const next = object_list_nth(0, frame->unevaluated);
 
         if (is_ampersand(next)) {
             if (object_nil() == frame->evaluated) {
@@ -277,7 +277,7 @@ static bool try_step_call(VirtualMachine *vm) {
         return ok;
     }
 
-    object_list_reverse(&frame->evaluated);
+    object_list_reverse_inplace(&frame->evaluated);
     guard_is_not_equal(frame->evaluated, object_nil());
 
     auto const fn = object_as_cons(frame->evaluated).first;
@@ -453,7 +453,8 @@ static bool try_step_define(VirtualMachine *vm) {
 
         return try_begin_eval(
                 vm, EVAL_FRAME_KEEP,
-                frame->env, *object_list_nth(1, frame->unevaluated),
+                frame->env,
+                object_list_nth(1, frame->unevaluated),
                 &frame->evaluated
         );
     }
@@ -503,7 +504,7 @@ static bool try_step_import(VirtualMachine *vm) {
         return false;
     }
 
-    if (false == object_list_try_append(a, object_nil(), exprs)) {
+    if (false == object_list_try_append_inplace(a, object_nil(), exprs)) {
         out_of_memory_error(vm);
     }
 

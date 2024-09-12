@@ -102,74 +102,122 @@ Object_CompareResult object_dict_compare(Object *a, Object *b) {
     return compare(a, b, option_none(ObjectOption), &unused);
 }
 
-static int64_t height(Object *root) { // NOLINT(*-no-recursion)
-    guard_is_one_of(root->type, TYPE_NIL, TYPE_DICT);
-
-    if (object_nil() == root) {
-        return 0;
-    }
-
-    return 1 + max(height(root->as_dict.left), height(root->as_dict.right));
-}
-
 static int64_t balance_factor(Object *root) {
     guard_is_one_of(root->type, TYPE_DICT);
 
-    return height(root->as_dict.right) - height(root->as_dict.left);
+    return object_dict_height(root->as_dict.right) - object_dict_height(root->as_dict.left);
 }
 
-static Object *rotate_right(Object *p) {
-    guard_is_equal(p->type, TYPE_DICT);
+static void update_height(Object *root) {
+    guard_is_not_null(root);
+    guard_is_equal(root->type, TYPE_DICT);
 
-    auto const q = p->as_dict.left;
-    guard_is_equal(q->type, TYPE_DICT);
-
-    p->as_dict.left = q->as_dict.right;
-    q->as_dict.right = p;
-
-    return q;
+    auto const height = 1 + max(object_dict_height(root->as_dict.left), object_dict_height(root->as_dict.right));
+    root->as_dict.height = height;
 }
 
-static Object *rotate_left(Object *q) {
-    guard_is_equal(q->type, TYPE_DICT);
+static void update_size(Object *root) {
+    guard_is_not_null(root);
+    guard_is_equal(root->type, TYPE_DICT);
 
-    auto const p = q->as_dict.right;
-    guard_is_equal(p->type, TYPE_DICT);
-
-    q->as_dict.right = p->as_dict.left;
-    p->as_dict.left = q;
-
-    return p;
+    auto const size = 1 + object_dict_size(root->as_dict.left) + object_dict_size(root->as_dict.right);
+    root->as_dict.size = size;
 }
 
-static Object *balance(Object *p) {
-    guard_is_equal(p->type, TYPE_DICT);
+static bool try_rotate_right(ObjectAllocator *a, Object **root) {
+    guard_is_not_null(a);
+    guard_is_not_null(root);
+    guard_is_not_null(*root);
+    guard_is_equal((*root)->type, TYPE_DICT);
+    guard_is_equal((*root)->as_dict.left->type, TYPE_DICT);
 
-    auto const factor = balance_factor(p);
+    if (false == object_try_shallow_copy(a, *root, root)) {
+        return false;
+    }
+
+    if (false == object_try_shallow_copy(a, (*root)->as_dict.left, &(*root)->as_dict.left)) {
+        return false;
+    }
+
+    auto const left = (*root)->as_dict.left;
+
+    (*root)->as_dict.left = left->as_dict.right;
+    left->as_dict.right = *root;
+
+    update_height(left->as_dict.right);
+    update_height(left);
+
+    update_size(left->as_dict.right);
+    update_size(left);
+
+    *root = left;
+
+    return true;
+}
+
+static bool try_rotate_left(ObjectAllocator *a, Object **root) {
+    guard_is_not_null(a);
+    guard_is_not_null(root);
+    guard_is_not_null(*root);
+    guard_is_equal((*root)->type, TYPE_DICT);
+    guard_is_equal((*root)->as_dict.right->type, TYPE_DICT);
+
+    if (false == object_try_shallow_copy(a, *root, root)) {
+        return false;
+    }
+
+    if (false == object_try_shallow_copy(a, (*root)->as_dict.right, &(*root)->as_dict.right)) {
+        return false;
+    }
+
+    auto const right = (*root)->as_dict.right;
+
+    (*root)->as_dict.right = right->as_dict.left;
+    right->as_dict.left = *root;
+
+    update_height(right->as_dict.left);
+    update_height(right);
+
+    update_size(right->as_dict.left);
+    update_size(right);
+
+    *root = right;
+
+    return true;
+}
+
+static bool try_balance(ObjectAllocator *a, Object **root) {
+    guard_is_not_null(root);
+    guard_is_not_null(*root);
+    guard_is_equal((*root)->type, TYPE_DICT);
+
+    auto const factor = balance_factor(*root);
 
     if (2 == factor) {
-        if (balance_factor(p->as_dict.right) < 0) {
-            p->as_dict.right = rotate_right(p->as_dict.right);
+        if (balance_factor((*root)->as_dict.right) < 0) {
+            if (false == try_rotate_right(a, &(*root)->as_dict.right)) {
+                return false;
+            }
         }
 
-        return rotate_left(p);
+        return try_rotate_left(a, root);
     }
 
     if (-2 == factor) {
-        if (balance_factor(p->as_dict.left) > 0) {
-            p->as_dict.left = rotate_left(p->as_dict.left);
+        if (balance_factor((*root)->as_dict.left) > 0) {
+            if (false == try_rotate_left(a, &(*root)->as_dict.left)) {
+                return false;
+            }
         }
 
-        return rotate_right(p);
+        return try_rotate_right(a, root);
     }
 
     guard_is_one_of(factor, -1, 0, 1);
-    return p;
+    return root;
 }
 
 size_t object_dict_size(Object *dict) { // NOLINT(*-no-recursion)
-    guard_is_not_null(dict);
-    guard_is_one_of(dict->type, TYPE_NIL, TYPE_DICT);
     guard_is_not_null(dict);
     guard_is_one_of(dict->type, TYPE_NIL, TYPE_DICT);
 
@@ -177,7 +225,17 @@ size_t object_dict_size(Object *dict) { // NOLINT(*-no-recursion)
         return 0;
     }
 
-    return 1 + object_dict_size(dict->as_dict.left) + object_dict_size(dict->as_dict.right);
+    return dict->as_dict.size;
+}
+
+int64_t object_dict_height(Object *root) { // NOLINT(*-no-recursion)
+    guard_is_one_of(root->type, TYPE_NIL, TYPE_DICT);
+
+    if (object_nil() == root) {
+        return 0;
+    }
+
+    return root->as_dict.height;
 }
 
 bool object_dict_try_put( // NOLINT(*-no-recursion)
@@ -200,43 +258,19 @@ bool object_dict_try_put( // NOLINT(*-no-recursion)
 
     auto compare_result = object_compare(key, dict->as_dict.key);
 
-    if (0 == compare_result) {
-        return object_try_make_dict(a, key, value, dict->as_dict.left, dict->as_dict.right, out);
+    if (compare_result < 0) {
+        return object_try_shallow_copy(a, dict, out)
+               && object_dict_try_put(a, dict->as_dict.left, key, value, &(*out)->as_dict.left)
+               && try_balance(a, out);
     }
 
     if (compare_result > 0) {
-        auto const ok =
-                object_try_make_dict(
-                        a,
-                        dict->as_dict.key,
-                        dict->as_dict.value,
-                        dict->as_dict.left,
-                        dict->as_dict.right,
-                        out
-                ) && object_dict_try_put(a, dict->as_dict.right, key, value, &(*out)->as_dict.right);
-        if (false == ok) {
-            return false;
-        }
-
-        *out = balance(*out);
-        return true;
+        return object_try_shallow_copy(a, dict, out)
+               && object_dict_try_put(a, dict->as_dict.right, key, value, &(*out)->as_dict.right)
+               && try_balance(a, out);
     }
 
-    auto const ok =
-            object_try_make_dict(
-                    a,
-                    dict->as_dict.key,
-                    dict->as_dict.value,
-                    dict->as_dict.left,
-                    dict->as_dict.right,
-                    out
-            ) && object_dict_try_put(a, dict->as_dict.left, key, value, &(*out)->as_dict.left);
-    if (false == ok) {
-        return false;
-    }
-
-    *out = balance(*out);
-    return true;
+    return object_try_make_dict(a, key, value, dict->as_dict.left, dict->as_dict.right, out);
 }
 
 bool object_dict_try_get(Object *dict, Object *key, Object **value) { // NOLINT(*-no-recursion)
