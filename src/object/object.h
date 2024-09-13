@@ -66,8 +66,8 @@ struct Object {
 
     union {
         int64_t as_int;
-        char as_string[1]; // actual size may vary
-        char as_atom[1]; // actual size may vary
+        char const *as_string;
+        char const *as_atom;
         Object_Cons as_cons;
         Object_Primitive as_primitive;
         Object_Closure as_closure;

@@ -44,7 +44,7 @@ static bool dict_try_write_repr_(Writer w, Object *obj, bool *is_min, errno_t *e
         return false;
     }
 
-    if (*is_min && object_nil() == obj->as_dict.left) {
+    if (object_nil() == obj->as_dict.left) {
         *is_min = false;
     }
 

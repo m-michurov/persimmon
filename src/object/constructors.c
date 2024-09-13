@@ -12,28 +12,30 @@ static size_t size_int(void) {
     return offsetof(Object, as_int) + sizeof(int64_t);
 }
 
+#define object_offsetof_end(Field) offsetof(Object, Field) + sizeof(((Object) {0}).Field)
+
 static size_t size_string(size_t len) {
-    return offsetof(Object, as_string) + len + 1;
+    return object_offsetof_end(as_string) + len + 1;
 }
 
 static size_t size_atom(size_t len) {
-    return offsetof(Object, as_atom) + len + 1;
+    return object_offsetof_end(as_atom) + len + 1;
 }
 
 static size_t size_cons(void) {
-    return offsetof(Object, as_cons) + sizeof(Object_Cons);
+    return object_offsetof_end(as_cons);
 }
 
 static size_t size_primitive(void) {
-    return offsetof(Object, as_primitive) + sizeof(Object_Primitive);
+    return object_offsetof_end(as_primitive);
 }
 
 static size_t size_closure(void) {
-    return offsetof(Object, as_closure) + sizeof(Object_Closure);
+    return object_offsetof_end(as_closure);
 }
 
 static size_t size_dict(void) {
-    return offsetof(Object, as_dict) + sizeof(Object_Dict);
+    return object_offsetof_end(as_dict);
 }
 
 bool object_try_make_int(ObjectAllocator *a, int64_t value, Object **obj) {
@@ -59,8 +61,13 @@ bool object_try_make_string(ObjectAllocator *a, char const *s, Object **obj) {
         return false;
     }
 
+    auto const chars = (((uint8_t *) *obj) + object_offsetof_end(as_string));
+    guard_is_less_or_equal(chars + len + 1, ((uint8_t *) *obj) + (*obj)->size);
+
     (*obj)->type = TYPE_STRING;
-    memcpy((void *) (*obj)->as_string, s, len + 1);
+    (*obj)->as_string = (char *) chars;
+    memcpy(chars, s, len + 1);
+
     return true;
 }
 
@@ -74,8 +81,13 @@ bool object_try_make_atom(ObjectAllocator *a, char const *s, Object **obj) {
         return false;
     }
 
+    auto const chars = (((uint8_t *) *obj) + object_offsetof_end(as_atom));
+    guard_is_less_or_equal(chars + len + 1, ((uint8_t *) *obj) + (*obj)->size);
+
     (*obj)->type = TYPE_ATOM;
-    memcpy((void *) (*obj)->as_atom, s, len + 1);
+    (*obj)->as_atom = (char *) chars;
+    memcpy(chars, s, len + 1);
+
     return true;
 }
 
