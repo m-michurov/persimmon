@@ -323,6 +323,7 @@ static bool is_parameters_declaration_valid(Object *args, BindingTargetError *er
            && binding_is_valid_target(args, error);
 }
 
+// TODO make fn take an optional name to allow recursion BUT NOT MACROS
 static bool try_step_macro_or_fn(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
