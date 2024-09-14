@@ -10,7 +10,7 @@ bool env_try_create(ObjectAllocator *a, Object *base_env, Object **env) {
     guard_is_not_null(a);
     guard_is_not_null(base_env);
 
-    return object_try_make_cons(a, object_nil(), base_env, env);
+    return object_try_make_cons(a, OBJECT_NIL, base_env, env);
 }
 
 bool env_try_define(ObjectAllocator *a, Object *env, Object *name, Object *value) {

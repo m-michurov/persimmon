@@ -14,10 +14,10 @@ bool binding_is_valid_target(Object *target, BindingTargetError *error) { // NOL
         }
         case TYPE_CONS: {
             auto is_varargs = false;
-            while (object_nil() != target) {
+            while (OBJECT_NIL != target) {
                 auto const it = object_list_shift(&target);
 
-                if (is_varargs && (TYPE_ATOM != it->type || object_nil() != target)) {
+                if (is_varargs && (TYPE_ATOM != it->type || OBJECT_NIL != target)) {
                     *error = (BindingTargetError) {
                             .type = BINDING_INVALID_VARIADIC_SYNTAX
                     };
@@ -65,11 +65,11 @@ typedef struct {
 static TargetsCount count_targets(Object *target) {
     auto result = (TargetsCount) {0};
 
-    while (object_nil() != target) {
+    while (OBJECT_NIL != target) {
         auto const it = object_list_shift(&target);
 
         if (result.is_variadic) {
-            guard_is_true(TYPE_ATOM == it->type && object_nil() == target);
+            guard_is_true(TYPE_ATOM == it->type && OBJECT_NIL == target);
             return result;
         }
 
@@ -130,7 +130,7 @@ static bool is_valid_value(Object *target, Object *value, BindingValueError *err
                 return false;
             }
 
-            guard_is_true(targets.is_variadic || object_nil() == value);
+            guard_is_true(targets.is_variadic || OBJECT_NIL == value);
             return true;
         }
         case TYPE_ATOM: {
@@ -157,7 +157,7 @@ static bool env_try_bind_(ObjectAllocator *a, Object *env, Object *target, Objec
 
     switch (target->type) {
         case TYPE_NIL: {
-            guard_is_equal(value, object_nil());
+            guard_is_equal(value, OBJECT_NIL);
             return true;
         }
         case TYPE_ATOM: {
@@ -184,7 +184,7 @@ static bool env_try_bind_(ObjectAllocator *a, Object *env, Object *target, Objec
                 return false;
             }
 
-            guard_is_equal(value, object_nil());
+            guard_is_equal(value, OBJECT_NIL);
             return true;
         }
         case TYPE_INT:

@@ -4,6 +4,7 @@
 #include "utility/pointers.h"
 #include "utility/exchange.h"
 #include "utility/container_of.h"
+#include "object/constants.h"
 
 typedef struct Stack_WrappedFrame Stack_WrappedFrame;
 struct Stack_WrappedFrame {
@@ -59,7 +60,7 @@ Stack_Frame frame_make(
             .env = env,
             .results_list = results_list,
             .unevaluated = unevaluated,
-            .evaluated = object_nil()
+            .evaluated = OBJECT_NIL
     };
 }
 
@@ -145,6 +146,6 @@ bool stack_try_create_local(Stack_Locals locals, Object ***obj) {
     }
 
     *obj = exchange(*locals._top, new_top);
-    **obj = object_nil();
+    **obj = OBJECT_NIL;
     return true;
 }

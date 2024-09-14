@@ -2,6 +2,7 @@
 
 #include "utility/guards.h"
 #include "utility/option.h"
+#include "constants.h"
 #include "compare.h"
 #include "constructors.h"
 
@@ -9,7 +10,7 @@ static ObjectOption next_min_node(Object *dict, ObjectOption prev_min_key) { // 
     guard_is_not_null(dict);
     guard_is_one_of(dict->type, TYPE_NIL, TYPE_DICT);
 
-    if (object_nil() == dict) {
+    if (OBJECT_NIL == dict) {
         return option_none(ObjectOption);
     }
 
@@ -60,7 +61,7 @@ static Object_CompareResult compare( // NOLINT(*-no-recursion)
     guard_is_equal(b->type, TYPE_DICT);
 
     ObjectOption prev_key;
-    if (object_nil() != a->as_dict.left) {
+    if (OBJECT_NIL != a->as_dict.left) {
         Object *left_min_node;
         auto const result = compare(a->as_dict.left, b, prev_min_key, &left_min_node);
         if (OBJECT_EQUALS != result) {
@@ -77,7 +78,7 @@ static Object_CompareResult compare( // NOLINT(*-no-recursion)
         return result;
     }
 
-    if (object_nil() != a->as_dict.right) {
+    if (OBJECT_NIL != a->as_dict.right) {
         return compare(a->as_dict.right, b, option_some(ObjectOption, a->as_dict.key), next_min_node);
     }
 
@@ -221,7 +222,7 @@ size_t object_dict_size(Object *dict) { // NOLINT(*-no-recursion)
     guard_is_not_null(dict);
     guard_is_one_of(dict->type, TYPE_NIL, TYPE_DICT);
 
-    if (object_nil() == dict) {
+    if (OBJECT_NIL == dict) {
         return 0;
     }
 
@@ -231,7 +232,7 @@ size_t object_dict_size(Object *dict) { // NOLINT(*-no-recursion)
 int64_t object_dict_height(Object *root) { // NOLINT(*-no-recursion)
     guard_is_one_of(root->type, TYPE_NIL, TYPE_DICT);
 
-    if (object_nil() == root) {
+    if (OBJECT_NIL == root) {
         return 0;
     }
 
@@ -252,8 +253,8 @@ bool object_dict_try_put( // NOLINT(*-no-recursion)
     guard_is_not_null(out);
     guard_is_one_of(dict->type, TYPE_NIL, TYPE_DICT);
 
-    if (object_nil() == dict) {
-        return object_try_make_dict(a, key, value, object_nil(), object_nil(), out);
+    if (OBJECT_NIL == dict) {
+        return object_try_make_dict(a, key, value, OBJECT_NIL, OBJECT_NIL, out);
     }
 
     auto compare_result = object_compare(key, dict->as_dict.key);
@@ -279,7 +280,7 @@ bool object_dict_try_get(Object *dict, Object *key, Object **value) { // NOLINT(
     guard_is_not_null(value);
     guard_is_one_of(dict->type, TYPE_NIL, TYPE_DICT);
 
-    if (object_nil() == dict) {
+    if (OBJECT_NIL == dict) {
         return false;
     }
 

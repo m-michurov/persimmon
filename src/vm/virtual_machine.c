@@ -4,6 +4,7 @@
 #include "utility/slice.h"
 #include "utility/dynamic_array.h"
 #include "object/constructors.h"
+#include "object/constants.h"
 #include "reader/reader.h"
 #include "env.h"
 #include "stack.h"
@@ -29,7 +30,7 @@ static bool try_wrap_atom(ObjectAllocator *a, char const *name, Object **value) 
     guard_is_not_null(value);
 
     return object_try_make_atom(a, name, value)
-           && object_try_make_cons(a, *value, object_nil(), value);
+           && object_try_make_cons(a, *value, OBJECT_NIL, value);
 }
 
 static bool try_init_static(ObjectAllocator *a, Objects *constants) {
@@ -38,7 +39,7 @@ static bool try_init_static(ObjectAllocator *a, Objects *constants) {
     guard_is_greater_or_equal(constants->count, STATIC_CONSTANTS_COUNT);
 
     return object_try_make_atom(a, "true", slice_at(constants, STATIC_TRUE))
-           && (*slice_at(constants, STATIC_FALSE) = object_nil())
+           && (*slice_at(constants, STATIC_FALSE) = OBJECT_NIL)
            && object_try_make_atom(a, "do", slice_at(constants, STATIC_ATOM_DO))
            && try_wrap_atom(a, "OSError", slice_at(constants, STATIC_OS_ERROR_DEFAULT))
            && try_wrap_atom(a, "TypeError", slice_at(constants, STATIC_TYPE_ERROR_DEFAULT))
@@ -58,10 +59,10 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
 
     *vm = (VirtualMachine) {
             .allocator = allocator_make(config.allocator_config),
-            .globals = object_nil(),
-            .value = object_nil(),
-            .error = object_nil(),
-            .exprs = object_nil(),
+            .globals = OBJECT_NIL,
+            .value = OBJECT_NIL,
+            .error = OBJECT_NIL,
+            .exprs = OBJECT_NIL,
     };
 
     allocator_set_roots(&vm->allocator, (ObjectAllocator_Roots) {
@@ -74,14 +75,14 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
     });
 
     for (size_t i = 0; i < STATIC_CONSTANTS_COUNT + 2; i++) {
-        guard_is_true(da_try_append(&vm->constants, object_nil())); // NOLINT(*-sizeof-expression)
+        guard_is_true(da_try_append(&vm->constants, OBJECT_NIL)); // NOLINT(*-sizeof-expression)
     }
 
     errno_t error_code;
     guard_is_true(stack_try_init(&vm->stack, config.stack_config, &error_code));
     guard_is_true(object_reader_try_init(&vm->reader, vm, config.reader_config, &error_code));
 
-    guard_is_true(env_try_create(&vm->allocator, object_nil(), &vm->globals));
+    guard_is_true(env_try_create(&vm->allocator, OBJECT_NIL, &vm->globals));
 
     auto const key_root = slice_at(&vm->constants, 0);
     auto const value_root = slice_at(&vm->constants, 1);

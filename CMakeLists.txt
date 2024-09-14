@@ -34,6 +34,7 @@ add_executable(persimmon
         src/object/dict.c
         src/vm/variadic.c
         src/object/compare.c
+        src/object/constants.c
 )
 
 target_compile_options(persimmon PRIVATE

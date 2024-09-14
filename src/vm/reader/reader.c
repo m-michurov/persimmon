@@ -135,7 +135,7 @@ static bool try_prompt(
     guard_is_not_null(exprs);
 
     object_reader_reset(r);
-    *exprs = object_nil();
+    *exprs = OBJECT_NIL;
 
     auto line = (Line) {0};
     auto input_empty = true;

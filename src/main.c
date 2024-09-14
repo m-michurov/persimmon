@@ -3,6 +3,7 @@
 #include "utility/guards.h"
 #include "object/list.h"
 #include "object/repr.h"
+#include "object/constants.h"
 #include "vm/reader/reader.h"
 #include "vm/eval.h"
 #include "vm/virtual_machine.h"
@@ -56,7 +57,7 @@ static bool try_eval_input(VirtualMachine *vm) {
         return true;
     }
 
-    if (object_nil() == *vm_exprs(vm)) {
+    if (OBJECT_NIL == *vm_exprs(vm)) {
         return false;
     }
 
@@ -91,7 +92,7 @@ static bool try_eval_file(VirtualMachine *vm, NamedFile file) {
         return true;
     }
 
-    if (object_nil() == *vm_exprs(vm)) {
+    if (OBJECT_NIL == *vm_exprs(vm)) {
         return true;
     }
 

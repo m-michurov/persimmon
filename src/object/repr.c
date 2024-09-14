@@ -32,7 +32,7 @@ static bool dict_try_write_repr_(Writer w, Object *obj, bool *is_min, errno_t *e
     guard_is_not_null(error_code);
     guard_is_one_of(obj->type, TYPE_NIL, TYPE_DICT);
 
-    if (object_nil() == obj) {
+    if (OBJECT_NIL == obj) {
         return true;
     }
 
@@ -44,7 +44,7 @@ static bool dict_try_write_repr_(Writer w, Object *obj, bool *is_min, errno_t *e
         return false;
     }
 
-    if (object_nil() == obj->as_dict.left) {
+    if (OBJECT_NIL == obj->as_dict.left) {
         *is_min = false;
     }
 

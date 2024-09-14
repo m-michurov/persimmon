@@ -2,6 +2,7 @@
 
 #include "utility/macros.h"
 #include "object.h"
+#include "constants.h"
 #include "allocator.h"
 
 [[nodiscard]]
@@ -25,13 +26,13 @@ for (                                                                   \
     Object *concat_identifiers(_l_, __LINE__) = (List),                 \
            *It = TYPE_CONS == concat_identifiers(_l_, __LINE__)->type   \
                 ? concat_identifiers(_l_, __LINE__)->as_cons.first      \
-                : object_nil();                                         \
+                : OBJECT_NIL;                                           \
     TYPE_CONS == concat_identifiers(_l_, __LINE__)->type;               \
     concat_identifiers(_l_, __LINE__) =                                 \
         concat_identifiers(_l_, __LINE__)->as_cons.rest,                \
     It = TYPE_CONS == concat_identifiers(_l_, __LINE__)->type           \
         ? concat_identifiers(_l_, __LINE__)->as_cons.first              \
-        : object_nil()                                                  \
+        : OBJECT_NIL                                                    \
 )
 
 size_t object_list_count(Object *list);

@@ -14,7 +14,7 @@ bool traceback_try_get(ObjectAllocator *a, Stack s, Object **traceback) {
     guard_is_not_null(traceback);
     guard_is_not_null(*traceback);
 
-    *traceback = object_nil();
+    *traceback = OBJECT_NIL;
     stack_for_reversed(frame, s) {
         if (false == object_try_make_cons(a, frame->expr, *traceback, traceback)) {
             return false;
@@ -29,7 +29,7 @@ void traceback_print(Object *traceback, FILE *file) {
     guard_is_not_null(traceback);
     guard_is_not_null(file);
 
-    if (object_nil() == traceback) {
+    if (OBJECT_NIL == traceback) {
         return;
     }
 

@@ -23,11 +23,11 @@ bool object_list_try_append_inplace(ObjectAllocator *a, Object *value, Object **
     guard_is_not_null(*list);
     guard_is_one_of((*list)->type, TYPE_NIL, TYPE_CONS);
 
-    while (object_nil() != *list) {
+    while (OBJECT_NIL != *list) {
         list = (Object **) &(*list)->as_cons.rest;
     }
 
-    return object_try_make_cons(a, value, object_nil(), list);
+    return object_try_make_cons(a, value, OBJECT_NIL, list);
 }
 
 void object_list_concat_inplace(Object **head, Object *tail) {
@@ -37,7 +37,7 @@ void object_list_concat_inplace(Object **head, Object *tail) {
     guard_is_one_of((*head)->type, TYPE_NIL, TYPE_CONS);
     guard_is_one_of(tail->type, TYPE_NIL, TYPE_CONS);
 
-    while (object_nil() != *head) {
+    while (OBJECT_NIL != *head) {
         head = (Object **) &(*head)->as_cons.rest;
     }
 
@@ -50,7 +50,7 @@ static bool try_shift(Object **list, Object **head) {
     guard_is_not_null(head);
     guard_is_one_of((*list)->type, TYPE_NIL, TYPE_CONS);
 
-    if (object_nil() == *list) {
+    if (OBJECT_NIL == *list) {
         return false;
     }
 
@@ -74,7 +74,7 @@ bool object_try_make_list_(ObjectAllocator *a, Object **list, ...) {
     guard_is_not_null(a);
     guard_is_not_null(list);
 
-    *list = object_nil();
+    *list = OBJECT_NIL;
 
     va_list args;
     va_start(args, list);
@@ -110,9 +110,9 @@ void object_list_reverse_inplace(Object **list) {
     guard_is_not_null(*list);
     guard_is_one_of((*list)->type, TYPE_CONS, TYPE_NIL);
 
-    auto prev = object_nil();
+    auto prev = OBJECT_NIL;
     auto current = *list;
-    while (object_nil() != current) {
+    while (OBJECT_NIL != current) {
         auto const next = exchange(current->as_cons.rest, prev); // NOLINT(*-sizeof-expression)
         prev = exchange(current, next);
     }
@@ -129,7 +129,7 @@ Object **object_list_nth_mutable(size_t n, Object *list) {
     guard_is_one_of(list->type, TYPE_CONS, TYPE_NIL);
 
     size_t i = 0;
-    for (auto it = list; object_nil() != it; it = it->as_cons.rest) {
+    for (auto it = list; OBJECT_NIL != it; it = it->as_cons.rest) {
         if (TYPE_CONS != it->type) {
             break;
         }
@@ -150,7 +150,7 @@ Object **object_list_end_mutable(Object **list) {
     guard_is_not_null(*list);
     guard_is_one_of((*list)->type, TYPE_CONS, TYPE_NIL);
 
-    while (object_nil() != *list) {
+    while (OBJECT_NIL != *list) {
         list = &(*list)->as_cons.rest;
     }
 
@@ -162,7 +162,7 @@ Object *object_list_skip(size_t n, Object *list) {
     guard_is_one_of(list->type, TYPE_CONS, TYPE_NIL);
 
     size_t i = 0;
-    for (; object_nil() != list; list = object_as_cons(list).rest) {
+    for (; OBJECT_NIL != list; list = object_as_cons(list).rest) {
         guard_is_equal(list->type, TYPE_CONS);
 
         if (i < n) {
@@ -173,8 +173,8 @@ Object *object_list_skip(size_t n, Object *list) {
         return list;
     }
 
-    if (i == n && object_nil() == list) {
-        return object_nil();
+    if (i == n && OBJECT_NIL == list) {
+        return OBJECT_NIL;
     }
 
     guard_assert(false, "cannot skip %zu elements for prim_list_list of %zu elements", n, i);
@@ -188,7 +188,7 @@ bool object_list_try_unpack_2(Object **_1, Object **_2, Object *list) {
 
     return try_shift(&list, _1)
            && try_shift(&list, _2)
-           && object_nil() == list;
+           && OBJECT_NIL == list;
 }
 
 bool object_list_try_unpack_3(Object **_1, Object **_2, Object **_3, Object *list) {
@@ -201,7 +201,7 @@ bool object_list_try_unpack_3(Object **_1, Object **_2, Object **_3, Object *lis
     return try_shift(&list, _1)
            && try_shift(&list, _2)
            && try_shift(&list, _3)
-           && object_nil() == list;
+           && OBJECT_NIL == list;
 }
 
 bool object_list_is_tagged(Object *list, char const **tag) {

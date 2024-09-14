@@ -55,7 +55,7 @@ static bool str(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
 
-    if (object_nil() == args) {
+    if (OBJECT_NIL == args) {
         if (false == object_try_make_string(vm_allocator(vm), "", value)) {
             out_of_memory_error(vm);
         }
@@ -116,7 +116,7 @@ static bool print(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
 
-    if (object_nil() == args) {
+    if (OBJECT_NIL == args) {
         return true;
     }
 
@@ -133,7 +133,7 @@ static bool print(VirtualMachine *vm, Object *args, Object **value) {
     }
     printf("\n");
 
-    *value = object_nil();
+    *value = OBJECT_NIL;
     return true;
 }
 
@@ -165,7 +165,7 @@ static bool minus(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
 
-    if (object_nil() == args) {
+    if (OBJECT_NIL == args) {
         if (object_try_make_int(vm_allocator(vm), 0, value)) {
             return true;
         }
@@ -222,7 +222,7 @@ static bool divide(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
     guard_is_not_null(value);
 
-    if (object_nil() == args) {
+    if (OBJECT_NIL == args) {
         if (object_try_make_int(vm_allocator(vm), 1, value)) {
             return true;
         }
@@ -388,7 +388,7 @@ static bool not(VirtualMachine *vm, Object *args, Object **value) {
         call_args_count_error(vm, "not", expected, false, got);
     }
 
-    *value = vm_get(vm, object_nil() == args->as_cons.first ? STATIC_TRUE : STATIC_FALSE);
+    *value = vm_get(vm, OBJECT_NIL == args->as_cons.first ? STATIC_TRUE : STATIC_FALSE);
 
     return true;
 }
@@ -483,9 +483,9 @@ static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
         call_args_parity_error(vm, "dict", true);
     }
 
-    *result = object_nil();
+    *result = OBJECT_NIL;
 
-    while (object_nil() != args) {
+    while (OBJECT_NIL != args) {
         auto const key = object_list_shift(&args);
         auto const value = object_list_shift(&args);
 

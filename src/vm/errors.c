@@ -42,7 +42,7 @@ static bool try_create_int_field(VirtualMachine *vm, char const *key, int64_t va
     guard_is_not_null(field);
 
     auto const a = vm_allocator(vm);
-    return object_try_make_list(a, field, object_nil(), object_nil())
+    return object_try_make_list(a, field, OBJECT_NIL, OBJECT_NIL)
            && object_try_make_atom(a, key, object_list_nth_mutable(0, *field))
            && object_try_make_int(a, value, object_list_nth_mutable(1, *field));
 }
@@ -54,7 +54,7 @@ static bool try_create_string_field(VirtualMachine *vm, char const *key, char co
     guard_is_not_null(field);
 
     auto const a = vm_allocator(vm);
-    return object_try_make_list(a, field, object_nil(), object_nil())
+    return object_try_make_list(a, field, OBJECT_NIL, OBJECT_NIL)
            && object_try_make_atom(a, key, object_list_nth_mutable(0, *field))
            && object_try_make_string(a, value, object_list_nth_mutable(1, *field));
 }
@@ -66,7 +66,7 @@ static bool try_create_atom_field(VirtualMachine *vm, char const *key, char cons
     guard_is_not_null(field);
 
     auto const a = vm_allocator(vm);
-    return object_try_make_list(a, field, object_nil(), object_nil())
+    return object_try_make_list(a, field, OBJECT_NIL, OBJECT_NIL)
            && object_try_make_atom(a, key, object_list_nth_mutable(0, *field))
            && object_try_make_atom(a, value, object_list_nth_mutable(1, *field));
 }
@@ -78,7 +78,7 @@ static bool try_create_object_field(VirtualMachine *vm, char const *key, Object 
     guard_is_not_null(field);
 
     auto const a = vm_allocator(vm);
-    return object_try_make_list(a, field, object_nil(), value)
+    return object_try_make_list(a, field, OBJECT_NIL, value)
            && object_try_make_atom(a, key, object_list_nth_mutable(0, *field));
 }
 
@@ -87,7 +87,7 @@ static bool try_create_traceback(VirtualMachine *vm, Object **field) {
     guard_is_not_null(field);
 
     auto const a = vm_allocator(vm);
-    return object_try_make_list(a, field, object_nil(), object_nil())
+    return object_try_make_list(a, field, OBJECT_NIL, OBJECT_NIL)
            && object_try_make_atom(a, ERROR_FIELD_TRACEBACK, object_list_nth_mutable(0, *field))
            && traceback_try_get(a, *vm_stack(vm), object_list_nth_mutable(1, *field));
 }
@@ -104,8 +104,8 @@ static void create_error_with_message(VirtualMachine *vm, Object *default_error,
             object_try_make_list(
                     a, vm_error(vm),
                     error_type,
-                    object_nil(),
-                    object_nil()
+                    OBJECT_NIL,
+                    OBJECT_NIL
             )
             && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
             && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
@@ -131,9 +131,9 @@ void create_os_error(VirtualMachine *vm, errno_t error_code) {
             object_try_make_list(
                     a, vm_error(vm),
                     error_type,
-                    object_nil(),
-                    object_nil(),
-                    object_nil()
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL
             )
             && try_create_string_field(
                     vm,
@@ -205,21 +205,21 @@ void create_type_error_(
             object_try_make_list(
                     a, vm_error(vm),
                     error_type,
-                    object_nil(),
-                    object_nil(),
-                    object_nil(),
-                    object_nil()
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL
             )
             && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)));
 
     auto const expected_types_list = object_list_nth_mutable(++field_index, *vm_error(vm));
     for (size_t i = 0; ok && i < expected_count; i++) {
-        ok = object_try_make_cons(a, object_nil(), *expected_types_list, expected_types_list)
+        ok = object_try_make_cons(a, OBJECT_NIL, *expected_types_list, expected_types_list)
              && object_try_make_atom(a, object_type_str(expected[i]), object_list_nth_mutable(0, *expected_types_list));
     }
 
     ok = ok
-         && object_try_make_cons(a, object_nil(), *expected_types_list, expected_types_list)
+         && object_try_make_cons(a, OBJECT_NIL, *expected_types_list, expected_types_list)
          && object_try_make_atom(a, ERROR_FIELD_EXPECTED, object_list_nth_mutable(0, *expected_types_list))
          &&
          try_create_atom_field(vm, ERROR_FIELD_GOT, object_type_str(got), object_list_nth_mutable(++field_index, *vm_error(vm)))
@@ -249,9 +249,9 @@ void create_type_error_unexpected(VirtualMachine *vm, Object_Type got) {
             object_try_make_list(
                     a, vm_error(vm),
                     error_type,
-                    object_nil(),
-                    object_nil(),
-                    object_nil()
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL
             )
             && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)));
 
@@ -332,13 +332,13 @@ void create_syntax_error(
             object_try_make_list(
                     a, vm_error(vm),
                     error_type,
-                    object_nil(),
-                    object_nil(),
-                    object_nil(),
-                    object_nil(),
-                    object_nil(),
-                    object_nil(),
-                    object_nil()
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL
             )
             && try_create_string_field(
                     vm,
@@ -386,11 +386,11 @@ void create_call_args_count_error(VirtualMachine *vm, char const *name, size_t e
             object_try_make_list(
                     a, vm_error(vm),
                     error_type,
-                    object_nil(),
-                    object_nil(),
-                    object_nil(),
-                    object_nil(),
-                    object_nil()
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL
             )
             && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
             && try_create_string_field(vm, ERROR_FIELD_NAME, name, object_list_nth_mutable(++field_index, *vm_error(vm)))
@@ -429,10 +429,10 @@ void create_call_args_parity_error(VirtualMachine *vm, char const *name, bool ex
             object_try_make_list(
                     a, vm_error(vm),
                     error_type,
-                    object_nil(),
-                    object_nil(),
-                    object_nil(),
-                    object_nil()
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL
             )
             && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
             && try_create_string_field(vm, ERROR_FIELD_NAME, name, object_list_nth_mutable(++field_index, *vm_error(vm)))
@@ -484,9 +484,9 @@ void create_call_extra_args_type_error(VirtualMachine *vm, Object_Type extras_ty
             object_try_make_list(
                     a, vm_error(vm),
                     error_type,
-                    object_nil(),
-                    object_nil(),
-                    object_nil()
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL
             )
             && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
             && try_create_atom_field(
@@ -521,9 +521,9 @@ void create_name_error(VirtualMachine *vm, char const *name) {
             object_try_make_list(
                     a, vm_error(vm),
                     error_type,
-                    object_nil(),
-                    object_nil(),
-                    object_nil()
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL
             )
             && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
             && try_create_string_field(vm, ERROR_FIELD_NAME, name, object_list_nth_mutable(++field_index, *vm_error(vm)))
@@ -646,11 +646,11 @@ static void create_binding_count_error(VirtualMachine *vm, size_t expected, bool
             object_try_make_list(
                     a, vm_error(vm),
                     error_type,
-                    object_nil(),
-                    object_nil(),
-                    object_nil(),
-                    object_nil(),
-                    object_nil()
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL
             )
             && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
             && try_create_int_field(
@@ -692,9 +692,9 @@ static void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_ty
             object_try_make_list(
                     a, vm_error(vm),
                     error_type,
-                    object_nil(),
-                    object_nil(),
-                    object_nil()
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL
             )
             &&
             try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
@@ -730,9 +730,9 @@ static void create_binding_target_error(VirtualMachine *vm, Object_Type target_t
             object_try_make_list(
                     a, vm_error(vm),
                     error_type,
-                    object_nil(),
-                    object_nil(),
-                    object_nil()
+                    OBJECT_NIL,
+                    OBJECT_NIL,
+                    OBJECT_NIL
             )
             &&
             try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
@@ -825,9 +825,9 @@ void create_key_error(VirtualMachine *vm, Object *key) {
          && object_try_make_list(
                  a, vm_error(vm),
                  error_type,
-                 object_nil(),
-                 object_nil(),
-                 object_nil()
+                 OBJECT_NIL,
+                 OBJECT_NIL,
+                 OBJECT_NIL
          )
          && try_create_string_field(vm, ERROR_FIELD_MESSAGE, sb.str, object_list_nth_mutable(++field_index, *vm_error(vm)))
          && try_create_object_field(vm, "key", key, object_list_nth_mutable(++field_index, *vm_error(vm)))

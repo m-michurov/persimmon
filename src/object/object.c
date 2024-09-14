@@ -2,8 +2,6 @@
 
 #include "utility/guards.h"
 
-static auto NIL = (Object) {.type = TYPE_NIL};
-
 char const *object_type_str(Object_Type type) {
     switch (type) {
         case TYPE_INT: {
@@ -37,5 +35,3 @@ char const *object_type_str(Object_Type type) {
 
     guard_unreachable();
 }
-
-Object *object_nil() { return &NIL; }

@@ -3,6 +3,7 @@
 #include "utility/guards.h"
 #include "object/constructors.h"
 #include "object/accessors.h"
+#include "object/constants.h"
 #include "env.h"
 
 bool try_define_constants(ObjectAllocator *a, Object **key_root, Object **value_root, Object *env) {
@@ -15,10 +16,10 @@ bool try_define_constants(ObjectAllocator *a, Object **key_root, Object **value_
 
     auto ok =
             object_try_make_atom(a, "nil", key_root)
-            && env_try_define(a, env, *key_root, object_nil())
+            && env_try_define(a, env, *key_root, OBJECT_NIL)
 
             && object_try_make_atom(a, "false", key_root)
-            && env_try_define(a, env, *key_root, object_nil())
+            && env_try_define(a, env, *key_root, OBJECT_NIL)
 
             && object_try_make_atom(a, "true", key_root)
             && env_try_define(a, env, *key_root, *key_root);

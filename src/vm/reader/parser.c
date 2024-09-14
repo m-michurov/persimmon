@@ -5,6 +5,7 @@
 #include "utility/guards.h"
 #include "utility/slice.h"
 #include "object/list.h"
+#include "object/constants.h"
 #include "object/constructors.h"
 
 bool parser_try_init(Parser *p, ObjectAllocator *a, Parser_Config config, errno_t *error_code) {
@@ -20,7 +21,7 @@ bool parser_try_init(Parser *p, ObjectAllocator *a, Parser_Config config, errno_
     }
 
     *p = (Parser) {
-            .expr = object_nil(),
+            .expr = OBJECT_NIL,
             ._a = a,
             .exprs_stack = (Parser_ExpressionsStack) {
                     .data = exprs,
@@ -75,11 +76,7 @@ static bool try_complete_dot(Parser *p, Parser_Error *error) {
     auto const last = slice_last(&p->exprs_stack)->last;
     auto const quoted_key = object_list_nth_mutable(1, last);
 
-    if (false == object_try_make_list(p->_a, quoted_key, object_nil(), p->expr)) {
-        parser_allocation_error(error);
-    }
-
-    if (false == object_try_make_atom(p->_a, "quote", object_list_nth_mutable(0, *quoted_key))) {
+    if (false == object_try_make_list(p->_a, quoted_key, OBJECT_ATOM_QUOTE, p->expr)) {
         parser_allocation_error(error);
     }
 
@@ -122,7 +119,7 @@ static bool try_make_dot(Parser *p, Position pos, Parser_Error *error) {
     guard_is_not_null(error);
 
     if (false == slice_try_append(&p->exprs_stack, ((Parser_Expression) {
-            .last = object_nil(),
+            .last = OBJECT_NIL,
             .begin = pos,
             .type = PARSER_DOT
     }))) {
@@ -130,9 +127,8 @@ static bool try_make_dot(Parser *p, Position pos, Parser_Error *error) {
     }
 
     auto const dot_expr = &slice_last(&p->exprs_stack)->last;
-    auto const ok = object_list_try_prepend(p->_a, object_nil(), dot_expr)
-                    && object_try_make_atom(p->_a, "get", object_list_nth_mutable(0, *dot_expr))
-                    && object_list_try_prepend(p->_a, object_nil(), dot_expr)
+    auto const ok = object_list_try_prepend(p->_a, OBJECT_ATOM_GET, dot_expr)
+                    && object_list_try_prepend(p->_a, OBJECT_NIL, dot_expr)
                     && object_list_try_prepend(p->_a, p->expr, dot_expr);
     if (false == ok) {
         parser_allocation_error(error);
@@ -222,7 +218,7 @@ bool parser_try_accept(Parser *p, Token token, Parser_Error *error) {
             parser_allocation_error(error);
         }
         case TOKEN_OPEN_PAREN: {
-            if (slice_try_append(&p->exprs_stack, ((Parser_Expression) {.last = object_nil(), .begin = token.pos}))) {
+            if (slice_try_append(&p->exprs_stack, ((Parser_Expression) {.last = OBJECT_NIL, .begin = token.pos}))) {
                 return true;
             }
 
@@ -268,20 +264,14 @@ bool parser_try_accept(Parser *p, Token token, Parser_Error *error) {
         }
         case TOKEN_QUOTE: {
             if (false == slice_try_append(&p->exprs_stack, ((Parser_Expression) {
-                    .last = object_nil(),
+                    .last = OBJECT_NIL,
                     .begin = token.pos,
                     .type = PARSER_QUOTE
             }))) {
                 parser_syntax_error(SYNTAX_ERROR_NESTING_TOO_DEEP, token.pos, error);
             }
 
-            auto const expression = &slice_last(&p->exprs_stack)->last;
-
-            if (false == object_try_make_atom(p->_a, "quote", expression)) {
-                parser_allocation_error(error);
-            }
-
-            if (false == object_try_make_cons(p->_a, *expression, object_nil(), expression)) {
+            if (false == object_try_make_list(p->_a, &slice_last(&p->exprs_stack)->last, OBJECT_ATOM_QUOTE)) {
                 parser_allocation_error(error);
             }
 

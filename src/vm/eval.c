@@ -223,7 +223,7 @@ static bool try_step_call(VirtualMachine *vm) {
                 frame->expr,
                 frame->env,
                 frame->results_list,
-                object_nil()
+                OBJECT_NIL
         ));
 
         return try_begin_eval(
@@ -234,7 +234,7 @@ static bool try_step_call(VirtualMachine *vm) {
     }
 
     if (is_ampersand(frame->unevaluated)) {
-        guard_is_not_equal(frame->evaluated, object_nil());
+        guard_is_not_equal(frame->evaluated, OBJECT_NIL);
 
         auto const extra_args = object_list_nth_mutable(0, frame->evaluated);
         if (TYPE_CONS != (*extra_args)->type && TYPE_NIL != (*extra_args)->type) {
@@ -245,16 +245,16 @@ static bool try_step_call(VirtualMachine *vm) {
         object_list_concat_inplace(extra_args, object_list_skip(1, frame->evaluated));
 
         frame->evaluated = object_list_nth(0, frame->evaluated);
-        frame->unevaluated = object_nil();
+        frame->unevaluated = OBJECT_NIL;
 
         return true;
     }
 
-    if (object_nil() != frame->unevaluated) {
+    if (OBJECT_NIL != frame->unevaluated) {
         auto const next = object_list_nth(0, frame->unevaluated);
 
         if (is_ampersand(next)) {
-            if (object_nil() == frame->evaluated) {
+            if (OBJECT_NIL == frame->evaluated) {
                 call_ampersand_before_error(vm);
             }
 
@@ -278,7 +278,7 @@ static bool try_step_call(VirtualMachine *vm) {
     }
 
     object_list_reverse_inplace(&frame->evaluated);
-    guard_is_not_equal(frame->evaluated, object_nil());
+    guard_is_not_equal(frame->evaluated, OBJECT_NIL);
 
     auto const fn = object_as_cons(frame->evaluated).first;
     auto actual_args = object_as_cons(frame->evaluated).rest;
@@ -377,7 +377,7 @@ static bool try_step_if(VirtualMachine *vm) {
     auto const frame = stack_top(*s);
     guard_is_equal(frame->type, FRAME_IF);
 
-    if (object_nil() == frame->evaluated) {
+    if (OBJECT_NIL == frame->evaluated) {
         auto const len = object_list_count(frame->unevaluated);
         if (len < 2) {
             special_too_few_args_error(vm, "if");
@@ -394,7 +394,7 @@ static bool try_step_if(VirtualMachine *vm) {
     }
 
     auto const cond_value = object_as_cons(frame->evaluated).first;
-    if (object_nil() != cond_value) {
+    if (OBJECT_NIL != cond_value) {
         return try_begin_eval(
                 vm, EVAL_FRAME_REMOVE,
                 frame->env, object_as_cons(frame->unevaluated).first,
@@ -403,8 +403,8 @@ static bool try_step_if(VirtualMachine *vm) {
     }
 
     frame->unevaluated = object_as_cons(frame->unevaluated).rest; // skip `then`
-    if (object_nil() == frame->unevaluated) {
-        return try_save_result_and_pop(vm, frame->results_list, object_nil());
+    if (OBJECT_NIL == frame->unevaluated) {
+        return try_save_result_and_pop(vm, frame->results_list, OBJECT_NIL);
     }
 
     return try_begin_eval(
@@ -421,11 +421,11 @@ static bool try_step_do(VirtualMachine *vm) {
     auto const frame = stack_top(*s);
     guard_is_equal(frame->type, FRAME_DO);
 
-    if (object_nil() == frame->unevaluated) {
-        return try_save_result_and_pop(vm, frame->results_list, object_nil());
+    if (OBJECT_NIL == frame->unevaluated) {
+        return try_save_result_and_pop(vm, frame->results_list, OBJECT_NIL);
     }
 
-    if (object_nil() == object_as_cons(frame->unevaluated).rest) {
+    if (OBJECT_NIL == object_as_cons(frame->unevaluated).rest) {
         return try_begin_eval(
                 vm, EVAL_FRAME_REMOVE,
                 frame->env, frame->unevaluated->as_cons.first,
@@ -446,7 +446,7 @@ static bool try_step_define(VirtualMachine *vm) {
     auto const frame = stack_top(*s);
     guard_is_equal(frame->type, FRAME_DEFINE);
 
-    if (object_nil() == frame->evaluated) {
+    if (OBJECT_NIL == frame->evaluated) {
         size_t const expected = 2;
         if (expected != object_list_count(frame->unevaluated)) {
             special_args_count_error(vm, "define", expected);
@@ -505,7 +505,7 @@ static bool try_step_import(VirtualMachine *vm) {
         return false;
     }
 
-    if (false == object_list_try_append_inplace(a, object_nil(), exprs)) {
+    if (false == object_list_try_append_inplace(a, OBJECT_NIL, exprs)) {
         out_of_memory_error(vm);
     }
 
@@ -536,9 +536,9 @@ static bool try_step_catch(VirtualMachine *vm) {
     auto const frame = stack_top(*s);
     guard_is_equal(frame->type, FRAME_CATCH);
 
-    if (object_nil() != *vm_error(vm)) {
-        guard_is_equal(frame->unevaluated, object_nil());
-        guard_is_equal(frame->evaluated, object_nil());
+    if (OBJECT_NIL != *vm_error(vm)) {
+        guard_is_equal(frame->unevaluated, OBJECT_NIL);
+        guard_is_equal(frame->evaluated, OBJECT_NIL);
 
         Object **error;
         if (false == stack_try_create_local(stack_locals(s), &error)) {
@@ -550,17 +550,17 @@ static bool try_step_catch(VirtualMachine *vm) {
             stack_overflow_error(vm);
         }
 
-        *error = exchange(*vm_error(vm), object_nil());
+        *error = exchange(*vm_error(vm), OBJECT_NIL);
 
-        if (false == object_try_make_list(a, result, object_nil(), *error)) {
+        if (false == object_try_make_list(a, result, OBJECT_NIL, *error)) {
             out_of_memory_error(vm);
         }
 
         return try_save_result_and_pop(vm, frame->results_list, *result);
     }
 
-    if (object_nil() == frame->evaluated) {
-        guard_is_equal(*vm_error(vm), object_nil());
+    if (OBJECT_NIL == frame->evaluated) {
+        guard_is_equal(*vm_error(vm), OBJECT_NIL);
 
         Object **body;
         if (false == stack_try_create_local(stack_locals(s), &body)) {
@@ -571,21 +571,21 @@ static bool try_step_catch(VirtualMachine *vm) {
             out_of_memory_error(vm);
         }
 
-        frame->unevaluated = object_nil();
+        frame->unevaluated = OBJECT_NIL;
 
         return try_begin_eval(vm, EVAL_FRAME_KEEP, frame->env, *body, &frame->evaluated);
     }
 
-    guard_is_equal(*vm_error(vm), object_nil());
-    guard_is_equal(frame->unevaluated, object_nil());
-    guard_is_equal(frame->unevaluated, object_nil());
+    guard_is_equal(*vm_error(vm), OBJECT_NIL);
+    guard_is_equal(frame->unevaluated, OBJECT_NIL);
+    guard_is_equal(frame->unevaluated, OBJECT_NIL);
 
     Object **result;
     if (false == stack_try_create_local(stack_locals(s), &result)) {
         stack_overflow_error(vm);
     }
 
-    if (false == object_try_make_list(a, result, object_as_cons(frame->evaluated).first, object_nil())) {
+    if (false == object_try_make_list(a, result, object_as_cons(frame->evaluated).first, OBJECT_NIL)) {
         out_of_memory_error(vm);
     }
 
@@ -598,9 +598,9 @@ static bool try_step_and(VirtualMachine *vm) {
     auto const frame = stack_top(*vm_stack(vm));
     guard_is_equal(frame->type, FRAME_AND);
 
-    if (object_nil() == frame->evaluated) {
-        if (object_nil() == frame->unevaluated) {
-            return try_save_result_and_pop(vm, frame->results_list, object_nil());
+    if (OBJECT_NIL == frame->evaluated) {
+        if (OBJECT_NIL == frame->unevaluated) {
+            return try_save_result_and_pop(vm, frame->results_list, OBJECT_NIL);
         }
 
         if (1 == object_list_count(frame->unevaluated)) {
@@ -615,11 +615,11 @@ static bool try_step_and(VirtualMachine *vm) {
     }
 
     auto const value = object_as_cons(frame->evaluated).first;
-    if (object_nil() == value) {
-        return try_save_result_and_pop(vm, frame->results_list, object_nil());
+    if (OBJECT_NIL == value) {
+        return try_save_result_and_pop(vm, frame->results_list, OBJECT_NIL);
     }
 
-    frame->evaluated = object_nil();
+    frame->evaluated = OBJECT_NIL;
     return true;
 }
 
@@ -629,9 +629,9 @@ static bool try_step_or(VirtualMachine *vm) {
     auto const frame = stack_top(*vm_stack(vm));
     guard_is_equal(frame->type, FRAME_OR);
 
-    if (object_nil() == frame->evaluated) {
-        if (object_nil() == frame->unevaluated) {
-            return try_save_result_and_pop(vm, frame->results_list, object_nil());
+    if (OBJECT_NIL == frame->evaluated) {
+        if (OBJECT_NIL == frame->unevaluated) {
+            return try_save_result_and_pop(vm, frame->results_list, OBJECT_NIL);
         }
 
         if (1 == object_list_count(frame->unevaluated)) {
@@ -646,11 +646,11 @@ static bool try_step_or(VirtualMachine *vm) {
     }
 
     auto const value = object_as_cons(frame->evaluated).first;
-    if (object_nil() != value) {
+    if (OBJECT_NIL != value) {
         return try_save_result_and_pop(vm, frame->results_list, value);
     }
 
-    frame->evaluated = object_nil();
+    frame->evaluated = OBJECT_NIL;
     return true;
 }
 
@@ -702,8 +702,8 @@ bool try_eval(VirtualMachine *vm, Object *env, Object *expr) {
     auto const s = vm_stack(vm);
     guard_is_true(stack_is_empty(*s));
 
-    *vm_value(vm) = object_nil();
-    *vm_error(vm) = object_nil();
+    *vm_value(vm) = OBJECT_NIL;
+    *vm_error(vm) = OBJECT_NIL;
     if (false == try_begin_eval(vm, EVAL_FRAME_KEEP, env, expr, vm_value(vm))) {
         return false;
     }
@@ -714,7 +714,7 @@ bool try_eval(VirtualMachine *vm, Object *env, Object *expr) {
         }
 
         auto const error_frame = stack_top(*s);
-        guard_is_not_equal(*vm_error(vm), object_nil());
+        guard_is_not_equal(*vm_error(vm), OBJECT_NIL);
 
         while (false == stack_is_empty(*s)) {
             auto const current_frame = stack_top(*s);

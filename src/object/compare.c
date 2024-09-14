@@ -47,7 +47,7 @@ Object_CompareResult object_compare(Object *a, Object *b) { // NOLINT(*-no-recur
             return strcmp(a->as_atom, b->as_atom);
         }
         case TYPE_CONS: {
-            while (object_nil() != a && object_nil() != b) {
+            while (OBJECT_NIL != a && OBJECT_NIL != b) {
                 auto const element_compare_result = object_compare(a->as_cons.first, b->as_cons.first);
                 if (0 != element_compare_result) {
                     return element_compare_result;
@@ -57,11 +57,11 @@ Object_CompareResult object_compare(Object *a, Object *b) { // NOLINT(*-no-recur
                 object_list_shift(&b);
             }
 
-            if (object_nil() == a && object_nil() == b) {
+            if (OBJECT_NIL == a && OBJECT_NIL == b) {
                 return OBJECT_EQUALS;
             }
 
-            return object_nil() == b ? OBJECT_GREATER : OBJECT_LESS;
+            return OBJECT_NIL == b ? OBJECT_GREATER : OBJECT_LESS;
         }
         case TYPE_DICT: {
             return object_dict_compare(a, b);
