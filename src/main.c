@@ -3,7 +3,6 @@
 #include "utility/guards.h"
 #include "object/list.h"
 #include "object/repr.h"
-#include "object/constants.h"
 #include "vm/reader/reader.h"
 #include "vm/eval.h"
 #include "vm/virtual_machine.h"

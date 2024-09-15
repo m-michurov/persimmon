@@ -3,7 +3,6 @@
 #include "utility/guards.h"
 #include "object/constructors.h"
 #include "object/accessors.h"
-#include "object/constants.h"
 #include "env.h"
 
 bool try_define_constants(ObjectAllocator *a, Object **key_root, Object **value_root, Object *env) {

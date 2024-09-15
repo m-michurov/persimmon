@@ -1,4 +1,4 @@
-#include "constants.h"
+#include "object/object.h"
 
 #define make_atom(Name) \
 (&(Object) {            \
@@ -21,6 +21,4 @@
 
 Object *const OBJECT_NIL = &(Object) {.type = TYPE_NIL};
 
-Object *const OBJECT_ATOM_GET = make_atom("get");
-
-Object *const OBJECT_ATOM_QUOTE = make_atom("quote");
+Object *const OBJECT_ERROR_OUT_OF_MEMORY = make_dict_of(make_atom("type"), make_atom("OutOfMemoryError"));

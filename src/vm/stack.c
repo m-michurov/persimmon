@@ -4,7 +4,6 @@
 #include "utility/pointers.h"
 #include "utility/exchange.h"
 #include "utility/container_of.h"
-#include "object/constants.h"
 
 typedef struct Stack_WrappedFrame Stack_WrappedFrame;
 struct Stack_WrappedFrame {

@@ -2,7 +2,6 @@
 
 #include "utility/guards.h"
 #include "utility/option.h"
-#include "constants.h"
 #include "compare.h"
 #include "constructors.h"
 

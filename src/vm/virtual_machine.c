@@ -4,7 +4,6 @@
 #include "utility/slice.h"
 #include "utility/dynamic_array.h"
 #include "object/constructors.h"
-#include "object/constants.h"
 #include "reader/reader.h"
 #include "env.h"
 #include "stack.h"

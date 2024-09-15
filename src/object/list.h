@@ -2,7 +2,6 @@
 
 #include "utility/macros.h"
 #include "object.h"
-#include "constants.h"
 #include "allocator.h"
 
 [[nodiscard]]

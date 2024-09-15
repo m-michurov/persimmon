@@ -21,6 +21,8 @@ char const *object_type_str(Object_Type type);
 
 typedef struct Object Object;
 
+extern Object *const OBJECT_NIL;
+
 typedef struct {
     Object *first;
     Object *rest;
