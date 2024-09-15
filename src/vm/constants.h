@@ -4,4 +4,4 @@
 #include "object/allocator.h"
 
 [[nodiscard]]
-bool try_define_constants(ObjectAllocator *a, Object **key_root, Object **value_root, Object *env);
+bool try_define_constants(ObjectAllocator *a, Object *env);

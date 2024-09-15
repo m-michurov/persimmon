@@ -2,4 +2,4 @@
 
 #include "object/object.h"
 
- bool is_ampersand(Object *obj);
+bool is_ampersand(Object *obj);

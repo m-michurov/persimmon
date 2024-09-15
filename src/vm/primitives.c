@@ -13,8 +13,6 @@
 #include "traceback.h"
 #include "errors.h"
 
-#define error(PrintErrorFn, Args) do { PrintErrorFn Args; return false; } while (false)
-
 static bool eq(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
@@ -450,28 +448,6 @@ static bool throw(VirtualMachine *vm, Object *args, Object **value) {
     return false;
 }
 
-static bool dict_get(VirtualMachine *vm, Object *args, Object **value) {
-    guard_is_not_null(vm);
-    guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
-    guard_is_not_null(value);
-
-    Object *key, *dict;
-    if (false == object_list_try_unpack_2(&key, &dict, args)) {
-        call_args_count_error(vm, "get", 2, false, object_list_count(args));
-    }
-
-    if (TYPE_NIL != dict->type && TYPE_DICT != dict->type) {
-        type_error(vm, dict->type, TYPE_NIL, TYPE_DICT);
-    }
-
-    if (object_dict_try_get(dict, key, value)) {
-        return true;
-    }
-
-    key_error(vm, key);
-}
-
 static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
@@ -499,6 +475,28 @@ static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
     return true;
 }
 
+static bool dict_get(VirtualMachine *vm, Object *args, Object **value) {
+    guard_is_not_null(vm);
+    guard_is_not_null(args);
+    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_not_null(value);
+
+    Object *key, *dict;
+    if (false == object_list_try_unpack_2(&key, &dict, args)) {
+        call_args_count_error(vm, "get", 2, false, object_list_count(args));
+    }
+
+    if (TYPE_NIL != dict->type && TYPE_DICT != dict->type) {
+        type_error(vm, dict->type, TYPE_NIL, TYPE_DICT);
+    }
+
+    if (object_dict_try_get(dict, key, value)) {
+        return true;
+    }
+
+    key_error(vm, key);
+}
+
 static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
@@ -521,41 +519,54 @@ static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
     out_of_memory_error(vm);
 }
 
-static bool try_define(
-        ObjectAllocator *a,
-        Object **key_root,
-        Object **value_root,
-        char const *name,
-        Object_Primitive value,
-        Object *env
-) {
-    return object_try_make_atom(a, name, key_root)
-           && object_try_make_primitive(a, value, value_root)
-           && env_try_define(a, env, *key_root, *value_root);
-}
+typedef struct {
+    Object *name;
+    Object *value;
+} Primitive;
 
-bool try_define_primitives(ObjectAllocator *a, Object **key_root, Object **value_root, Object *env) {
-    return try_define(a, key_root, value_root, "eq?", eq, env)
-           && try_define(a, key_root, value_root, "compare", compare, env)
-           && try_define(a, key_root, value_root, "str", str, env)
-           && try_define(a, key_root, value_root, "repr", repr, env)
-           && try_define(a, key_root, value_root, "print", print, env)
-           && try_define(a, key_root, value_root, "+", plus, env)
-           && try_define(a, key_root, value_root, "-", minus, env)
-           && try_define(a, key_root, value_root, "*", multiply, env)
-           && try_define(a, key_root, value_root, "/", divide, env)
-           && try_define(a, key_root, value_root, "list", list_list, env)
-           && try_define(a, key_root, value_root, "first", list_first, env)
-           && try_define(a, key_root, value_root, "rest", list_rest, env)
-           && try_define(a, key_root, value_root, "prepend", list_prepend, env)
-           && try_define(a, key_root, value_root, "reverse", list_reverse, env)
-           && try_define(a, key_root, value_root, "concat", list_concat, env)
-           && try_define(a, key_root, value_root, "dict", dict_dict, env)
-           && try_define(a, key_root, value_root, "get", dict_get, env)
-           && try_define(a, key_root, value_root, "put", dict_put, env)
-           && try_define(a, key_root, value_root, "not", not, env)
-           && try_define(a, key_root, value_root, "type", type, env)
-           && try_define(a, key_root, value_root, "traceback", traceback, env)
-           && try_define(a, key_root, value_root, "throw", throw, env);
+#define primitive(Name, Fn)                                             \
+((Primitive) {                                                          \
+    .name = &(Object) {.type = TYPE_ATOM, .as_atom = (Name)},           \
+    .value = &(Object) {.type = TYPE_PRIMITIVE, .as_primitive = (Fn)}   \
+})
+
+static Primitive const PRIMITIVES[] = {
+        primitive("eq?", eq),
+        primitive("compare", compare),
+        primitive("str", str),
+        primitive("repr", repr),
+        primitive("print", print),
+        primitive("+", plus),
+        primitive("-", minus),
+        primitive("*", multiply),
+        primitive("/", divide),
+        primitive("list", list_list),
+        primitive("first", list_first),
+        primitive("rest", list_rest),
+        primitive("prepend", list_prepend),
+        primitive("reverse", list_reverse),
+        primitive("concat", list_concat),
+        primitive("not", not),
+        primitive("type", type),
+        primitive("traceback", traceback),
+        primitive("throw", throw),
+        primitive("dict", dict_dict),
+        primitive("get", dict_get),
+        primitive("put", dict_put),
+};
+
+static size_t const PRIMITIVES_COUNT = sizeof(PRIMITIVES) / sizeof(PRIMITIVES[0]);
+
+bool try_define_primitives(ObjectAllocator *a, Object *env) {
+    guard_is_not_null(a);
+    guard_is_not_null(env);
+
+    for (auto it = PRIMITIVES; it < PRIMITIVES + PRIMITIVES_COUNT; it++) {
+        if (false == env_try_define(a, env, it->name, it->value)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 

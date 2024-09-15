@@ -73,7 +73,7 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
             .constants = &vm->constants
     });
 
-    for (size_t i = 0; i < STATIC_CONSTANTS_COUNT + 2; i++) {
+    for (size_t i = 0; i < STATIC_CONSTANTS_COUNT; i++) {
         guard_is_true(da_try_append(&vm->constants, OBJECT_NIL)); // NOLINT(*-sizeof-expression)
     }
 
@@ -83,11 +83,8 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
 
     guard_is_true(env_try_create(&vm->allocator, OBJECT_NIL, &vm->globals));
 
-    auto const key_root = slice_at(&vm->constants, 0);
-    auto const value_root = slice_at(&vm->constants, 1);
-
-    guard_is_true(try_define_constants(&vm->allocator, key_root, value_root, vm->globals));
-    guard_is_true(try_define_primitives(&vm->allocator, key_root, value_root, vm->globals));
+    guard_is_true(try_define_constants(&vm->allocator, vm->globals));
+    guard_is_true(try_define_primitives(&vm->allocator, vm->globals));
 
     guard_is_true(try_init_static(&vm->allocator, &vm->constants));
 
