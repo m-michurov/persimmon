@@ -43,12 +43,12 @@ Object_CompareResult object_compare(Object *a, Object *b) { // NOLINT(*-no-recur
         case TYPE_STRING: {
             return strcmp(a->as_string, b->as_string);
         }
-        case TYPE_ATOM: {
-            return strcmp(a->as_atom, b->as_atom);
+        case TYPE_SYMBOL: {
+            return strcmp(a->as_symbol, b->as_symbol);
         }
-        case TYPE_CONS: {
+        case TYPE_LIST: {
             while (OBJECT_NIL != a && OBJECT_NIL != b) {
-                auto const element_compare_result = object_compare(a->as_cons.first, b->as_cons.first);
+                auto const element_compare_result = object_compare(a->as_list.first, b->as_list.first);
                 if (0 != element_compare_result) {
                     return element_compare_result;
                 }

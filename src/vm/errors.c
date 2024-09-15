@@ -21,7 +21,7 @@ static void report_out_of_system_memory(VirtualMachine *vm, Object *error_type) 
     fprintf(
             stderr,
             "ERROR: ran out of system memory when creating an exception of type %s.\n",
-            object_as_atom(error_type)
+            object_as_symbol(error_type)
     );
     traceback_print_from_stack(*vm_stack(vm), stderr);
 }
@@ -30,7 +30,7 @@ static void report_out_of_memory(VirtualMachine *vm, Object *error_type) {
     fprintf(
             stderr,
             "ERROR: VM heap capacity exceeded when creating an exception of type %s.\n",
-            object_as_atom(error_type)
+            object_as_symbol(error_type)
     );
     allocator_print_statistics(vm_allocator(vm), stderr);
     traceback_print_from_stack(*vm_stack(vm), stderr);
@@ -42,8 +42,8 @@ static bool try_create_int_field(VirtualMachine *vm, char const *key, int64_t va
     guard_is_not_null(field);
 
     auto const a = vm_allocator(vm);
-    return object_try_make_list(a, field, OBJECT_NIL, OBJECT_NIL)
-           && object_try_make_atom(a, key, object_list_nth_mutable(0, *field))
+    return object_try_make_list_of(a, field, OBJECT_NIL, OBJECT_NIL)
+           && object_try_make_symbol(a, key, object_list_nth_mutable(0, *field))
            && object_try_make_int(a, value, object_list_nth_mutable(1, *field));
 }
 
@@ -54,8 +54,8 @@ static bool try_create_string_field(VirtualMachine *vm, char const *key, char co
     guard_is_not_null(field);
 
     auto const a = vm_allocator(vm);
-    return object_try_make_list(a, field, OBJECT_NIL, OBJECT_NIL)
-           && object_try_make_atom(a, key, object_list_nth_mutable(0, *field))
+    return object_try_make_list_of(a, field, OBJECT_NIL, OBJECT_NIL)
+           && object_try_make_symbol(a, key, object_list_nth_mutable(0, *field))
            && object_try_make_string(a, value, object_list_nth_mutable(1, *field));
 }
 
@@ -66,9 +66,9 @@ static bool try_create_atom_field(VirtualMachine *vm, char const *key, char cons
     guard_is_not_null(field);
 
     auto const a = vm_allocator(vm);
-    return object_try_make_list(a, field, OBJECT_NIL, OBJECT_NIL)
-           && object_try_make_atom(a, key, object_list_nth_mutable(0, *field))
-           && object_try_make_atom(a, value, object_list_nth_mutable(1, *field));
+    return object_try_make_list_of(a, field, OBJECT_NIL, OBJECT_NIL)
+           && object_try_make_symbol(a, key, object_list_nth_mutable(0, *field))
+           && object_try_make_symbol(a, value, object_list_nth_mutable(1, *field));
 }
 
 static bool try_create_object_field(VirtualMachine *vm, char const *key, Object *value, Object **field) {
@@ -78,8 +78,8 @@ static bool try_create_object_field(VirtualMachine *vm, char const *key, Object 
     guard_is_not_null(field);
 
     auto const a = vm_allocator(vm);
-    return object_try_make_list(a, field, OBJECT_NIL, value)
-           && object_try_make_atom(a, key, object_list_nth_mutable(0, *field));
+    return object_try_make_list_of(a, field, OBJECT_NIL, value)
+           && object_try_make_symbol(a, key, object_list_nth_mutable(0, *field));
 }
 
 static bool try_create_traceback(VirtualMachine *vm, Object **field) {
@@ -87,8 +87,8 @@ static bool try_create_traceback(VirtualMachine *vm, Object **field) {
     guard_is_not_null(field);
 
     auto const a = vm_allocator(vm);
-    return object_try_make_list(a, field, OBJECT_NIL, OBJECT_NIL)
-           && object_try_make_atom(a, ERROR_FIELD_TRACEBACK, object_list_nth_mutable(0, *field))
+    return object_try_make_list_of(a, field, OBJECT_NIL, OBJECT_NIL)
+           && object_try_make_symbol(a, ERROR_FIELD_TRACEBACK, object_list_nth_mutable(0, *field))
            && traceback_try_get(a, *vm_stack(vm), object_list_nth_mutable(1, *field));
 }
 
@@ -97,11 +97,11 @@ static void create_error_with_message(VirtualMachine *vm, Object *default_error,
     guard_is_not_null(message);
 
     auto const a = vm_allocator(vm);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     auto field_index = 0;
     auto const ok =
-            object_try_make_list(
+            object_try_make_list_of(
                     a, vm_error(vm),
                     error_type,
                     OBJECT_NIL,
@@ -124,11 +124,11 @@ void create_os_error(VirtualMachine *vm, errno_t error_code) {
 
     auto const a = vm_allocator(vm);
     auto const default_error = vm_get(vm, STATIC_OS_ERROR_DEFAULT);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     auto field_index = 0;
     auto const ok =
-            object_try_make_list(
+            object_try_make_list_of(
                     a, vm_error(vm),
                     error_type,
                     OBJECT_NIL,
@@ -195,14 +195,14 @@ void create_type_error_(
 
     auto const a = vm_allocator(vm);
     auto const default_error = vm_get(vm, STATIC_TYPE_ERROR_DEFAULT);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     char message[MESSAGE_MIN_CAPACITY] = {0};
     create_message_type_error(sizeof(message), message, got, expected_count, expected);
 
     auto field_index = 0;
     auto ok =
-            object_try_make_list(
+            object_try_make_list_of(
                     a, vm_error(vm),
                     error_type,
                     OBJECT_NIL,
@@ -214,13 +214,14 @@ void create_type_error_(
 
     auto const expected_types_list = object_list_nth_mutable(++field_index, *vm_error(vm));
     for (size_t i = 0; ok && i < expected_count; i++) {
-        ok = object_try_make_cons(a, OBJECT_NIL, *expected_types_list, expected_types_list)
-             && object_try_make_atom(a, object_type_str(expected[i]), object_list_nth_mutable(0, *expected_types_list));
+        ok = object_try_make_list(a, OBJECT_NIL, *expected_types_list, expected_types_list)
+             && object_try_make_symbol(a, object_type_str(expected[i]),
+                                       object_list_nth_mutable(0, *expected_types_list));
     }
 
     ok = ok
-         && object_try_make_cons(a, OBJECT_NIL, *expected_types_list, expected_types_list)
-         && object_try_make_atom(a, ERROR_FIELD_EXPECTED, object_list_nth_mutable(0, *expected_types_list))
+         && object_try_make_list(a, OBJECT_NIL, *expected_types_list, expected_types_list)
+         && object_try_make_symbol(a, ERROR_FIELD_EXPECTED, object_list_nth_mutable(0, *expected_types_list))
          &&
          try_create_atom_field(vm, ERROR_FIELD_GOT, object_type_str(got), object_list_nth_mutable(++field_index, *vm_error(vm)))
          && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
@@ -237,7 +238,7 @@ void create_type_error_unexpected(VirtualMachine *vm, Object_Type got) {
 
     auto const a = vm_allocator(vm);
     auto const default_error = vm_get(vm, STATIC_TYPE_ERROR_DEFAULT);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     char message[MESSAGE_MIN_CAPACITY] = {0};
     size_t capacity = sizeof(message);
@@ -246,7 +247,7 @@ void create_type_error_unexpected(VirtualMachine *vm, Object_Type got) {
 
     auto field_index = 0;
     auto ok =
-            object_try_make_list(
+            object_try_make_list_of(
                     a, vm_error(vm),
                     error_type,
                     OBJECT_NIL,
@@ -316,7 +317,7 @@ void create_syntax_error(
 
     auto const a = vm_allocator(vm);
     auto const default_error = vm_get(vm, STATIC_SYNTAX_ERROR_DEFAULT);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     size_t const capacity = MESSAGE_MIN_CAPACITY + 2 * strlen(text);
     char *message = calloc(capacity, sizeof(char));
@@ -329,7 +330,7 @@ void create_syntax_error(
 
     auto field_index = 0;
     auto const ok =
-            object_try_make_list(
+            object_try_make_list_of(
                     a, vm_error(vm),
                     error_type,
                     OBJECT_NIL,
@@ -370,7 +371,7 @@ void create_call_args_count_error(VirtualMachine *vm, char const *name, size_t e
 
     auto const a = vm_allocator(vm);
     auto const default_error = vm_get(vm, STATIC_CALL_ERROR_DEFAULT);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     char message[MESSAGE_MIN_CAPACITY] = {0};
     size_t capacity = sizeof(message);
@@ -383,7 +384,7 @@ void create_call_args_count_error(VirtualMachine *vm, char const *name, size_t e
 
     auto field_index = 0;
     auto const ok =
-            object_try_make_list(
+            object_try_make_list_of(
                     a, vm_error(vm),
                     error_type,
                     OBJECT_NIL,
@@ -415,7 +416,7 @@ void create_call_args_parity_error(VirtualMachine *vm, char const *name, bool ex
 
     auto const a = vm_allocator(vm);
     auto const default_error = vm_get(vm, STATIC_CALL_ERROR_DEFAULT);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     char message[MESSAGE_MIN_CAPACITY] = {0};
     size_t capacity = sizeof(message);
@@ -426,7 +427,7 @@ void create_call_args_parity_error(VirtualMachine *vm, char const *name, bool ex
 
     auto field_index = 0;
     auto const ok =
-            object_try_make_list(
+            object_try_make_list_of(
                     a, vm_error(vm),
                     error_type,
                     OBJECT_NIL,
@@ -472,7 +473,7 @@ void create_call_extra_args_type_error(VirtualMachine *vm, Object_Type extras_ty
 
     auto const a = vm_allocator(vm);
     auto const default_error = vm_get(vm, STATIC_CALL_ERROR_DEFAULT);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     char message[MESSAGE_MIN_CAPACITY] = {0};
     size_t capacity = sizeof(message);
@@ -481,7 +482,7 @@ void create_call_extra_args_type_error(VirtualMachine *vm, Object_Type extras_ty
 
     auto field_index = 0;
     auto const ok =
-            object_try_make_list(
+            object_try_make_list_of(
                     a, vm_error(vm),
                     error_type,
                     OBJECT_NIL,
@@ -509,7 +510,7 @@ void create_name_error(VirtualMachine *vm, char const *name) {
 
     auto const a = vm_allocator(vm);
     auto const default_error = vm_get(vm, STATIC_NAME_ERROR_DEFAULT);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     char message[MESSAGE_MIN_CAPACITY] = {0};
     auto capacity = sizeof(message);
@@ -518,7 +519,7 @@ void create_name_error(VirtualMachine *vm, char const *name) {
 
     auto field_index = 0;
     auto const ok =
-            object_try_make_list(
+            object_try_make_list_of(
                     a, vm_error(vm),
                     error_type,
                     OBJECT_NIL,
@@ -544,7 +545,7 @@ void create_out_of_memory_error(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
     auto const default_error = vm_get(vm, STATIC_OUT_OF_MEMORY_ERROR_DEFAULT);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     *vm_error(vm) = default_error;
 
@@ -636,14 +637,14 @@ static void create_binding_count_error(VirtualMachine *vm, size_t expected, bool
 
     auto const a = vm_allocator(vm);
     auto const default_error = vm_get(vm, STATIC_BINDING_ERROR_DEFAULT);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     char message[MESSAGE_MIN_CAPACITY] = {0};
     message_create_bind_count_error(sizeof(message), message, expected, is_variadic, got);
 
     auto field_index = 0;
     auto ok =
-            object_try_make_list(
+            object_try_make_list_of(
                     a, vm_error(vm),
                     error_type,
                     OBJECT_NIL,
@@ -680,7 +681,7 @@ static void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_ty
 
     auto const a = vm_allocator(vm);
     auto const default_error = vm_get(vm, STATIC_BINDING_ERROR_DEFAULT);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     char message[MESSAGE_MIN_CAPACITY] = {0};
     auto capacity = sizeof(message);
@@ -689,7 +690,7 @@ static void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_ty
 
     auto field_index = 0;
     auto ok =
-            object_try_make_list(
+            object_try_make_list_of(
                     a, vm_error(vm),
                     error_type,
                     OBJECT_NIL,
@@ -718,7 +719,7 @@ static void create_binding_target_error(VirtualMachine *vm, Object_Type target_t
 
     auto const a = vm_allocator(vm);
     auto const default_error = vm_get(vm, STATIC_BINDING_ERROR_DEFAULT);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     char message[MESSAGE_MIN_CAPACITY] = {0};
     auto capacity = sizeof(message);
@@ -727,7 +728,7 @@ static void create_binding_target_error(VirtualMachine *vm, Object_Type target_t
 
     auto field_index = 0;
     auto ok =
-            object_try_make_list(
+            object_try_make_list_of(
                     a, vm_error(vm),
                     error_type,
                     OBJECT_NIL,
@@ -812,7 +813,7 @@ void create_key_error(VirtualMachine *vm, Object *key) {
 
     auto const a = vm_allocator(vm);
     auto const default_error = vm_get(vm, STATIC_KEY_ERROR_DEFAULT);
-    auto const error_type = object_as_cons(default_error).first;
+    auto const error_type = object_as_list(default_error).first;
 
     auto sb = (StringBuilder) {0};
     errno_t error_code;
@@ -822,7 +823,7 @@ void create_key_error(VirtualMachine *vm, Object *key) {
 
     auto field_index = 0;
     ok = ok
-         && object_try_make_list(
+         && object_try_make_list_of(
                  a, vm_error(vm),
                  error_type,
                  OBJECT_NIL,

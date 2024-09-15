@@ -7,8 +7,8 @@
 #include "object/list.h"
 #include "object/constructors.h"
 
-static auto const ATOM_GET = &(Object) {.type = TYPE_ATOM, .as_atom = "get"};
-static auto const ATOM_QUOTE = &(Object) {.type = TYPE_ATOM, .as_atom = "quote"};
+static auto const SYMBOL_GET = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "get"};
+static auto const SYMBOL_QUOTE = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "quote"};
 
 bool parser_try_init(Parser *p, ObjectAllocator *a, Parser_Config config, errno_t *error_code) {
     guard_is_not_null(p);
@@ -78,7 +78,7 @@ static bool try_complete_dot(Parser *p, Parser_Error *error) {
     auto const last = slice_last(&p->exprs_stack)->last;
     auto const quoted_key = object_list_nth_mutable(1, last);
 
-    if (false == object_try_make_list(p->_a, quoted_key, ATOM_QUOTE, p->expr)) {
+    if (false == object_try_make_list_of(p->_a, quoted_key, SYMBOL_QUOTE, p->expr)) {
         parser_allocation_error(error);
     }
 
@@ -129,7 +129,7 @@ static bool try_make_dot(Parser *p, Position pos, Parser_Error *error) {
     }
 
     auto const dot_expr = &slice_last(&p->exprs_stack)->last;
-    auto const ok = object_list_try_prepend(p->_a, ATOM_GET, dot_expr)
+    auto const ok = object_list_try_prepend(p->_a, SYMBOL_GET, dot_expr)
                     && object_list_try_prepend(p->_a, OBJECT_NIL, dot_expr)
                     && object_list_try_prepend(p->_a, p->expr, dot_expr);
     if (false == ok) {
@@ -152,8 +152,8 @@ static bool try_allocate_object(Parser *p, Token token) {
         case TOKEN_STRING: {
             return object_try_make_string(p->_a, token.as_string, &p->expr);
         }
-        case TOKEN_ATOM: {
-            return object_try_make_atom(p->_a, token.as_atom, &p->expr);
+        case TOKEN_SYMBOL: {
+            return object_try_make_symbol(p->_a, token.as_symbol, &p->expr);
         }
         case TOKEN_OPEN_PAREN: {
             guard_unreachable();
@@ -185,7 +185,7 @@ bool parser_try_accept(Parser *p, Token token, Parser_Error *error) {
         }
         case TOKEN_INT:
         case TOKEN_STRING:
-        case TOKEN_ATOM: {
+        case TOKEN_SYMBOL: {
             if (false == try_allocate_object(p, token)) {
                 parser_allocation_error(error);
             }
@@ -273,7 +273,7 @@ bool parser_try_accept(Parser *p, Token token, Parser_Error *error) {
                 parser_syntax_error(SYNTAX_ERROR_NESTING_TOO_DEEP, token.pos, error);
             }
 
-            if (false == object_try_make_list(p->_a, &slice_last(&p->exprs_stack)->last, ATOM_QUOTE)) {
+            if (false == object_try_make_list_of(p->_a, &slice_last(&p->exprs_stack)->last, SYMBOL_QUOTE)) {
                 parser_allocation_error(error);
             }
 

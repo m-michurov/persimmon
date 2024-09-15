@@ -4,15 +4,15 @@
 #include "object/accessors.h"
 #include "env.h"
 
-static auto const ATOM_TRUE = &(Object) {.type = TYPE_ATOM, .as_atom = "true"};
-static auto const ATOM_FALSE = &(Object) {.type = TYPE_ATOM, .as_atom = "false"};
-static auto const ATOM_NIL = &(Object) {.type = TYPE_ATOM, .as_atom = "nil"};
+static auto const SYMBOL_TRUE = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "true"};
+static auto const SYMBOL_FALSE = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "false"};
+static auto const SYMBOL_NIL = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "nil"};
 
 bool try_define_constants(ObjectAllocator *a, Object *env) {
     guard_is_not_null(a);
     guard_is_not_null(env);
 
-    return env_try_define(a, env, ATOM_NIL, OBJECT_NIL)
-           && env_try_define(a, env, ATOM_TRUE, ATOM_TRUE)
-           && env_try_define(a, env, ATOM_FALSE, OBJECT_NIL);
+    return env_try_define(a, env, SYMBOL_NIL, OBJECT_NIL)
+           && env_try_define(a, env, SYMBOL_TRUE, SYMBOL_TRUE)
+           && env_try_define(a, env, SYMBOL_FALSE, OBJECT_NIL);
 }

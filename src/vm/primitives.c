@@ -16,7 +16,7 @@
 static bool eq(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     Object *lhs, *rhs;
@@ -31,7 +31,7 @@ static bool eq(VirtualMachine *vm, Object *args, Object **value) {
 static bool compare(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     Object *lhs, *rhs;
@@ -50,7 +50,7 @@ static bool compare(VirtualMachine *vm, Object *args, Object **value) {
 static bool str(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     if (OBJECT_NIL == args) {
@@ -82,7 +82,7 @@ static bool str(VirtualMachine *vm, Object *args, Object **value) {
 static bool repr(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     auto const got = object_list_count(args);
@@ -94,7 +94,7 @@ static bool repr(VirtualMachine *vm, Object *args, Object **value) {
     auto sb = (StringBuilder) {0};
 
     errno_t error_code;
-    if (false == object_try_repr(args->as_cons.first, &sb, &error_code)) {
+    if (false == object_try_repr(args->as_list.first, &sb, &error_code)) {
         sb_free(&sb);
         os_error(vm, error_code);
     }
@@ -111,7 +111,7 @@ static bool repr(VirtualMachine *vm, Object *args, Object **value) {
 static bool print(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     if (OBJECT_NIL == args) {
@@ -119,11 +119,11 @@ static bool print(VirtualMachine *vm, Object *args, Object **value) {
     }
 
     errno_t error_code;
-    if (false == object_try_print(args->as_cons.first, stdout, &error_code)) {
+    if (false == object_try_print(args->as_list.first, stdout, &error_code)) {
         os_error(vm, error_code);
     }
 
-    object_list_for(it, args->as_cons.rest) {
+    object_list_for(it, args->as_list.rest) {
         printf(" ");
         if (false == object_try_print(it, stdout, &error_code)) {
             os_error(vm, error_code);
@@ -138,7 +138,7 @@ static bool print(VirtualMachine *vm, Object *args, Object **value) {
 static bool plus(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     int64_t acc = 0;
@@ -160,7 +160,7 @@ static bool plus(VirtualMachine *vm, Object *args, Object **value) {
 static bool minus(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     if (OBJECT_NIL == args) {
@@ -171,13 +171,13 @@ static bool minus(VirtualMachine *vm, Object *args, Object **value) {
         out_of_memory_error(vm);
     }
 
-    auto const first = args->as_cons.first;
+    auto const first = args->as_list.first;
     if (TYPE_INT != first->type) {
         type_error(vm, first->type, TYPE_INT);
     }
 
     auto acc = first->as_int;
-    object_list_for(arg, args->as_cons.rest) {
+    object_list_for(arg, args->as_list.rest) {
         if (TYPE_INT != arg->type) {
             type_error(vm, arg->type, TYPE_INT);
         }
@@ -195,7 +195,7 @@ static bool minus(VirtualMachine *vm, Object *args, Object **value) {
 static bool multiply(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     int64_t acc = 1;
@@ -217,7 +217,7 @@ static bool multiply(VirtualMachine *vm, Object *args, Object **value) {
 static bool divide(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     if (OBJECT_NIL == args) {
@@ -228,13 +228,13 @@ static bool divide(VirtualMachine *vm, Object *args, Object **value) {
         out_of_memory_error(vm);
     }
 
-    auto const first = args->as_cons.first;
+    auto const first = args->as_list.first;
     if (TYPE_INT != first->type) {
         type_error(vm, first->type, TYPE_INT);
     }
 
     auto acc = first->as_int;
-    object_list_for(arg, args->as_cons.rest) {
+    object_list_for(arg, args->as_list.rest) {
         if (TYPE_INT != arg->type) {
             type_error(vm, arg->type, TYPE_INT);
         }
@@ -256,7 +256,7 @@ static bool divide(VirtualMachine *vm, Object *args, Object **value) {
 static bool list_list(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     *value = args;
@@ -266,7 +266,7 @@ static bool list_list(VirtualMachine *vm, Object *args, Object **value) {
 static bool list_first(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     auto const got = object_list_count(args);
@@ -275,19 +275,19 @@ static bool list_first(VirtualMachine *vm, Object *args, Object **value) {
         call_args_count_error(vm, "first", expected, false, got);
     }
 
-    auto const list = object_as_cons(args).first;
-    if (TYPE_CONS != list->type) {
-        type_error(vm, list->type, TYPE_CONS);
+    auto const list = object_as_list(args).first;
+    if (TYPE_LIST != list->type) {
+        type_error(vm, list->type, TYPE_LIST);
     }
 
-    *value = object_as_cons(list).first;
+    *value = object_as_list(list).first;
     return true;
 }
 
 static bool list_rest(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     auto const got = object_list_count(args);
@@ -296,19 +296,19 @@ static bool list_rest(VirtualMachine *vm, Object *args, Object **value) {
         call_args_count_error(vm, "rest", expected, false, got);
     }
 
-    auto const list = object_as_cons(args).first;
-    if (TYPE_CONS != list->type) {
-        type_error(vm, list->type, TYPE_CONS);
+    auto const list = object_as_list(args).first;
+    if (TYPE_LIST != list->type) {
+        type_error(vm, list->type, TYPE_LIST);
     }
 
-    *value = object_as_cons(list).rest;
+    *value = object_as_list(list).rest;
     return true;
 }
 
 static bool list_prepend(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     Object *element, *list;
@@ -316,11 +316,11 @@ static bool list_prepend(VirtualMachine *vm, Object *args, Object **value) {
         call_args_count_error(vm, "prepend", 2, false, object_list_count(args));
     }
 
-    if (list->type != TYPE_NIL && list->type != TYPE_CONS) {
-        type_error(vm, list->type, TYPE_CONS);
+    if (list->type != TYPE_NIL && list->type != TYPE_LIST) {
+        type_error(vm, list->type, TYPE_LIST);
     }
 
-    if (object_try_make_cons(vm_allocator(vm), element, list, value)) {
+    if (object_try_make_list(vm_allocator(vm), element, list, value)) {
         return true;
     }
 
@@ -330,7 +330,7 @@ static bool list_prepend(VirtualMachine *vm, Object *args, Object **value) {
 static bool list_reverse(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     auto const got = object_list_count(args);
@@ -339,9 +339,9 @@ static bool list_reverse(VirtualMachine *vm, Object *args, Object **value) {
         call_args_count_error(vm, "reverse", expected, false, got);
     }
 
-    auto const list = object_as_cons(args).first;
-    if (TYPE_CONS != list->type && TYPE_NIL != list->type) {
-        type_error(vm, list->type, TYPE_CONS, TYPE_NIL);
+    auto const list = object_as_list(args).first;
+    if (TYPE_LIST != list->type && TYPE_NIL != list->type) {
+        type_error(vm, list->type, TYPE_LIST, TYPE_NIL);
     }
 
     if (false == object_try_deep_copy(vm_allocator(vm), list, value)) {
@@ -355,13 +355,13 @@ static bool list_reverse(VirtualMachine *vm, Object *args, Object **value) {
 static bool list_concat(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     auto rest = value;
     object_list_for(it, args) {
-        if (TYPE_CONS != it->type && TYPE_NIL != it->type) {
-            type_error(vm, it->type, TYPE_CONS, TYPE_NIL);
+        if (TYPE_LIST != it->type && TYPE_NIL != it->type) {
+            type_error(vm, it->type, TYPE_LIST, TYPE_NIL);
         }
 
         if (false == object_try_deep_copy(vm_allocator(vm), it, rest)) {
@@ -377,7 +377,7 @@ static bool list_concat(VirtualMachine *vm, Object *args, Object **value) {
 static bool not(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     auto const got = object_list_count(args);
@@ -386,7 +386,7 @@ static bool not(VirtualMachine *vm, Object *args, Object **value) {
         call_args_count_error(vm, "not", expected, false, got);
     }
 
-    *value = vm_get(vm, OBJECT_NIL == args->as_cons.first ? STATIC_TRUE : STATIC_FALSE);
+    *value = vm_get(vm, OBJECT_NIL == args->as_list.first ? STATIC_TRUE : STATIC_FALSE);
 
     return true;
 }
@@ -394,7 +394,7 @@ static bool not(VirtualMachine *vm, Object *args, Object **value) {
 static bool type(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     auto const got = object_list_count(args);
@@ -403,14 +403,14 @@ static bool type(VirtualMachine *vm, Object *args, Object **value) {
         call_args_count_error(vm, "type", expected, false, got);
     }
 
-    auto const arg = args->as_cons.first;
-    return object_try_make_atom(vm_allocator(vm), object_type_str(arg->type), value);
+    auto const arg = args->as_list.first;
+    return object_try_make_symbol(vm_allocator(vm), object_type_str(arg->type), value);
 }
 
 static bool traceback(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     auto const got = object_list_count(args);
@@ -430,7 +430,7 @@ static bool traceback(VirtualMachine *vm, Object *args, Object **value) {
 static bool throw(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     auto const got = object_list_count(args);
@@ -439,7 +439,7 @@ static bool throw(VirtualMachine *vm, Object *args, Object **value) {
         call_args_count_error(vm, "throw", expected, false, got);
     }
 
-    auto const error = args->as_cons.first;
+    auto const error = args->as_list.first;
     if (TYPE_NIL == error->type) {
         type_error_unexpected(vm, error->type);
     }
@@ -451,7 +451,7 @@ static bool throw(VirtualMachine *vm, Object *args, Object **value) {
 static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(result);
 
     auto const got = object_list_count(args);
@@ -478,7 +478,7 @@ static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
 static bool dict_get(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(value);
 
     Object *key, *dict;
@@ -500,7 +500,7 @@ static bool dict_get(VirtualMachine *vm, Object *args, Object **value) {
 static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
     guard_is_not_null(vm);
     guard_is_not_null(args);
-    guard_is_one_of(args->type, TYPE_CONS, TYPE_NIL);
+    guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(result);
 
     Object *key, *value, *dict;
@@ -526,7 +526,7 @@ typedef struct {
 
 #define primitive(Name, Fn)                                             \
 ((Primitive) {                                                          \
-    .name = &(Object) {.type = TYPE_ATOM, .as_atom = (Name)},           \
+    .name = &(Object) {.type = TYPE_SYMBOL, .as_symbol = (Name)},       \
     .value = &(Object) {.type = TYPE_PRIMITIVE, .as_primitive = (Fn)}   \
 })
 

@@ -2,17 +2,17 @@
 
 #include "utility/guards.h"
 
-char const *object_as_atom(Object *obj) {
+char const *object_as_symbol(Object *obj) {
     guard_is_not_null(obj);
-    guard_is_equal(obj->type, TYPE_ATOM);
+    guard_is_equal(obj->type, TYPE_SYMBOL);
 
-    return obj->as_atom;
+    return obj->as_symbol;
 }
 
-Object_Cons object_as_cons(Object *obj) {
+Object_List object_as_list(Object *obj) {
     guard_is_not_null(obj);
-    guard_is_equal(obj->type, TYPE_CONS);
+    guard_is_equal(obj->type, TYPE_LIST);
 
-    return obj->as_cons;
+    return obj->as_list;
 }
 

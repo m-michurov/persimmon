@@ -28,8 +28,8 @@ static bool try_wrap_atom(ObjectAllocator *a, char const *name, Object **value) 
     guard_is_not_null(name);
     guard_is_not_null(value);
 
-    return object_try_make_atom(a, name, value)
-           && object_try_make_cons(a, *value, OBJECT_NIL, value);
+    return object_try_make_symbol(a, name, value)
+           && object_try_make_list(a, *value, OBJECT_NIL, value);
 }
 
 static bool try_init_static(ObjectAllocator *a, Objects *constants) {
@@ -37,9 +37,9 @@ static bool try_init_static(ObjectAllocator *a, Objects *constants) {
     guard_is_not_null(constants);
     guard_is_greater_or_equal(constants->count, STATIC_CONSTANTS_COUNT);
 
-    return object_try_make_atom(a, "true", slice_at(constants, STATIC_TRUE))
+    return object_try_make_symbol(a, "true", slice_at(constants, STATIC_TRUE))
            && (*slice_at(constants, STATIC_FALSE) = OBJECT_NIL)
-           && object_try_make_atom(a, "do", slice_at(constants, STATIC_ATOM_DO))
+           && object_try_make_symbol(a, "do", slice_at(constants, STATIC_ATOM_DO))
            && try_wrap_atom(a, "OSError", slice_at(constants, STATIC_OS_ERROR_DEFAULT))
            && try_wrap_atom(a, "TypeError", slice_at(constants, STATIC_TYPE_ERROR_DEFAULT))
            && try_wrap_atom(a, "CallError", slice_at(constants, STATIC_CALL_ERROR_DEFAULT))

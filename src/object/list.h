@@ -15,22 +15,22 @@ void object_list_concat_inplace(Object **head, Object *tail);
 Object *object_list_shift(Object **list);
 
 [[nodiscard]]
-bool object_try_make_list_(ObjectAllocator *a, Object **list, ...);
+bool object_try_make_list_of_(ObjectAllocator *a, Object **list, ...);
 
-#define object_try_make_list(Object_Allocator_, List, ...) \
-    object_try_make_list_((Object_Allocator_), (List), __VA_ARGS__, nullptr)
+#define object_try_make_list_of(ObjectAllocator_, List, ...) \
+    object_try_make_list_of_((ObjectAllocator_), (List), __VA_ARGS__, nullptr)
 
 #define object_list_for(It, List)                                       \
 for (                                                                   \
     Object *concat_identifiers(_l_, __LINE__) = (List),                 \
-           *It = TYPE_CONS == concat_identifiers(_l_, __LINE__)->type   \
-                ? concat_identifiers(_l_, __LINE__)->as_cons.first      \
+           *It = TYPE_LIST == concat_identifiers(_l_, __LINE__)->type   \
+                ? concat_identifiers(_l_, __LINE__)->as_list.first      \
                 : OBJECT_NIL;                                           \
-    TYPE_CONS == concat_identifiers(_l_, __LINE__)->type;               \
+    TYPE_LIST == concat_identifiers(_l_, __LINE__)->type;               \
     concat_identifiers(_l_, __LINE__) =                                 \
-        concat_identifiers(_l_, __LINE__)->as_cons.rest,                \
-    It = TYPE_CONS == concat_identifiers(_l_, __LINE__)->type           \
-        ? concat_identifiers(_l_, __LINE__)->as_cons.first              \
+        concat_identifiers(_l_, __LINE__)->as_list.rest,                \
+    It = TYPE_LIST == concat_identifiers(_l_, __LINE__)->type           \
+        ? concat_identifiers(_l_, __LINE__)->as_list.first              \
         : OBJECT_NIL                                                    \
 )
 

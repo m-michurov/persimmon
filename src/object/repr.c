@@ -12,7 +12,7 @@ static bool is_quote(Object *expr, Object **quoted) {
     guard_is_not_null(expr);
     guard_is_not_null(quoted);
 
-    if (TYPE_CONS != expr->type) {
+    if (TYPE_LIST != expr->type) {
         return false;
     }
 
@@ -21,7 +21,7 @@ static bool is_quote(Object *expr, Object **quoted) {
         return false;
     }
 
-    return TYPE_ATOM == tag->type && 0 == strcmp("quote", tag->as_atom);
+    return TYPE_SYMBOL == tag->type && 0 == strcmp("quote", tag->as_symbol);
 }
 
 static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code);
@@ -97,10 +97,10 @@ static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code) { 
 
             return writer_try_printf(w, error_code, "\"");
         }
-        case TYPE_ATOM: {
-            return writer_try_printf(w, error_code, "%s", obj->as_atom);
+        case TYPE_SYMBOL: {
+            return writer_try_printf(w, error_code, "%s", obj->as_symbol);
         }
-        case TYPE_CONS: {
+        case TYPE_LIST: {
             Object *quoted;
             if (is_quote(obj, &quoted)) {
                 return writer_try_printf(w, error_code, "'")
@@ -111,11 +111,11 @@ static bool object_try_write_repr(Writer w, Object *obj, errno_t *error_code) { 
                 return false;
             }
 
-            if (false == object_try_write_repr(w, obj->as_cons.first, error_code)) {
+            if (false == object_try_write_repr(w, obj->as_list.first, error_code)) {
                 return false;
             }
 
-            object_list_for(it, obj->as_cons.rest) {
+            object_list_for(it, obj->as_list.rest) {
                 if (false == writer_try_printf(w, error_code, " ")) {
                     return false;
                 }
@@ -154,8 +154,8 @@ static bool object_try_write_str(Writer w, Object *obj, errno_t *error_code) {
             return writer_try_printf(w, error_code, "%s", obj->as_string);
         }
         case TYPE_INT:
-        case TYPE_ATOM:
-        case TYPE_CONS:
+        case TYPE_SYMBOL:
+        case TYPE_LIST:
         case TYPE_DICT:
         case TYPE_NIL:
         case TYPE_PRIMITIVE:

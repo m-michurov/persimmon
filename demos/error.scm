@@ -5,11 +5,11 @@
 
 (defn error (error-type & fields)
   (let (tb (traceback))
-    (if (not (atom? error-type))
+    (if (not (symbol? error-type))
       (throw (list
                'TypeError
-               '(message "error-type must be an atom")
-               '(expected atom)
+               '(message "error-type must be a symbol")
+               '(expected symbol)
                (list 'got (type error-type))
                (list 'traceback (rest tb)))))
     (list

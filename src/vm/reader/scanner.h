@@ -10,7 +10,7 @@ typedef enum {
     TOKEN_EOF,
     TOKEN_INT,
     TOKEN_STRING,
-    TOKEN_ATOM,
+    TOKEN_SYMBOL,
     TOKEN_OPEN_PAREN,
     TOKEN_CLOSE_PAREN,
     TOKEN_QUOTE
@@ -22,7 +22,7 @@ typedef struct {
     bool next_dot;
     union {
         int64_t as_int;
-        char const *as_atom;
+        char const *as_symbol;
         char const *as_string;
     };
 } Token;
@@ -31,7 +31,7 @@ typedef enum {
     SCANNER_WS,
     SCANNER_INT,
     SCANNER_STRING,
-    SCANNER_ATOM,
+    SCANNER_SYMBOL,
     SCANNER_OPEN_PAREN,
     SCANNER_CLOSE_PAREN,
     SCANNER_QUOTE,

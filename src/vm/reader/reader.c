@@ -111,7 +111,7 @@ static bool try_parse_line(
             continue;
         }
 
-        if (object_try_make_cons(vm_allocator(r->_vm), r->_p.expr, *exprs, exprs)) {
+        if (object_try_make_list(vm_allocator(r->_vm), r->_p.expr, *exprs, exprs)) {
             continue;
         }
 

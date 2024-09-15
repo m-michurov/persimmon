@@ -16,7 +16,7 @@ bool traceback_try_get(ObjectAllocator *a, Stack s, Object **traceback) {
 
     *traceback = OBJECT_NIL;
     stack_for_reversed(frame, s) {
-        if (false == object_try_make_cons(a, frame->expr, *traceback, traceback)) {
+        if (false == object_try_make_list(a, frame->expr, *traceback, traceback)) {
             return false;
         }
     }

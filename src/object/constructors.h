@@ -10,10 +10,10 @@ bool object_try_make_int(ObjectAllocator *a, int64_t value, Object **obj);
 bool object_try_make_string(ObjectAllocator *a, char const *s, Object **obj);
 
 [[nodiscard]]
-bool object_try_make_atom(ObjectAllocator *a, char const *s, Object **obj);
+bool object_try_make_symbol(ObjectAllocator *a, char const *s, Object **obj);
 
 [[nodiscard]]
-bool object_try_make_cons(ObjectAllocator *a, Object *first, Object *rest, Object **obj);
+bool object_try_make_list(ObjectAllocator *a, Object *first, Object *rest, Object **obj);
 
 [[nodiscard]]
 bool object_try_make_primitive(ObjectAllocator *a, Object_Primitive fn, Object **obj);

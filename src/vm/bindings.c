@@ -8,16 +8,16 @@ bool binding_is_valid_target(Object *target, BindingTargetError *error) { // NOL
     guard_is_not_null(target);
 
     switch (target->type) {
-        case TYPE_ATOM:
+        case TYPE_SYMBOL:
         case TYPE_NIL: {
             return true;
         }
-        case TYPE_CONS: {
+        case TYPE_LIST: {
             auto is_varargs = false;
             while (OBJECT_NIL != target) {
                 auto const it = object_list_shift(&target);
 
-                if (is_varargs && (TYPE_ATOM != it->type || OBJECT_NIL != target)) {
+                if (is_varargs && (TYPE_SYMBOL != it->type || OBJECT_NIL != target)) {
                     *error = (BindingTargetError) {
                             .type = BINDING_INVALID_VARIADIC_SYNTAX
                     };
@@ -69,7 +69,7 @@ static TargetsCount count_targets(Object *target) {
         auto const it = object_list_shift(&target);
 
         if (result.is_variadic) {
-            guard_is_true(TYPE_ATOM == it->type && OBJECT_NIL == target);
+            guard_is_true(TYPE_SYMBOL == it->type && OBJECT_NIL == target);
             return result;
         }
 
@@ -91,8 +91,8 @@ static bool is_valid_value(Object *target, Object *value, BindingValueError *err
 
     switch (target->type) {
         case TYPE_NIL:
-        case TYPE_CONS: {
-            if (TYPE_CONS != value->type && TYPE_NIL != value->type) {
+        case TYPE_LIST: {
+            if (TYPE_LIST != value->type && TYPE_NIL != value->type) {
                 *error = (BindingValueError) {
                         .type = BINDING_CANNOT_UNPACK_VALUE,
                         .as_cannot_unpack = {
@@ -133,7 +133,7 @@ static bool is_valid_value(Object *target, Object *value, BindingValueError *err
             guard_is_true(targets.is_variadic || OBJECT_NIL == value);
             return true;
         }
-        case TYPE_ATOM: {
+        case TYPE_SYMBOL: {
             return true;
         }
         case TYPE_INT:
@@ -160,11 +160,11 @@ static bool env_try_bind_(ObjectAllocator *a, Object *env, Object *target, Objec
             guard_is_equal(value, OBJECT_NIL);
             return true;
         }
-        case TYPE_ATOM: {
+        case TYPE_SYMBOL: {
             return env_try_define(a, env, target, value);
         }
-        case TYPE_CONS: {
-            guard_is_one_of(value->type, TYPE_CONS, TYPE_NIL);
+        case TYPE_LIST: {
+            guard_is_one_of(value->type, TYPE_LIST, TYPE_NIL);
 
             auto is_varargs = false;
             object_list_for(it, target) {

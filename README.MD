@@ -68,7 +68,7 @@ Following types are available:
 
  * `integer` - 64-bit signed integer.
  * `string` - an immutable ASCII string.
- * `atom` - an immutable sequence of printable non-whitespace characters.
+ * `symbol` - an immutable sequence of printable non-whitespace characters.
  * `cons` - an immutable singly linked list.
  * `dict` - a persistent immutable mapping.
  * `primitive` - a native function implemented as part of the interpreter.
@@ -90,7 +90,7 @@ for example `(+ 1 2 & '(3 4 5))` is equivalent to `(+ 1 2 3 4 5)`.
 
 ## Structured binding
 
-A binding target can be an `atom` or a list of valid binding targets, possibly 
+A binding target can be an `symbol` or a list of valid binding targets, possibly 
 ending with `& rest` where `rest` is a name that will capture the excess elements, if any.
 
 Examples:
@@ -161,7 +161,7 @@ to non-`nil` value, `nil` otherwise.
 the value of the last expression.
  * `(define target value)` - bind `target` to `value` in the current scope.
  * `(fn args & body)` - create a closure, `args` must be a valid binding target.
- * `(macro args & body)` - create a macro, `args` must be a list of `atom`s.
+ * `(macro args & body)` - create a macro, `args` must be a list of `symbol`s.
  * `(import path)` - read and execute file `path` in the current scope, `path` must be
 a string; top-level expressions are executed in an implicit `do`.
  * `'expr` or `(quote expr)` - evaluates to `expr`.
@@ -177,7 +177,7 @@ a string; top-level expressions are executed in an implicit `do`.
 #### Constants
 
  * `nil`.
- * `true` - evaluates to atom `true`.
+ * `true` - evaluates to symbol `true`.
  * `false` - alias for `nil`.
 
 #### Primitives
@@ -238,7 +238,7 @@ Some calls may be missing due to tail call optimization.
  * `(put key value dict)` - returns a new dict with `key` mapped to `value`; old 
 dict is unchanged.
  * `(not it)` - returns `'true` if `it` is `nil` and `nil` otherwise.
- * `(type it)` - returns the name of the type of `it` as an atom.
+ * `(type it)` - returns the name of the type of `it` as an symbol.
  * `(traceback)` - returns the current expression stack as a list, most recent call comes last.
  * `(throw error)` - throw `error`; `error` can be any value other than `nil`
 

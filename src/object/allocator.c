@@ -90,17 +90,17 @@ static bool try_mark_children(Objects *gray, Object *obj) {
     switch (obj->type) {
         case TYPE_INT:
         case TYPE_STRING:
-        case TYPE_ATOM:
+        case TYPE_SYMBOL:
         case TYPE_NIL:
         case TYPE_PRIMITIVE: {
             mark_black(obj);
             return true;
         }
-        case TYPE_CONS: {
+        case TYPE_LIST: {
             mark_black(obj);
 
-            return try_mark_gray_if_white(gray, obj->as_cons.first)
-                   && try_mark_gray_if_white(gray, obj->as_cons.rest);
+            return try_mark_gray_if_white(gray, obj->as_list.first)
+                   && try_mark_gray_if_white(gray, obj->as_list.rest);
         }
         case TYPE_CLOSURE:
         case TYPE_MACRO: {

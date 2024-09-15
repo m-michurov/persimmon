@@ -10,11 +10,11 @@ char const *object_type_str(Object_Type type) {
         case TYPE_STRING: {
             return "string";
         }
-        case TYPE_ATOM: {
-            return "atom";
+        case TYPE_SYMBOL: {
+            return "symbol";
         }
-        case TYPE_CONS: {
-            return "cons";
+        case TYPE_LIST: {
+            return "list";
         }
         case TYPE_DICT: {
             return "dict";

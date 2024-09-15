@@ -2,6 +2,6 @@
 
 #include "object.h"
 
-char const *object_as_atom(Object *obj);
+char const *object_as_symbol(Object *obj);
 
-Object_Cons object_as_cons(Object *obj);
+Object_List object_as_list(Object *obj);

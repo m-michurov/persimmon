@@ -9,8 +9,8 @@ typedef enum {
     TYPE_NIL,
     TYPE_INT,
     TYPE_STRING,
-    TYPE_ATOM,
-    TYPE_CONS,
+    TYPE_SYMBOL,
+    TYPE_LIST,
     TYPE_DICT,
     TYPE_PRIMITIVE,
     TYPE_CLOSURE,
@@ -26,7 +26,7 @@ extern Object *const OBJECT_NIL;
 typedef struct {
     Object *first;
     Object *rest;
-} Object_Cons;
+} Object_List;
 
 struct VirtualMachine;
 
@@ -63,8 +63,8 @@ struct Object {
     union {
         int64_t as_int;
         char const *as_string;
-        char const *as_atom;
-        Object_Cons as_cons;
+        char const *as_symbol;
+        Object_List as_list;
         Object_Primitive as_primitive;
         Object_Closure as_closure;
         Object_Dict as_dict;

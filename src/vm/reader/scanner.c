@@ -74,14 +74,14 @@ static void transition(Scanner *s, Position pos, Scanner_State new_state) {
 //            tokenizer_clear(t);
             return;
         }
-        case SCANNER_ATOM: {
+        case SCANNER_SYMBOL: {
             guard_is_greater(s->_sb.length, 0);
 
             s->has_token = true;
             s->token = (Token) {
-                    .type = TOKEN_ATOM,
+                    .type = TOKEN_SYMBOL,
                     .pos = token_pos,
-                    .as_atom = s->_sb.str,
+                    .as_symbol = s->_sb.str,
                     .next_dot = SCANNER_DOT == new_state
             };
 //            tokenizer_clear(t);
@@ -146,7 +146,7 @@ static bool any_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
     }
 
     if (is_name_char(c)) {
-        transition(s, pos, SCANNER_ATOM);
+        transition(s, pos, SCANNER_SYMBOL);
 
         if (false == sb_try_printf(&s->_sb, "%c", (char) c)) {
             *error = (SyntaxError) {
@@ -337,7 +337,7 @@ static bool string_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
 }
 
 static bool name_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
-    guard_is_equal(s->_state, SCANNER_ATOM);
+    guard_is_equal(s->_state, SCANNER_SYMBOL);
 
     if (isdigit(c) && 1 == s->_sb.length) {
         auto digit = c - '0';
@@ -445,7 +445,7 @@ static bool dot_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
     }
 
     if (is_name_char(c)) {
-        transition(s, pos, SCANNER_ATOM);
+        transition(s, pos, SCANNER_SYMBOL);
 
         if (false == sb_try_printf(&s->_sb, "%c", (char) c)) {
             *error = (SyntaxError) {
@@ -516,7 +516,7 @@ bool scanner_try_accept(Scanner *s, Position pos, int c, SyntaxError *error) {
         case SCANNER_STRING: {
             return string_accept(s, pos, c, error);
         }
-        case SCANNER_ATOM: {
+        case SCANNER_SYMBOL: {
             return name_accept(s, pos, c, error);
         }
         case SCANNER_QUOTE: {

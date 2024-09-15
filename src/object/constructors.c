@@ -18,12 +18,12 @@ static size_t size_string(size_t len) {
     return object_offsetof_end(as_string) + len + 1;
 }
 
-static size_t size_atom(size_t len) {
-    return object_offsetof_end(as_atom) + len + 1;
+static size_t size_symbol(size_t len) {
+    return object_offsetof_end(as_symbol) + len + 1;
 }
 
-static size_t size_cons(void) {
-    return object_offsetof_end(as_cons);
+static size_t size_list(void) {
+    return object_offsetof_end(as_list);
 }
 
 static size_t size_primitive(void) {
@@ -71,38 +71,38 @@ bool object_try_make_string(ObjectAllocator *a, char const *s, Object **obj) {
     return true;
 }
 
-bool object_try_make_atom(ObjectAllocator *a, char const *s, Object **obj) {
+bool object_try_make_symbol(ObjectAllocator *a, char const *s, Object **obj) {
     guard_is_not_null(a);
     guard_is_not_null(s);
     guard_is_not_null(obj);
 
     auto const len = strlen(s);
-    if (false == allocator_try_allocate(a, size_atom(len), obj)) {
+    if (false == allocator_try_allocate(a, size_symbol(len), obj)) {
         return false;
     }
 
-    auto const chars = (((uint8_t *) *obj) + object_offsetof_end(as_atom));
+    auto const chars = (((uint8_t *) *obj) + object_offsetof_end(as_symbol));
     guard_is_less_or_equal(chars + len + 1, ((uint8_t *) *obj) + (*obj)->size);
 
-    (*obj)->type = TYPE_ATOM;
-    (*obj)->as_atom = (char *) chars;
+    (*obj)->type = TYPE_SYMBOL;
+    (*obj)->as_symbol = (char *) chars;
     memcpy(chars, s, len + 1);
 
     return true;
 }
 
-bool object_try_make_cons(ObjectAllocator *a, Object *first, Object *rest, Object **obj) {
+bool object_try_make_list(ObjectAllocator *a, Object *first, Object *rest, Object **obj) {
     guard_is_not_null(a);
     guard_is_not_null(first);
     guard_is_not_null(rest);
     guard_is_not_null(obj);
 
-    if (false == allocator_try_allocate(a, size_cons(), obj)) {
+    if (false == allocator_try_allocate(a, size_list(), obj)) {
         return false;
     }
 
-    (*obj)->type = TYPE_CONS;
-    (*obj)->as_cons = ((Object_Cons) {
+    (*obj)->type = TYPE_LIST;
+    (*obj)->as_list = ((Object_List) {
             .first = first,
             .rest = rest
     });
@@ -203,15 +203,15 @@ bool object_try_deep_copy(ObjectAllocator *a, Object *obj, Object **copy) { // N
     switch (obj->type) {
         case TYPE_INT:
         case TYPE_STRING:
-        case TYPE_ATOM:
+        case TYPE_SYMBOL:
         case TYPE_PRIMITIVE:
         case TYPE_NIL: {
             return object_try_shallow_copy(a, obj, copy);
         }
-        case TYPE_CONS: {
+        case TYPE_LIST: {
             return object_try_shallow_copy(a, obj, copy)
-                   && try_deep_copy_in_place(a, &(*copy)->as_cons.first)
-                   && try_deep_copy_in_place(a, &(*copy)->as_cons.rest);
+                   && try_deep_copy_in_place(a, &(*copy)->as_list.first)
+                   && try_deep_copy_in_place(a, &(*copy)->as_list.rest);
         }
         case TYPE_DICT: {
             return object_try_shallow_copy(a, obj, copy)
@@ -241,11 +241,11 @@ bool object_try_shallow_copy(ObjectAllocator *a, Object *obj, Object **copy) {
         case TYPE_STRING: {
             return object_try_make_string(a, obj->as_string, copy);
         }
-        case TYPE_ATOM: {
-            return object_try_make_atom(a, obj->as_atom, copy);
+        case TYPE_SYMBOL: {
+            return object_try_make_symbol(a, obj->as_symbol, copy);
         }
-        case TYPE_CONS: {
-            return object_try_make_cons(a, obj->as_cons.first, obj->as_cons.rest, copy);
+        case TYPE_LIST: {
+            return object_try_make_list(a, obj->as_list.first, obj->as_list.rest, copy);
         }
         case TYPE_DICT: {
             return object_try_make_dict(

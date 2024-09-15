@@ -11,7 +11,7 @@
         (error-get name rest)))))
 
 (defn print-traceback (err)
-  (if (cons? err)
+  (if (list? err)
     (let ((_ & fields) err)
       (print "Traceback:")
       (apply print (error-get 'traceback fields)))))
@@ -19,7 +19,7 @@
 (defmacro run-catching (& code)
   (list 'let (list '(val err) (list 'catch (concat '(do) code)))
         '(if err
-           (if (cons? err)
+           (if (list? err)
              (let ((type & fields) err)
                (print 'ERROR type '- (error-get 'message fields))
                (print-traceback err))
@@ -29,7 +29,7 @@
 (defn run-ignoring (error-type default runnable)
   (let ((value err) (catch (runnable)))
     (if err
-      (if (and (cons? err) (eq? error-type (first err)))
+      (if (and (list? err) (eq? error-type (first err)))
         default
         (throw err))
       value)))
