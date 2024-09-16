@@ -24,7 +24,9 @@ static bool eq(VirtualMachine *vm, Object *args, Object **value) {
         call_args_count_error(vm, "eq?", 2, false, object_list_count(args));
     }
 
-    *value = vm_get(vm, object_equals(lhs, rhs) ? STATIC_TRUE : STATIC_FALSE);
+    *value = object_equals(lhs, rhs)
+             ? OBJECT_TRUE
+             : OBJECT_NIL;
     return true;
 }
 
@@ -386,7 +388,7 @@ static bool not(VirtualMachine *vm, Object *args, Object **value) {
         call_args_count_error(vm, "not", expected, false, got);
     }
 
-    *value = vm_get(vm, OBJECT_NIL == args->as_list.first ? STATIC_TRUE : STATIC_FALSE);
+    *value = OBJECT_NIL == args->as_list.first ? OBJECT_TRUE : OBJECT_NIL;
 
     return true;
 }

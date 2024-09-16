@@ -23,6 +23,8 @@ typedef struct Object Object;
 
 extern Object *const OBJECT_NIL;
 
+extern Object *const OBJECT_TRUE;
+
 typedef struct {
     Object *first;
     Object *rest;

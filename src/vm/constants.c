@@ -13,6 +13,6 @@ bool try_define_constants(ObjectAllocator *a, Object *env) {
     guard_is_not_null(env);
 
     return env_try_define(a, env, SYMBOL_NIL, OBJECT_NIL)
-           && env_try_define(a, env, SYMBOL_TRUE, SYMBOL_TRUE)
+           && env_try_define(a, env, SYMBOL_TRUE, OBJECT_TRUE)
            && env_try_define(a, env, SYMBOL_FALSE, OBJECT_NIL);
 }
