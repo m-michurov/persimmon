@@ -33,8 +33,6 @@ Object **vm_globals(VirtualMachine *vm);
 Object **vm_exprs(VirtualMachine *vm);
 
 typedef enum {
-    STATIC_ATOM_DO,
-
     STATIC_OS_ERROR_DEFAULT,
     STATIC_TYPE_ERROR_DEFAULT,
     STATIC_CALL_ERROR_DEFAULT,

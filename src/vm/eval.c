@@ -14,6 +14,8 @@
 #include "errors.h"
 #include "variadic.h"
 
+static auto const SYMBOL_DO = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "do"};
+
 typedef enum : bool {
     EVAL_FRAME_KEEP,
     EVAL_FRAME_REMOVE
@@ -350,7 +352,7 @@ static bool try_step_macro_or_fn(VirtualMachine *vm) {
         stack_overflow_error(vm);
     }
 
-    if (false == object_try_make_list(a, vm_get(vm, STATIC_ATOM_DO), body_items, body)) {
+    if (false == object_try_make_list(a, SYMBOL_DO, body_items, body)) {
         out_of_memory_error(vm);
     }
 
@@ -567,7 +569,7 @@ static bool try_step_catch(VirtualMachine *vm) {
             stack_overflow_error(vm);
         }
 
-        if (false == object_try_make_list(a, vm_get(vm, STATIC_ATOM_DO), frame->unevaluated, body)) {
+        if (false == object_try_make_list(a, SYMBOL_DO, frame->unevaluated, body)) {
             out_of_memory_error(vm);
         }
 
