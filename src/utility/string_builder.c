@@ -58,7 +58,7 @@ static void sb_format(StringBuilder *sb, char const *format, va_list args) {
     guard_is_equal(sb->str[sb->length], '\0');
 }
 
-bool sb_try_printf(StringBuilder *sb, char const *format, ...) {
+bool sb_try_printf_(StringBuilder *sb, char const *format, ...) {
     guard_is_not_null(sb);
     guard_is_not_null(format);
 
@@ -81,7 +81,7 @@ bool sb_try_printf(StringBuilder *sb, char const *format, ...) {
     return true;
 }
 
-bool sb_try_printf_realloc(StringBuilder *sb, errno_t *error_code, char const *format, ...) {
+bool sb_try_printf_reallocate_(StringBuilder *sb, errno_t *error_code, char const *format, ...) {
     guard_is_not_null(sb);
     guard_is_not_null(error_code);
     guard_is_not_null(format);

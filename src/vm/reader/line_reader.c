@@ -31,7 +31,7 @@ bool line_reader_try_read(LineReader *r, Arena *a, Line *line, errno_t *error_co
         }
 
         if (EOF == c) {
-            if (false == sb_try_printf_realloc(&r->_sb, error_code, "%c", '\n')) {
+            if (false == sb_try_printf(&r->_sb, error_code, "%c", '\n')) {
                 return false;
             }
 
@@ -39,14 +39,14 @@ bool line_reader_try_read(LineReader *r, Arena *a, Line *line, errno_t *error_co
         }
 
         if ('\t' == c) {
-            if (false == sb_try_printf_realloc(&r->_sb, error_code, "%s", TAB_AS_SPACES)) {
+            if (false == sb_try_printf(&r->_sb, error_code, "%s", TAB_AS_SPACES)) {
                 return false;
             }
 
             continue;
         }
 
-        if (false == sb_try_printf_realloc(&r->_sb, error_code, "%c", c)) {
+        if (false == sb_try_printf(&r->_sb, error_code, "%c", c)) {
             return false;
         }
 

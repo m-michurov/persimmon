@@ -44,7 +44,7 @@ static bool try_save_result_and_pop(
     guard_is_not_null(vm);
     guard_is_not_null(value);
 
-    auto const frame = stack_top(*vm_stack(vm));
+    auto const frame = stack_top(vm_stack(vm));
     if (nullptr == frame->results_list) {
         stack_pop(vm_stack(vm));
         return true;
@@ -197,7 +197,7 @@ static bool try_step_call(VirtualMachine *vm) {
 
     auto const s = vm_stack(vm);
     auto const a = vm_allocator(vm);
-    auto const frame = stack_top(*s);
+    auto const frame = stack_top(s);
     guard_is_equal(frame->type, FRAME_CALL);
 
     if (1 == object_list_count(frame->evaluated) && TYPE_MACRO == frame->evaluated->as_list.first->type) {
@@ -240,7 +240,7 @@ static bool try_step_call(VirtualMachine *vm) {
 
         auto const extra_args = object_list_nth_mutable(0, frame->evaluated);
         if (TYPE_LIST != (*extra_args)->type && TYPE_NIL != (*extra_args)->type) {
-            call_extra_args_type_error(vm, (*extra_args)->type);
+            type_error(vm, (*extra_args)->type, TYPE_LIST);
         }
 
         object_list_reverse_inplace(extra_args);
@@ -256,13 +256,9 @@ static bool try_step_call(VirtualMachine *vm) {
         auto const next = object_list_nth(0, frame->unevaluated);
 
         if (is_ampersand(next)) {
-            if (OBJECT_NIL == frame->evaluated) {
-                call_ampersand_before_error(vm);
-            }
-
             auto const rest = object_list_skip(1, frame->unevaluated);
             if (1 != object_list_count(rest)) {
-                call_ampersand_after_error(vm);
+                variadic_syntax_error(vm);
             }
 
             frame->unevaluated = next;
@@ -320,9 +316,10 @@ static bool try_step_call(VirtualMachine *vm) {
     return try_begin_eval(vm, EVAL_FRAME_REMOVE, *arg_bindings, fn->as_closure.body, frame->results_list);
 }
 
-static bool is_parameters_declaration_valid(Object *args, BindingTargetError *error) {
+static bool is_parameters_declaration_valid(Object *args) {
+    BindingTargetError error;
     return (TYPE_LIST == args->type || TYPE_NIL == args->type)
-           && binding_is_valid_target(args, error);
+           && binding_is_valid_target(args, &error);
 }
 
 // TODO make fn take an optional name to allow recursion BUT NOT MACROS
@@ -331,18 +328,18 @@ static bool try_step_macro_or_fn(VirtualMachine *vm) {
 
     auto const s = vm_stack(vm);
     auto const a = vm_allocator(vm);
-    auto const frame = stack_top(*s);
+    auto const frame = stack_top(s);
     guard_is_one_of(frame->type, FRAME_MACRO, FRAME_FN);
 
     auto const len = object_list_count(frame->unevaluated);
-    if (len < 2) {
-        special_too_few_args_error(vm, FRAME_MACRO == frame->type ? "macro" : "fn");
-    }
+    auto const args = len > 0 ? object_as_list(frame->unevaluated).first : OBJECT_NIL;
 
-    auto const args = object_as_list(frame->unevaluated).first;
-    BindingTargetError error;
-    if (false == is_parameters_declaration_valid(args, &error)) {
-        parameters_declaration_error(vm, error);
+    if (len < 2 || false == is_parameters_declaration_valid(args)) {
+        if (FRAME_MACRO == frame->type) {
+            special_syntax_error(vm, "macro", "(macro (" VARIADIC_AMPERSAND " args) " VARIADIC_AMPERSAND " body)");
+        }
+
+        special_syntax_error(vm, "fn", "(fn (" VARIADIC_AMPERSAND " args) " VARIADIC_AMPERSAND " body)");
     }
 
     auto const body_items = object_as_list(frame->unevaluated).rest;
@@ -376,17 +373,13 @@ static bool try_step_if(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
     auto const s = vm_stack(vm);
-    auto const frame = stack_top(*s);
+    auto const frame = stack_top(s);
     guard_is_equal(frame->type, FRAME_IF);
 
     if (OBJECT_NIL == frame->evaluated) {
         auto const len = object_list_count(frame->unevaluated);
-        if (len < 2) {
-            special_too_few_args_error(vm, "if");
-        }
-
-        if (len > 3) {
-            special_too_many_args_error(vm, "if");
+        if (len < 2 || len > 3) {
+            special_syntax_error(vm, "if", "(if cond then)", "(if cond then else)");
         }
 
         auto const cond = object_as_list(frame->unevaluated).first;
@@ -420,7 +413,7 @@ static bool try_step_do(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
     auto const s = vm_stack(vm);
-    auto const frame = stack_top(*s);
+    auto const frame = stack_top(s);
     guard_is_equal(frame->type, FRAME_DO);
 
     if (OBJECT_NIL == frame->unevaluated) {
@@ -445,13 +438,13 @@ static bool try_step_define(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
     auto const s = vm_stack(vm);
-    auto const frame = stack_top(*s);
+    auto const frame = stack_top(s);
     guard_is_equal(frame->type, FRAME_DEFINE);
 
     if (OBJECT_NIL == frame->evaluated) {
         size_t const expected = 2;
         if (expected != object_list_count(frame->unevaluated)) {
-            special_args_count_error(vm, "define", expected);
+            special_syntax_error(vm, "define", "(define target value)");
         }
 
         return try_begin_eval(
@@ -478,12 +471,12 @@ static bool try_step_import(VirtualMachine *vm) {
 
     auto const a = vm_allocator(vm);
     auto const s = vm_stack(vm);
-    auto const frame = stack_top(*s);
+    auto const frame = stack_top(s);
     guard_is_equal(frame->type, FRAME_IMPORT);
 
     size_t const expected = 1;
     if (expected != object_list_count(frame->unevaluated)) {
-        special_args_count_error(vm, "import", expected);
+        special_syntax_error(vm, "import", "(import path)");
     }
 
     auto const file_name = object_as_list(frame->unevaluated).first;
@@ -518,12 +511,12 @@ static bool try_step_import(VirtualMachine *vm) {
 static bool try_step_quote(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    auto const frame = stack_top(*vm_stack(vm));
+    auto const frame = stack_top(vm_stack(vm));
     guard_is_equal(frame->type, FRAME_QUOTE);
 
     size_t const expected = 1;
     if (expected != object_list_count(frame->unevaluated)) {
-        special_args_count_error(vm, "quote", expected);
+        special_syntax_error(vm, "quote", "(quote expr)");
     }
 
     auto const value = object_as_list(frame->unevaluated).first;
@@ -535,7 +528,7 @@ static bool try_step_catch(VirtualMachine *vm) {
 
     auto const s = vm_stack(vm);
     auto const a = vm_allocator(vm);
-    auto const frame = stack_top(*s);
+    auto const frame = stack_top(s);
     guard_is_equal(frame->type, FRAME_CATCH);
 
     if (OBJECT_NIL != *vm_error(vm)) {
@@ -597,7 +590,7 @@ static bool try_step_catch(VirtualMachine *vm) {
 static bool try_step_and(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    auto const frame = stack_top(*vm_stack(vm));
+    auto const frame = stack_top(vm_stack(vm));
     guard_is_equal(frame->type, FRAME_AND);
 
     if (OBJECT_NIL == frame->evaluated) {
@@ -628,7 +621,7 @@ static bool try_step_and(VirtualMachine *vm) {
 static bool try_step_or(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    auto const frame = stack_top(*vm_stack(vm));
+    auto const frame = stack_top(vm_stack(vm));
     guard_is_equal(frame->type, FRAME_OR);
 
     if (OBJECT_NIL == frame->evaluated) {
@@ -659,7 +652,7 @@ static bool try_step_or(VirtualMachine *vm) {
 static bool try_step(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    switch (stack_top(*vm_stack(vm))->type) {
+    switch (stack_top(vm_stack(vm))->type) {
         case FRAME_CALL: {
             return try_step_call(vm);
         }
@@ -702,7 +695,7 @@ bool try_eval(VirtualMachine *vm, Object *env, Object *expr) {
     guard_is_not_null(expr);
 
     auto const s = vm_stack(vm);
-    guard_is_true(stack_is_empty(*s));
+    guard_is_true(stack_is_empty(s));
 
     *vm_value(vm) = OBJECT_NIL;
     *vm_error(vm) = OBJECT_NIL;
@@ -710,16 +703,16 @@ bool try_eval(VirtualMachine *vm, Object *env, Object *expr) {
         return false;
     }
 
-    while (false == stack_is_empty(*s)) {
+    while (false == stack_is_empty(s)) {
         if (try_step(vm)) {
             continue;
         }
 
-        auto const error_frame = stack_top(*s);
+        auto const error_frame = stack_top(s);
         guard_is_not_equal(*vm_error(vm), OBJECT_NIL);
 
-        while (false == stack_is_empty(*s)) {
-            auto const current_frame = stack_top(*s);
+        while (false == stack_is_empty(s)) {
+            auto const current_frame = stack_top(s);
             if (FRAME_CATCH == current_frame->type && error_frame != current_frame) {
                 break;
             }
@@ -727,17 +720,17 @@ bool try_eval(VirtualMachine *vm, Object *env, Object *expr) {
             stack_pop(s);
         }
 
-        if (stack_is_empty(*s)) {
+        if (stack_is_empty(s)) {
             return false;
         }
 
-        if (FRAME_CATCH == stack_top(*s)->type) {
+        if (FRAME_CATCH == stack_top(s)->type) {
             continue;
         }
 
         guard_unreachable();
     }
-    guard_is_true(stack_is_empty(*s));
+    guard_is_true(stack_is_empty(s));
 
     *vm_value(vm) = object_as_list(*vm_value(vm)).first;
     return true;

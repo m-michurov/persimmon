@@ -21,7 +21,7 @@ static bool eq(VirtualMachine *vm, Object *args, Object **value) {
 
     Object *lhs, *rhs;
     if (false == object_list_try_unpack_2(&lhs, &rhs, args)) {
-        call_args_count_error(vm, "eq?", 2, false, object_list_count(args));
+        call_args_count_error(vm, "eq?", 2, object_list_count(args));
     }
 
     *value = object_equals(lhs, rhs)
@@ -38,7 +38,7 @@ static bool compare(VirtualMachine *vm, Object *args, Object **value) {
 
     Object *lhs, *rhs;
     if (false == object_list_try_unpack_2(&lhs, &rhs, args)) {
-        call_args_count_error(vm, "compare", 2, false, object_list_count(args));
+        call_args_count_error(vm, "compare", 2, object_list_count(args));
     }
 
     auto const compare_result = object_compare(lhs, rhs);
@@ -90,7 +90,7 @@ static bool repr(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_args_count_error(vm, "repr", expected, false, got);
+        call_args_count_error(vm, "repr", expected, got);
     }
 
     auto sb = (StringBuilder) {0};
@@ -274,7 +274,7 @@ static bool list_first(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_args_count_error(vm, "first", expected, false, got);
+        call_args_count_error(vm, "first", expected, got);
     }
 
     auto const list = object_as_list(args).first;
@@ -295,7 +295,7 @@ static bool list_rest(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_args_count_error(vm, "rest", expected, false, got);
+        call_args_count_error(vm, "rest", expected, got);
     }
 
     auto const list = object_as_list(args).first;
@@ -315,11 +315,11 @@ static bool list_prepend(VirtualMachine *vm, Object *args, Object **value) {
 
     Object *element, *list;
     if (false == object_list_try_unpack_2(&element, &list, args)) {
-        call_args_count_error(vm, "prepend", 2, false, object_list_count(args));
+        call_args_count_error(vm, "prepend", 2, object_list_count(args));
     }
 
     if (list->type != TYPE_NIL && list->type != TYPE_LIST) {
-        type_error(vm, list->type, TYPE_LIST);
+        type_error(vm, list->type, TYPE_LIST, TYPE_NIL);
     }
 
     if (object_try_make_list(vm_allocator(vm), element, list, value)) {
@@ -338,7 +338,7 @@ static bool list_reverse(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_args_count_error(vm, "reverse", expected, false, got);
+        call_args_count_error(vm, "reverse", expected, got);
     }
 
     auto const list = object_as_list(args).first;
@@ -385,7 +385,7 @@ static bool not(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_args_count_error(vm, "not", expected, false, got);
+        call_args_count_error(vm, "not", expected, got);
     }
 
     *value = OBJECT_NIL == args->as_list.first ? OBJECT_TRUE : OBJECT_NIL;
@@ -402,7 +402,7 @@ static bool type(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_args_count_error(vm, "type", expected, false, got);
+        call_args_count_error(vm, "type", expected, got);
     }
 
     auto const arg = args->as_list.first;
@@ -418,10 +418,10 @@ static bool traceback(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 0;
     if (expected != got) {
-        call_args_count_error(vm, "traceback", expected, false, got);
+        call_args_count_error(vm, "traceback", expected, got);
     }
 
-    if (false == traceback_try_get(vm_allocator(vm), *vm_stack(vm), value)) {
+    if (false == traceback_try_get(vm_allocator(vm), vm_stack(vm), value)) {
         out_of_memory_error(vm);
     }
     object_list_shift(value);
@@ -438,12 +438,12 @@ static bool throw(VirtualMachine *vm, Object *args, Object **value) {
     auto const got = object_list_count(args);
     typeof(got) expected = 1;
     if (expected != got) {
-        call_args_count_error(vm, "throw", expected, false, got);
+        call_args_count_error(vm, "throw", expected, got);
     }
 
     auto const error = args->as_list.first;
     if (TYPE_NIL == error->type) {
-        type_error_unexpected(vm, error->type);
+        type_error(vm, error->type);
     }
 
     *vm_error(vm) = error;
@@ -456,16 +456,11 @@ static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
     guard_is_one_of(args->type, TYPE_LIST, TYPE_NIL);
     guard_is_not_null(result);
 
-    auto const got = object_list_count(args);
-    if (0 != got % 2) {
-        call_args_parity_error(vm, "dict", true);
-    }
-
     *result = OBJECT_NIL;
 
     while (OBJECT_NIL != args) {
         auto const key = object_list_shift(&args);
-        auto const value = object_list_shift(&args);
+        auto const value = OBJECT_NIL == args ? OBJECT_NIL : object_list_shift(&args);
 
         if (object_dict_try_put(vm_allocator(vm), *result, key, value, result)) {
             continue;
@@ -485,7 +480,7 @@ static bool dict_get(VirtualMachine *vm, Object *args, Object **value) {
 
     Object *key, *dict;
     if (false == object_list_try_unpack_2(&key, &dict, args)) {
-        call_args_count_error(vm, "get", 2, false, object_list_count(args));
+        call_args_count_error(vm, "get", 2, object_list_count(args));
     }
 
     if (TYPE_NIL != dict->type && TYPE_DICT != dict->type) {
@@ -507,7 +502,7 @@ static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
 
     Object *key, *value, *dict;
     if (false == object_list_try_unpack_3(&key, &value, &dict, args)) {
-        call_args_count_error(vm, "put", 3, false, object_list_count(args));
+        call_args_count_error(vm, "put", 3, object_list_count(args));
     }
 
     if (TYPE_NIL != dict->type && TYPE_DICT != dict->type) {

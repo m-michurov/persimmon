@@ -6,9 +6,11 @@
 #include "utility/string_builder.h"
 #include "object/constructors.h"
 #include "object/list.h"
+#include "object/dict.h"
 #include "object/accessors.h"
 #include "object/repr.h"
 #include "traceback.h"
+#include "variadic.h"
 
 #define ERROR_FIELD_EXPECTED  "expected"
 #define ERROR_FIELD_GOT       "got"
@@ -17,173 +19,153 @@
 
 #define MESSAGE_MIN_CAPACITY 512
 
-static void report_out_of_system_memory(VirtualMachine *vm, Object *error_type) {
-    fprintf(
-            stderr,
-            "ERROR: ran out of system memory when creating an exception of type %s.\n",
-            object_as_symbol(error_type)
-    );
-    traceback_print_from_stack(*vm_stack(vm), stderr);
+Object *const ERROR_KEY_TYPE = &(Object) {.type = TYPE_SYMBOL, .as_symbol = ERROR_KEY_NAME_TYPE};
+Object *const ERROR_KEY_MESSAGE = &(Object) {.type = TYPE_SYMBOL, .as_symbol = ERROR_KEY_NAME_MESSAGE};
+Object *const ERROR_KEY_TRACEBACK = &(Object) {.type = TYPE_SYMBOL, .as_symbol = ERROR_KEY_NAME_TRACEBACK};
+
+extern Object *const OBJECT_ERROR_OUT_OF_MEMORY;
+
+bool error_try_unpack(Object *error, Object **type, Object **message, Object **traceback) {
+    guard_is_not_null(error);
+    guard_is_not_null(type);
+    guard_is_not_null(message);
+    guard_is_not_null(traceback);
+
+    return TYPE_DICT == error->type
+           && object_dict_try_get(error, ERROR_KEY_TYPE, type)
+           && TYPE_SYMBOL == (*type)->type
+           && object_dict_try_get(error, ERROR_KEY_MESSAGE, message)
+           && TYPE_STRING == (*message)->type
+           && object_dict_try_get(error, ERROR_KEY_TRACEBACK, traceback);
 }
 
-static void report_out_of_memory(VirtualMachine *vm, Object *error_type) {
+bool error_try_unpack_type(Object *error, Object **type) {
+    guard_is_not_null(error);
+    guard_is_not_null(type);
+
+    return TYPE_DICT == error->type
+           && 1 == error->as_dict.size
+           && object_dict_try_get(error, ERROR_KEY_TYPE, type)
+           && TYPE_SYMBOL == (*type)->type;
+}
+
+static void out_of_memory(VirtualMachine *vm, char const *error_type) {
+    guard_is_not_null(vm);
+    guard_is_not_null(error_type);
+
     fprintf(
             stderr,
             "ERROR: VM heap capacity exceeded when creating an exception of type %s.\n",
-            object_as_symbol(error_type)
+            error_type
     );
+
     allocator_print_statistics(vm_allocator(vm), stderr);
-    traceback_print_from_stack(*vm_stack(vm), stderr);
+    traceback_print_from_stack(vm_stack(vm), stderr);
 }
 
-static bool try_create_int_field(VirtualMachine *vm, char const *key, int64_t value, Object **field) {
+static void system_error(VirtualMachine *vm, errno_t error_code, char const *error_type) {
     guard_is_not_null(vm);
-    guard_is_not_null(key);
-    guard_is_not_null(field);
+    guard_is_not_null(error_type);
 
-    auto const a = vm_allocator(vm);
-    return object_try_make_list_of(a, field, OBJECT_NIL, OBJECT_NIL)
-           && object_try_make_symbol(a, key, object_list_nth_mutable(0, *field))
-           && object_try_make_int(a, value, object_list_nth_mutable(1, *field));
+    fprintf(
+            stderr,
+            "ERROR: An error occurred when creating an exception of type %s: %s.\n",
+            error_type, strerror(error_code)
+    );
+
+    allocator_print_statistics(vm_allocator(vm), stderr);
+    traceback_print_from_stack(vm_stack(vm), stderr);
 }
 
-static bool try_create_string_field(VirtualMachine *vm, char const *key, char const *value, Object **field) {
-    guard_is_not_null(vm);
-    guard_is_not_null(key);
-    guard_is_not_null(value);
-    guard_is_not_null(field);
+static bool try_make_children_roots(ObjectAllocator *a, Object **base_root, Object ***_1, Object ***_2) {
+    guard_is_not_null(a);
+    guard_is_not_null(base_root);
+    guard_is_not_null(_1);
+    guard_is_not_null(_2);
 
-    auto const a = vm_allocator(vm);
-    return object_try_make_list_of(a, field, OBJECT_NIL, OBJECT_NIL)
-           && object_try_make_symbol(a, key, object_list_nth_mutable(0, *field))
-           && object_try_make_string(a, value, object_list_nth_mutable(1, *field));
+    if (false == object_try_make_list_of(a, base_root, OBJECT_NIL, OBJECT_NIL)) {
+        return false;
+    }
+
+    *_1 = object_list_nth_mutable(0, *base_root);
+    *_2 = object_list_nth_mutable(1, *base_root);
+
+    return true;
 }
 
-static bool try_create_atom_field(VirtualMachine *vm, char const *key, char const *value, Object **field) {
+static void set_error(VirtualMachine *vm, Object *error_type, char const *message) {
     guard_is_not_null(vm);
-    guard_is_not_null(key);
-    guard_is_not_null(value);
-    guard_is_not_null(field);
-
-    auto const a = vm_allocator(vm);
-    return object_try_make_list_of(a, field, OBJECT_NIL, OBJECT_NIL)
-           && object_try_make_symbol(a, key, object_list_nth_mutable(0, *field))
-           && object_try_make_symbol(a, value, object_list_nth_mutable(1, *field));
-}
-
-static bool try_create_object_field(VirtualMachine *vm, char const *key, Object *value, Object **field) {
-    guard_is_not_null(vm);
-    guard_is_not_null(key);
-    guard_is_not_null(value);
-    guard_is_not_null(field);
-
-    auto const a = vm_allocator(vm);
-    return object_try_make_list_of(a, field, OBJECT_NIL, value)
-           && object_try_make_symbol(a, key, object_list_nth_mutable(0, *field));
-}
-
-static bool try_create_traceback(VirtualMachine *vm, Object **field) {
-    guard_is_not_null(vm);
-    guard_is_not_null(field);
-
-    auto const a = vm_allocator(vm);
-    return object_try_make_list_of(a, field, OBJECT_NIL, OBJECT_NIL)
-           && object_try_make_symbol(a, ERROR_FIELD_TRACEBACK, object_list_nth_mutable(0, *field))
-           && traceback_try_get(a, *vm_stack(vm), object_list_nth_mutable(1, *field));
-}
-
-static void create_error_with_message(VirtualMachine *vm, Object *default_error, char const *message) {
-    guard_is_not_null(vm);
+    guard_is_not_null(error_type);
     guard_is_not_null(message);
+    guard_is_equal(error_type->type, TYPE_SYMBOL);
 
     auto const a = vm_allocator(vm);
-    auto const error_type = object_as_list(default_error).first;
 
-    auto field_index = 0;
-    auto const ok =
-            object_try_make_list_of(
-                    a, vm_error(vm),
-                    error_type,
-                    OBJECT_NIL,
-                    OBJECT_NIL
-            )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
-    if (ok) {
+    Object **tmp_error, **tmp_value;
+    auto const fields_ok =
+            try_make_children_roots(a, vm_error(vm), &tmp_error, &tmp_value)
+            && object_dict_try_put(a, *tmp_error, ERROR_KEY_TYPE, error_type, tmp_error)
+            && object_try_make_string(a, message, tmp_value)
+            && object_dict_try_put(a, *tmp_error, ERROR_KEY_MESSAGE, *tmp_value, tmp_error)
+            && traceback_try_get(a, vm_stack(vm), tmp_value)
+            && object_dict_try_put(a, *tmp_error, ERROR_KEY_TRACEBACK, *tmp_value, tmp_error);
+
+    if (false == fields_ok) {
+        out_of_memory(vm, error_type->as_symbol);
+        *vm_error(vm) = OBJECT_ERROR_OUT_OF_MEMORY;
         return;
     }
 
-    *vm_error(vm) = default_error;
-    report_out_of_memory(vm, error_type);
+    *vm_error(vm) = *tmp_error;
 }
 
-// TODO dont create unnecessary fields, only use message and traceback
-// TODO use dicts for errors?
-void create_os_error(VirtualMachine *vm, errno_t error_code) {
+static auto const SYMBOL_OS_ERROR = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "OSError"};
+
+void set_os_error(VirtualMachine *vm, errno_t error_code) {
     guard_is_not_null(vm);
 
-    auto const a = vm_allocator(vm);
-    auto const default_error = vm_get(vm, STATIC_OS_ERROR_DEFAULT);
-    auto const error_type = object_as_list(default_error).first;
-
-    auto field_index = 0;
-    auto const ok =
-            object_try_make_list_of(
-                    a, vm_error(vm),
-                    error_type,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL
-            )
-            && try_create_string_field(
-                    vm,
-                    ERROR_FIELD_MESSAGE,
-                    strerror(error_code),
-                    object_list_nth_mutable(++field_index, *vm_error(vm))
-            )
-            && try_create_int_field(vm, "errno", error_code, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
-    if (ok) {
-        return;
-    }
-
-    *vm_error(vm) = default_error;
-    report_out_of_memory(vm, error_type);
+    set_error(vm, SYMBOL_OS_ERROR, strerror(error_code));
 }
 
-#define snprintf_checked(Dst, Remaining, Format, ...)                                                   \
-do {                                                                                                    \
-    auto const _written = guard_succeeds(snprintf, (*(Dst), *(Remaining), (Format), ##__VA_ARGS__));    \
-    guard_is_less((size_t) _written, *(Remaining));                                                     \
-    *(Dst) += _written;                                                                                 \
-    *(Remaining) -= _written;                                                                           \
-} while (false)
+static auto const SYMBOL_TYPE_ERROR = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "TypeError"};
 
-static void create_message_type_error(
-        size_t capacity,
-        char *message,
+static bool try_format_type_expected_types_message(
+        StringBuilder *sb,
+        errno_t *error_code,
         Object_Type got,
         size_t expected_count,
         Object_Type *expected
 ) {
-    guard_is_not_null(message);
-    guard_is_greater(capacity, 0);
+    guard_is_not_null(sb);
+    guard_is_not_null(error_code);
     guard_is_not_null(expected);
-    guard_is_greater(expected_count, 0);
 
-    snprintf_checked(&message, &capacity, "unsupported type (expected %s", object_type_str(expected[0]));
+    if (0 == expected_count) {
+        return sb_try_printf(sb, error_code, "unsupported type: %s", object_type_str(got));
+    }
+
+    if (false ==
+        sb_try_printf(sb, error_code, "unsupported type (expected %s", object_type_str(expected[0]))) {
+        return false;
+    }
 
     for (size_t i = 1; i + 1 < expected_count; i++) {
-        snprintf_checked(&message, &capacity, ", %s", object_type_str(expected[i]));
+        if (false == sb_try_printf(sb, error_code, ", %s", object_type_str(expected[i]))) {
+            return false;
+        }
     }
 
     if (expected_count > 1) {
-        snprintf_checked(&message, &capacity, " or %s", object_type_str(expected[expected_count - 1]));
+        if (false ==
+            sb_try_printf(sb, error_code, " or %s", object_type_str(expected[expected_count - 1]))) {
+            return false;
+        }
     }
-    snprintf_checked(&message, &capacity, ", got %s)", object_type_str(got));
+
+    return sb_try_printf(sb, error_code, ", got %s)", object_type_str(got));
 }
 
-void create_type_error_(
+void set_type_error_(
         VirtualMachine *vm,
         Object_Type got,
         size_t expected_count,
@@ -191,121 +173,56 @@ void create_type_error_(
 ) {
     guard_is_not_null(vm);
     guard_is_not_null(expected);
-    guard_is_greater(expected_count, 0);
 
-    auto const a = vm_allocator(vm);
-    auto const default_error = vm_get(vm, STATIC_TYPE_ERROR_DEFAULT);
-    auto const error_type = object_as_list(default_error).first;
+    auto const error_type = SYMBOL_TYPE_ERROR;
 
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    create_message_type_error(sizeof(message), message, got, expected_count, expected);
+    auto sb = (StringBuilder) {0};
+    errno_t error_code;
 
-    auto field_index = 0;
-    auto ok =
-            object_try_make_list_of(
-                    a, vm_error(vm),
-                    error_type,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL
-            )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)));
-
-    auto const expected_types_list = object_list_nth_mutable(++field_index, *vm_error(vm));
-    for (size_t i = 0; ok && i < expected_count; i++) {
-        ok = object_try_make_list(a, OBJECT_NIL, *expected_types_list, expected_types_list)
-             && object_try_make_symbol(a, object_type_str(expected[i]),
-                                       object_list_nth_mutable(0, *expected_types_list));
-    }
-
-    ok = ok
-         && object_try_make_list(a, OBJECT_NIL, *expected_types_list, expected_types_list)
-         && object_try_make_symbol(a, ERROR_FIELD_EXPECTED, object_list_nth_mutable(0, *expected_types_list))
-         &&
-         try_create_atom_field(vm, ERROR_FIELD_GOT, object_type_str(got), object_list_nth_mutable(++field_index, *vm_error(vm)))
-         && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
-    if (ok) {
+    if (false == try_format_type_expected_types_message(&sb, &error_code, got, expected_count, expected)) {
+        sb_free(&sb);
+        system_error(vm, error_code, error_type->as_symbol);
+        *vm_error(vm) = error_type;
         return;
     }
 
-    *vm_error(vm) = default_error;
-    report_out_of_memory(vm, error_type);
+    set_error(vm, error_type, sb.str);
+    sb_free(&sb);
 }
 
-void create_type_error_unexpected(VirtualMachine *vm, Object_Type got) {
-    guard_is_not_null(vm);
+static auto const SYMBOL_SYNTAX_ERROR = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "SyntaxError"};
 
-    auto const a = vm_allocator(vm);
-    auto const default_error = vm_get(vm, STATIC_TYPE_ERROR_DEFAULT);
-    auto const error_type = object_as_list(default_error).first;
+static bool try_pad(StringBuilder *sb, errno_t *error_code, size_t padding) {
+    guard_is_not_null(sb);
+    guard_is_not_null(error_code);
 
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    size_t capacity = sizeof(message);
-    auto buf = message;
-    snprintf_checked(&buf, &capacity, "unsupported type (got %s)", object_type_str(got));
-
-    auto field_index = 0;
-    auto ok =
-            object_try_make_list_of(
-                    a, vm_error(vm),
-                    error_type,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL
-            )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)));
-
-    ok = ok
-         && try_create_atom_field(vm, ERROR_FIELD_GOT, object_type_str(got), object_list_nth_mutable(++field_index, *vm_error(vm)))
-         && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
-    if (ok) {
-        return;
-    }
-
-    *vm_error(vm) = default_error;
-    report_out_of_memory(vm, error_type);
-}
-
-static void pad(char **message, size_t *capacity, size_t padding) {
     for (size_t i = 0; i < padding; i++) {
-        snprintf_checked(message, capacity, " ");
+        if (false == sb_try_printf(sb, error_code, " ")) {
+            return false;
+        }
     }
+
+    return true;
 }
 
-static void create_message_syntax_error(
-        size_t capacity,
-        char *message,
-        SyntaxError base,
-        char const *file,
-        char const *text
-) {
-    guard_is_not_null(message);
-    guard_is_greater(capacity, 0);
-    guard_is_not_null(file);
-    guard_is_not_null(text);
+static bool try_print_highlight(StringBuilder *sb, errno_t *error_code, size_t offset, size_t count) {
+    guard_is_not_null(sb);
+    guard_is_not_null(error_code);
 
-    snprintf_checked(&message, &capacity, "%s\n", syntax_error_str(base.code));
-    auto const padding = 2 + guard_succeeds(snprintf, (nullptr, 0, "%zu", base.pos.lineno));
-
-    pad(&message, &capacity, padding - 1);
-    snprintf_checked(&message, &capacity, "--> %s\n", file);
-
-    pad(&message, &capacity, padding);
-    snprintf_checked(&message, &capacity, "|\n");
-
-    snprintf_checked(&message, &capacity, " %zu | %s", base.pos.lineno, text);
-
-    pad(&message, &capacity, padding);
-    snprintf_checked(&message, &capacity, "| ");
-
-    pad(&message, &capacity, base.pos.col);
-    for (size_t i = 0; i < base.pos.end_col - base.pos.col + 1; i++) {
-        snprintf_checked(&message, &capacity, "^");
+    if (false == try_pad(sb, error_code, offset)) {
+        return false;
     }
+
+    for (size_t i = 0; i < count; i++) {
+        if (false == sb_try_printf(sb, error_code, "^")) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
-void create_syntax_error(
+void set_syntax_error(
         VirtualMachine *vm,
         SyntaxError error,
         char const *file,
@@ -315,451 +232,212 @@ void create_syntax_error(
     guard_is_not_null(file);
     guard_is_not_null(text);
 
-    auto const a = vm_allocator(vm);
-    auto const default_error = vm_get(vm, STATIC_SYNTAX_ERROR_DEFAULT);
-    auto const error_type = object_as_list(default_error).first;
+    auto const error_type = SYMBOL_SYNTAX_ERROR;
 
-    size_t const capacity = MESSAGE_MIN_CAPACITY + 2 * strlen(text);
-    char *message = calloc(capacity, sizeof(char));
-    if (nullptr == message) {
-        *vm_error(vm) = default_error;
-        report_out_of_system_memory(vm, error_type);
-        return;
-    }
-    create_message_syntax_error(capacity, message, error, file, text);
+    auto sb = (StringBuilder) {0};
+    errno_t error_code;
 
-    auto field_index = 0;
-    auto const ok =
-            object_try_make_list_of(
-                    a, vm_error(vm),
-                    error_type,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL
-            )
-            && try_create_string_field(
-                    vm,
-                    ERROR_FIELD_MESSAGE, message,
-                    object_list_nth_mutable(++field_index, *vm_error(vm))
-            )
-            && try_create_string_field(vm, "file", file, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            &&
-            try_create_int_field(vm, "line", (int64_t) error.pos.lineno, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_int_field(vm, "col", (int64_t) error.pos.col, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_int_field(
-                    vm,
-                    "end_col",
-                    (int64_t) error.pos.end_col,
-                    object_list_nth_mutable(++field_index, *vm_error(vm))
-            )
-            && try_create_string_field(vm, "text", text, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
-    if (ok) {
+    auto const padding = 2 + guard_succeeds(snprintf, (nullptr, 0, "%zu", error.pos.lineno));
+    auto const message_ok =
+            sb_try_printf(&sb, &error_code, "%s\n", syntax_error_str(error.code))
+            && try_pad(&sb, &error_code, padding - 1)
+            && sb_try_printf(&sb, &error_code, "--> %s\n", file)
+            && try_pad(&sb, &error_code, padding)
+            && sb_try_printf(&sb, &error_code, "|\n")
+            && sb_try_printf(&sb, &error_code, " %zu | %s", error.pos.lineno, text)
+            && try_pad(&sb, &error_code, padding)
+            && sb_try_printf(&sb, &error_code, "| ")
+            && try_print_highlight(&sb, &error_code, error.pos.col, error.pos.end_col - error.pos.col + 1);
+
+    if (false == message_ok) {
+        sb_free(&sb);
+        system_error(vm, error_code, error_type->as_symbol);
+        *vm_error(vm) = error_type;
         return;
     }
 
-    *vm_error(vm) = default_error;
-    report_out_of_memory(vm, error_type);
+    set_error(vm, error_type, sb.str);
+    sb_free(&sb);
 }
 
-void create_call_args_count_error(VirtualMachine *vm, char const *name, size_t expected, bool is_variadic, size_t got) {
+void set_variadic_syntax_error(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    auto const a = vm_allocator(vm);
-    auto const default_error = vm_get(vm, STATIC_CALL_ERROR_DEFAULT);
-    auto const error_type = object_as_list(default_error).first;
-
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    size_t capacity = sizeof(message);
-    auto buf = message;
-    snprintf_checked(
-            &buf, &capacity,
-            "%s takes %s%zu arguments (got %zu)",
-            name, (is_variadic ? "at least " : ""), expected, got
-    );
-
-    auto field_index = 0;
-    auto const ok =
-            object_try_make_list_of(
-                    a, vm_error(vm),
-                    error_type,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL
-            )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_string_field(vm, ERROR_FIELD_NAME, name, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_int_field(
-                    vm,
-                    ERROR_FIELD_EXPECTED,
-                    (int64_t) expected,
-                    object_list_nth_mutable(++field_index, *vm_error(vm))
-            )
-            && try_create_int_field(vm, ERROR_FIELD_GOT, (int64_t) got, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
-    if (ok) {
-        return;
-    }
-
-    *vm_error(vm) = default_error;
-    report_out_of_memory(vm, error_type);
-}
-
-void create_call_args_parity_error(VirtualMachine *vm, char const *name, bool expected_even) {
-    guard_is_not_null(vm);
-
-    auto const a = vm_allocator(vm);
-    auto const default_error = vm_get(vm, STATIC_CALL_ERROR_DEFAULT);
-    auto const error_type = object_as_list(default_error).first;
-
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    size_t capacity = sizeof(message);
-    auto buf = message;
-
-    auto const expected_str = expected_even ? "even" : "odd";
-    snprintf_checked(&buf, &capacity, "%s takes an %s number of arguments", name, expected_str);
-
-    auto field_index = 0;
-    auto const ok =
-            object_try_make_list_of(
-                    a, vm_error(vm),
-                    error_type,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL
-            )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_string_field(vm, ERROR_FIELD_NAME, name, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_atom_field(
-                    vm,
-                    ERROR_FIELD_EXPECTED,
-                    expected_str,
-                    object_list_nth_mutable(++field_index, *vm_error(vm))
-            )
-            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
-    if (ok) {
-        return;
-    }
-
-    *vm_error(vm) = default_error;
-    report_out_of_memory(vm, error_type);
-}
-
-void create_call_ampersand_before_error(VirtualMachine *vm) {
-    create_error_with_message(
+    set_error(
             vm,
-            vm_get(vm, STATIC_CALL_ERROR_DEFAULT),
-            "'.' must be preceded by at least one expression"
+            SYMBOL_SYNTAX_ERROR,
+            "'" VARIADIC_AMPERSAND "' must be followed by exactly one expression"
     );
 }
 
-void create_call_ampersand_after_error(VirtualMachine *vm) {
-    create_error_with_message(
-            vm,
-            vm_get(vm, STATIC_CALL_ERROR_DEFAULT),
-            "'.' must be followed by exactly one expression"
-    );
+static bool try_format_special_syntax_error_message(
+        StringBuilder *sb,
+        errno_t *error_code,
+        char const *special_name,
+        size_t signatures_count,
+        char const **signatures
+) {
+    guard_is_not_null(sb);
+    guard_is_not_null(error_code);
+    guard_is_not_null(special_name);
+    guard_is_not_null(signatures);
+
+    if (false == sb_try_printf(sb, error_code, "invalid '%s' syntax\nUsage:", special_name)) {
+        return false;
+    }
+
+    for (size_t i = 0; i < signatures_count; i++) {
+        auto const next_indent = i + 1 < signatures_count ? "\n       " : "";
+        if (false == sb_try_printf(sb, error_code, " %s%s", signatures[i], next_indent)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
-void create_call_extra_args_type_error(VirtualMachine *vm, Object_Type extras_type) {
+void set_special_syntax_error_(
+        VirtualMachine *vm,
+        char const *name,
+        size_t signatures_count,
+        char const **signatures
+) {
     guard_is_not_null(vm);
+    guard_is_not_null(name);
+    guard_is_greater(signatures_count, 0);
+    guard_is_not_null(signatures);
 
-    auto const a = vm_allocator(vm);
-    auto const default_error = vm_get(vm, STATIC_CALL_ERROR_DEFAULT);
-    auto const error_type = object_as_list(default_error).first;
+    auto const error_type = SYMBOL_SYNTAX_ERROR;
 
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    size_t capacity = sizeof(message);
-    auto buf = message;
-    snprintf_checked(&buf, &capacity, "extra arguments must be a list (got %s)", object_type_str(extras_type));
-
-    auto field_index = 0;
-    auto const ok =
-            object_try_make_list_of(
-                    a, vm_error(vm),
-                    error_type,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL
-            )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_atom_field(
-                    vm,
-                    ERROR_FIELD_GOT,
-                    object_type_str(extras_type),
-                    object_list_nth_mutable(++field_index, *vm_error(vm))
-            )
-            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
-    if (ok) {
+    auto sb = (StringBuilder) {0};
+    errno_t error_code;
+    if (false == try_format_special_syntax_error_message(&sb, &error_code, name, signatures_count, signatures)) {
+        sb_free(&sb);
+        system_error(vm, error_code, error_type->as_symbol);
+        *vm_error(vm) = error_type;
         return;
     }
 
-    *vm_error(vm) = default_error;
-    report_out_of_memory(vm, error_type);
+    set_error(vm, error_type, sb.str);
+    sb_free(&sb);
 }
 
-void create_name_error(VirtualMachine *vm, char const *name) {
+static auto const SYMBOL_CALL_ERROR = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "CallError"};
+
+void set_call_args_count_error(VirtualMachine *vm, char const *name, size_t expected, size_t got) {
     guard_is_not_null(vm);
+    guard_is_not_null(name);
 
-    auto const a = vm_allocator(vm);
-    auto const default_error = vm_get(vm, STATIC_NAME_ERROR_DEFAULT);
-    auto const error_type = object_as_list(default_error).first;
+    auto const error_type = SYMBOL_CALL_ERROR;
 
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    auto capacity = sizeof(message);
-    auto buf = message;
-    snprintf_checked(&buf, &capacity, "name '%s' is not defined", name);
+    auto sb = (StringBuilder) {0};
+    errno_t error_code;
 
-    auto field_index = 0;
-    auto const ok =
-            object_try_make_list_of(
-                    a, vm_error(vm),
-                    error_type,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL
-            )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_string_field(vm, ERROR_FIELD_NAME, name, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
-    if (ok) {
+    if (false == sb_try_printf(&sb, &error_code, "%s takes %zu arguments (got %zu)", name, expected, got)) {
+        sb_free(&sb);
+        system_error(vm, error_code, error_type->as_symbol);
         return;
     }
 
-    *vm_error(vm) = default_error;
-    report_out_of_memory(vm, error_type);
+    set_error(vm, error_type, sb.str);
+    sb_free(&sb);
 }
 
-void create_zero_division_error(VirtualMachine *vm) {
-    create_error_with_message(vm, vm_get(vm, STATIC_ZERO_DIVISION_ERROR_DEFAULT), "division by zero");
+static auto const SYMBOL_NAME_ERROR = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "NameError"};
+
+void set_name_error(VirtualMachine *vm, char const *name) {
+    guard_is_not_null(vm);
+    guard_is_not_null(name);
+
+    auto const error_type = SYMBOL_NAME_ERROR;
+
+    auto sb = (StringBuilder) {0};
+    errno_t error_code;
+
+    if (false == sb_try_printf(&sb, &error_code, "name '%s' is not defined", name)) {
+        sb_free(&sb);
+        system_error(vm, error_code, error_type->as_symbol);
+        *vm_error(vm) = error_type;
+        return;
+    }
+
+    set_error(vm, error_type, sb.str);
+    sb_free(&sb);
 }
 
-void create_out_of_memory_error(VirtualMachine *vm) {
+static auto const SYMBOL_ZERO_DIVISION_ERROR = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "ZeroDivisionError"};
+
+void set_zero_division_error(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    auto const default_error = vm_get(vm, STATIC_OUT_OF_MEMORY_ERROR_DEFAULT);
-    auto const error_type = object_as_list(default_error).first;
+    set_error(vm, SYMBOL_ZERO_DIVISION_ERROR, "division by zero");
+}
 
-    *vm_error(vm) = default_error;
+void set_out_of_memory_error(VirtualMachine *vm) {
+    guard_is_not_null(vm);
 
-    object_print(error_type, stdout);
+    *vm_error(vm) = OBJECT_ERROR_OUT_OF_MEMORY;
+
+    object_print(OBJECT_ERROR_OUT_OF_MEMORY->as_dict.value, stdout);
     printf("\n");
     allocator_print_statistics(vm_allocator(vm), stderr);
-    traceback_print_from_stack(*vm_stack(vm), stderr);
+    traceback_print_from_stack(vm_stack(vm), stderr);
 }
 
-void create_stack_overflow_error(VirtualMachine *vm) {
-    create_error_with_message(vm, vm_get(vm, STATIC_STACK_OVERFLOW_ERROR_DEFAULT), "stack capacity exceeded");
+static auto const SYMBOL_STACK_OVERFLOW_ERROR = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "StackOverflowError"};
+
+void set_stack_overflow_error(VirtualMachine *vm) {
+    guard_is_not_null(vm);
+
+    set_error(vm, SYMBOL_STACK_OVERFLOW_ERROR, "stack capacity exceeded");
 }
 
-void create_special_too_few_args_error(VirtualMachine *vm, char const *name) {
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    auto capacity = sizeof(message);
-    auto buf = message;
-    snprintf_checked(&buf, &capacity, "too few arguments for %s", name);
+static auto const SYMBOL_BINDING_ERROR = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "BindingError"};
 
-    create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
-}
+static void set_binding_count_error(VirtualMachine *vm, size_t expected, bool is_variadic, size_t got) {
+    guard_is_not_null(vm);
 
-void create_special_too_many_args_error(VirtualMachine *vm, char const *name) {
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    auto capacity = sizeof(message);
-    auto buf = message;
-    snprintf_checked(&buf, &capacity, "too many arguments for %s", name);
+    auto const error_type = SYMBOL_BINDING_ERROR;
 
-    create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
-}
+    auto sb = (StringBuilder) {0};
+    errno_t error_code;
 
-void create_special_args_count_error(VirtualMachine *vm, char const *name, size_t expected) {
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    auto capacity = sizeof(message);
-    auto buf = message;
-    snprintf_checked(
-            &buf, &capacity,
-            "%s takes exactly %zu argument%s",
-            name, expected, (1 == expected % 10) ? "" : "s"
-    );
-
-    create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
-}
-
-void create_parameters_declaration_error(VirtualMachine *vm, BindingTargetError error) {
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    auto capacity = sizeof(message);
-    auto buf = message;
-
-    switch (error.type) {
-        case BINDING_INVALID_TARGET_TYPE: {
-            snprintf_checked(
-                    &buf, &capacity,
-                    "parameters declaration is invalid (got %s)",
-                    object_type_str(error.as_invalid_target.target_type)
-            );
-            break;
-        }
-        case BINDING_INVALID_VARIADIC_SYNTAX: {
-            snprintf_checked(&buf, &capacity, "invalid variadic parameters syntax");
-            break;
-        }
-    }
-
-    guard_is_not_equal(*message, '\0');
-
-    create_error_with_message(vm, vm_get(vm, STATIC_SPECIAL_ERROR_DEFAULT), message);
-}
-
-static void message_create_bind_count_error(
-        size_t capacity,
-        char *message,
-        size_t expected,
-        bool is_varargs,
-        size_t got
-) {
-    guard_is_not_null(message);
-    guard_is_greater(capacity, 0);
-
-    snprintf_checked(
-            &message, &capacity,
+    auto const message_ok = sb_try_printf(
+            &sb, &error_code,
             "cannot bind values (expected %s%zu, got %zu)",
-            (is_varargs ? "at least " : ""), expected, got
+            (is_variadic ? "at least " : ""), expected, got
     );
-}
-
-static void create_binding_count_error(VirtualMachine *vm, size_t expected, bool is_variadic, size_t got) {
-    guard_is_not_null(vm);
-
-    auto const a = vm_allocator(vm);
-    auto const default_error = vm_get(vm, STATIC_BINDING_ERROR_DEFAULT);
-    auto const error_type = object_as_list(default_error).first;
-
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    message_create_bind_count_error(sizeof(message), message, expected, is_variadic, got);
-
-    auto field_index = 0;
-    auto ok =
-            object_try_make_list_of(
-                    a, vm_error(vm),
-                    error_type,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL
-            )
-            && try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_int_field(
-                    vm,
-                    ERROR_FIELD_EXPECTED,
-                    (int64_t) expected,
-                    object_list_nth_mutable(++field_index, *vm_error(vm))
-            )
-            && try_create_atom_field(
-                    vm,
-                    "variadic",
-                    (is_variadic ? "true" : "false"),
-                    object_list_nth_mutable(++field_index, *vm_error(vm))
-            )
-            && try_create_int_field(vm, ERROR_FIELD_GOT, (int64_t) got, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
-    if (ok) {
+    if (false == message_ok) {
+        sb_free(&sb);
+        system_error(vm, error_code, error_type->as_symbol);
+        *vm_error(vm) = error_type;
         return;
     }
 
-    *vm_error(vm) = default_error;
-    report_out_of_memory(vm, error_type);
+    set_error(vm, error_type, sb.str);
+    sb_free(&sb);
 }
 
-static void create_binding_unpack_error(VirtualMachine *vm, Object_Type value_type) {
+static void set_binding_target_type_error(VirtualMachine *vm, Object_Type target_type) {
     guard_is_not_null(vm);
 
-    auto const a = vm_allocator(vm);
-    auto const default_error = vm_get(vm, STATIC_BINDING_ERROR_DEFAULT);
-    auto const error_type = object_as_list(default_error).first;
+    auto const error_type = SYMBOL_BINDING_ERROR;
 
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    auto capacity = sizeof(message);
-    auto buf = message;
-    snprintf_checked(&buf, &capacity, "cannot unpack an object of type %s", object_type_str(value_type));
+    auto sb = (StringBuilder) {0};
+    errno_t error_code;
 
-    auto field_index = 0;
-    auto ok =
-            object_try_make_list_of(
-                    a, vm_error(vm),
-                    error_type,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL
-            )
-            &&
-            try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_atom_field(
-                    vm,
-                    ERROR_FIELD_TYPE,
-                    object_type_str(value_type),
-                    object_list_nth_mutable(++field_index, *vm_error(vm))
-            )
-            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
-    if (ok) {
+    if (false == sb_try_printf(&sb, &error_code, "cannot bind to %s", object_type_str(target_type))) {
+        sb_free(&sb);
+        system_error(vm, error_code, error_type->as_symbol);
+        *vm_error(vm) = error_type;
         return;
     }
 
-    *vm_error(vm) = default_error;
-    report_out_of_memory(vm, error_type);
+    set_error(vm, error_type, sb.str);
+    sb_free(&sb);
 }
 
-static void create_binding_target_error(VirtualMachine *vm, Object_Type target_type) {
-    guard_is_not_null(vm);
-
-    auto const a = vm_allocator(vm);
-    auto const default_error = vm_get(vm, STATIC_BINDING_ERROR_DEFAULT);
-    auto const error_type = object_as_list(default_error).first;
-
-    char message[MESSAGE_MIN_CAPACITY] = {0};
-    auto capacity = sizeof(message);
-    auto buf = message;
-    snprintf_checked(&buf, &capacity, "cannot bind to %s", object_type_str(target_type));
-
-    auto field_index = 0;
-    auto ok =
-            object_try_make_list_of(
-                    a, vm_error(vm),
-                    error_type,
-                    OBJECT_NIL,
-                    OBJECT_NIL,
-                    OBJECT_NIL
-            )
-            &&
-            try_create_string_field(vm, ERROR_FIELD_MESSAGE, message, object_list_nth_mutable(++field_index, *vm_error(vm)))
-            && try_create_string_field(
-                    vm,
-                    ERROR_FIELD_TYPE,
-                    object_type_str(target_type),
-                    object_list_nth_mutable(++field_index, *vm_error(vm))
-            )
-            && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
-    if (ok) {
-        return;
-    }
-
-    *vm_error(vm) = default_error;
-    report_out_of_memory(vm, error_type);
-}
-
-static void create_binding_variadic_syntax_error(VirtualMachine *vm) {
-    create_error_with_message(
-            vm, vm_get(vm, STATIC_BINDING_ERROR_DEFAULT),
-            "invalid variadic binding syntax"
-    );
-}
-
-void create_binding_error(VirtualMachine *vm, BindingError error) {
+void set_binding_error(VirtualMachine *vm, BindingError error) {
     guard_is_not_null(vm);
 
     switch (error.type) {
@@ -767,11 +445,11 @@ void create_binding_error(VirtualMachine *vm, BindingError error) {
             auto const target_error = error.as_target_error;
             switch (target_error.type) {
                 case BINDING_INVALID_TARGET_TYPE: {
-                    create_binding_target_error(vm, target_error.as_invalid_target.target_type);
+                    set_binding_target_type_error(vm, target_error.as_invalid_target.target_type);
                     return;
                 }
                 case BINDING_INVALID_VARIADIC_SYNTAX: {
-                    create_binding_variadic_syntax_error(vm);
+                    set_variadic_syntax_error(vm);
                     return;
                 }
             }
@@ -782,7 +460,7 @@ void create_binding_error(VirtualMachine *vm, BindingError error) {
             auto const value_error = error.as_value_error;
             switch (value_error.type) {
                 case BINDING_VALUES_COUNT_MISMATCH: {
-                    create_binding_count_error(
+                    set_binding_count_error(
                             vm,
                             value_error.as_count_mismatch.expected,
                             value_error.as_count_mismatch.is_variadic,
@@ -791,7 +469,7 @@ void create_binding_error(VirtualMachine *vm, BindingError error) {
                     return;
                 }
                 case BINDING_CANNOT_UNPACK_VALUE: {
-                    create_binding_unpack_error(vm, value_error.as_cannot_unpack.value_type);
+                    set_type_error(vm, error.as_value_error.as_cannot_unpack.value_type, TYPE_LIST);
                     return;
                 }
             }
@@ -799,7 +477,7 @@ void create_binding_error(VirtualMachine *vm, BindingError error) {
             break;
         }
         case BINDING_ALLOCATION_FAILED: {
-            create_out_of_memory_error(vm);
+            set_out_of_memory_error(vm);
             return;
         }
     }
@@ -807,39 +485,24 @@ void create_binding_error(VirtualMachine *vm, BindingError error) {
     guard_unreachable();
 }
 
-void create_key_error(VirtualMachine *vm, Object *key) {
+static auto const SYMBOL_KEY_ERROR = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "KeyError"};
+
+void set_key_error(VirtualMachine *vm, Object *key) {
     guard_is_not_null(vm);
     guard_is_not_null(key);
 
-    auto const a = vm_allocator(vm);
-    auto const default_error = vm_get(vm, STATIC_KEY_ERROR_DEFAULT);
-    auto const error_type = object_as_list(default_error).first;
+    auto const error_type = SYMBOL_KEY_ERROR;
 
     auto sb = (StringBuilder) {0};
     errno_t error_code;
-    auto ok =
-            sb_try_printf_realloc(&sb, &error_code, "key does not exist: ")
-            && object_try_repr(key, &sb, &error_code);
 
-    auto field_index = 0;
-    ok = ok
-         && object_try_make_list_of(
-                 a, vm_error(vm),
-                 error_type,
-                 OBJECT_NIL,
-                 OBJECT_NIL,
-                 OBJECT_NIL
-         )
-         && try_create_string_field(vm, ERROR_FIELD_MESSAGE, sb.str, object_list_nth_mutable(++field_index, *vm_error(vm)))
-         && try_create_object_field(vm, "key", key, object_list_nth_mutable(++field_index, *vm_error(vm)))
-         && try_create_traceback(vm, object_list_nth_mutable(++field_index, *vm_error(vm)));
-    if (ok) {
+    if (false == object_try_repr(key, &sb, &error_code)) {
+        sb_free(&sb);
+        system_error(vm, error_code, error_type->as_symbol);
+        *vm_error(vm) = error_type;
         return;
     }
 
-    guard_is_equal(error_code, ENOMEM);
-
-    *vm_error(vm) = default_error;
-    report_out_of_system_memory(vm, error_type);
+    set_error(vm, error_type, sb.str);
+    sb_free(&sb);
 }
-

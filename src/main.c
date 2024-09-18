@@ -30,24 +30,21 @@ static void print_any_as_error(Object *error) {
 }
 
 static void print_error(Object *error) {
-    char const *error_type;
-    if (false == object_list_is_tagged(error, &error_type)) {
-        print_any_as_error(error);
+    guard_is_not_null(error);
+
+    Object *type, *message, *traceback;
+    if (error_try_unpack(error, &type, &message, &traceback)) {
+        printf("%s: %s\n", type->as_symbol, message->as_string);
+        traceback_print(traceback, stdout);
         return;
     }
 
-    printf("%s: ", error_type);
-
-    Object *message = nullptr;
-    if (object_list_try_get_tagged_field(error, ERROR_FIELD_MESSAGE, &message)) {
-        object_print(message, stdout);
+    if (error_try_unpack_type(error, &type)) {
+        printf("%s\n", type->as_symbol);
+        return;
     }
-    printf("\n");
 
-    Object *traceback;
-    if (object_list_try_get_tagged_field(error, ERROR_FIELD_TRACEBACK, &traceback)) {
-        traceback_print(traceback, stdout);
-    }
+    print_any_as_error(error);
 }
 
 static bool try_eval_input(VirtualMachine *vm) {

@@ -12,14 +12,14 @@ struct Stack;
 struct Parser_ExpressionsStack;
 
 typedef struct {
-    struct Stack const *stack;
-    struct Parser_ExpressionsStack const *parser_stack;
-    Object *const *parser_expr;
-    Object *const *globals;
-    Object *const *value;
-    Object *const *error;
-    Object *const *exprs;
-    Objects const *constants;
+    struct Stack *stack;
+    struct Parser_ExpressionsStack *parser_stack;
+    Object **parser_expr;
+    Object **globals;
+    Object **value;
+    Object **error;
+    Object **exprs;
+    Objects *constants;
 } ObjectAllocator_Roots;
 
 typedef struct ObjectAllocator ObjectAllocator;
@@ -59,4 +59,4 @@ void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots);
 [[nodiscard]]
 bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj);
 
-void allocator_print_statistics(ObjectAllocator const *a, FILE *file);
+void allocator_print_statistics(ObjectAllocator *a, FILE *file);

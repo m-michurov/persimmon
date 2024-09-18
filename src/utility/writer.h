@@ -44,7 +44,7 @@ Writer writer_make_from_sb_(StringBuilder *sb);
             break;                                          \
         }                                                   \
         case WRITER_SB: {                                   \
-            _ok = sb_try_printf_realloc(                    \
+            _ok = sb_try_printf(                            \
                 _w.as_sb,                                   \
                 _error_code,                                \
                 (Format),                                   \

@@ -25,8 +25,8 @@ bool stack_try_init(Stack *s, Stack_Config config, errno_t *error_code) {
     }
 
     *s = (Stack) {
-        ._data = data,
-        ._end = data + config.size_bytes
+            ._data = data,
+            ._end = data + config.size_bytes
     };
     return true;
 }
@@ -38,8 +38,10 @@ void stack_free(Stack *s) {
     *s = (Stack) {0};
 }
 
-bool stack_is_empty(Stack s) {
-    return nullptr == s._top;
+bool stack_is_empty(Stack *s) {
+    guard_is_not_null(s);
+
+    return nullptr == s->_top;
 }
 
 Stack_Frame frame_make(
@@ -71,10 +73,11 @@ Objects frame_locals(Stack_Frame const *frame) {
     };
 }
 
-Stack_Frame *stack_top(Stack s) {
-    guard_is_not_null(s._top);
+Stack_Frame *stack_top(Stack *s) {
+    guard_is_not_null(s);
+    guard_is_not_null(s->_top);
 
-    return &s._top->frame;
+    return &s->_top->frame;
 }
 
 void stack_pop(Stack *s) {
@@ -84,9 +87,13 @@ void stack_pop(Stack *s) {
     s->_top = s->_top->prev;
 }
 
-bool STACK__try_get_prev_frame(Stack s, Stack_Frame *frame, Stack_Frame **prev) {
+bool STACK__try_get_prev_frame(Stack *s, Stack_Frame *frame, Stack_Frame **prev) {
+    guard_is_not_null(s);
+    guard_is_not_null(frame);
+    guard_is_not_null(prev);
+
     auto const wrapped_frame = container_of(frame, Stack_WrappedFrame, frame);
-    guard_is_in_range(wrapped_frame, s._data, s._end - sizeof(Stack_WrappedFrame));
+    guard_is_in_range(wrapped_frame, s->_data, s->_end - sizeof(Stack_WrappedFrame));
 
     if (nullptr == wrapped_frame->prev) {
         return false;
@@ -119,7 +126,7 @@ bool stack_try_push_frame(Stack *s, Stack_Frame frame) {
 
 void stack_swap_top(Stack *s, Stack_Frame frame) {
     guard_is_not_null(s);
-    guard_is_false(stack_is_empty(*s));
+    guard_is_false(stack_is_empty(s));
 
     s->_top->locals_end = s->_top->locals;
     s->_top->frame = frame;
@@ -127,11 +134,11 @@ void stack_swap_top(Stack *s, Stack_Frame frame) {
 
 Stack_Locals stack_locals(Stack *s) {
     guard_is_not_null(s);
-    guard_is_false(stack_is_empty(*s));
+    guard_is_false(stack_is_empty(s));
 
     return (Stack_Locals) {
-        ._end = s->_end,
-        ._top = &s->_top->locals_end
+            ._end = s->_end,
+            ._top = &s->_top->locals_end
     };
 }
 

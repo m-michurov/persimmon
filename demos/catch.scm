@@ -2,26 +2,16 @@
 (import "demos/let.scm")
 (import "demos/error.scm")
 
-(defn error-get (name fields)
-  (if fields
-    (let ((binding & rest) fields
-           (cur-name value & _) binding)
-      (if (eq? name cur-name)
-        value
-        (error-get name rest)))))
-
 (defn print-traceback (err)
-  (if (list? err)
-    (let ((_ & fields) err)
-      (print "Traceback:")
-      (apply print (error-get 'traceback fields)))))
+  (print "Traceback:")
+  (apply print err.traceback))
 
 (defmacro run-catching (& code)
   (list 'let (list '(val err) (list 'catch (concat '(do) code)))
         '(if err
-           (if (list? err)
-             (let ((type & fields) err)
-               (print 'ERROR type '- (error-get 'message fields))
+           (if (dict? err)
+             (do
+               (print 'ERROR err.type '- err.message)
                (print-traceback err))
              (print 'ERROR err))
            (print 'VALUE val))))
@@ -29,7 +19,7 @@
 (defn run-ignoring (error-type default runnable)
   (let ((value err) (catch (runnable)))
     (if err
-      (if (and (list? err) (eq? error-type (first err)))
+      (if (and (dict? err) (eq? error-type err.type))
         default
         (throw err))
       value)))
@@ -53,6 +43,7 @@
 (run-catching (throw 1))
 (run-catching (throw (error 'TypeError '(message "unsupported type") '(expected integer) '(got nil))))
 (run-catching (throw (error 1)))
+(run-catching (throw (error 1 2 )))
 (run-catching (throw (error)))
 
 (run-catching (run-ignoring 'TypeError -1 (fn () (/ 1 0))))

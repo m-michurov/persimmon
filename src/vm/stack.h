@@ -52,9 +52,9 @@ bool stack_try_init(Stack *s, Stack_Config config, errno_t *error_code);
 
 void stack_free(Stack *s);
 
-bool stack_is_empty(Stack s);
+bool stack_is_empty(Stack *s);
 
-Stack_Frame *stack_top(Stack s);
+Stack_Frame *stack_top(Stack *s);
 
 void stack_pop(Stack *s);
 
@@ -76,7 +76,7 @@ Stack_Locals stack_locals(Stack *s);
 bool stack_try_create_local(Stack_Locals locals, Object ***obj);
 
 [[nodiscard]]
-bool STACK__try_get_prev_frame(Stack s, Stack_Frame *frame, Stack_Frame **prev);
+bool STACK__try_get_prev_frame(Stack *s, Stack_Frame *frame, Stack_Frame **prev);
 
 #define stack_for_reversed(It, Stack_)              \
 for (                                               \

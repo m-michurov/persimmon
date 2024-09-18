@@ -3,8 +3,13 @@
 #include "virtual_machine.h"
 #include "bindings.h"
 
-#define ERROR_FIELD_MESSAGE   "message"
-#define ERROR_FIELD_TRACEBACK "traceback"
+#define ERROR_KEY_NAME_TYPE      "type"
+#define ERROR_KEY_NAME_MESSAGE   "message"
+#define ERROR_KEY_NAME_TRACEBACK "traceback"
+
+bool error_try_unpack(Object *error, Object **type, Object **message, Object **traceback);
+
+bool error_try_unpack_type(Object *error, Object **type);
 
 #define ERRORS__error(Fn, ...)  \
 do {                            \
@@ -12,94 +17,76 @@ do {                            \
     return false;               \
 } while (false)
 
-void create_os_error(VirtualMachine *vm, errno_t error_code);
+void set_os_error(VirtualMachine *vm, errno_t error_code);
 
-#define os_error(VM, Errno) ERRORS__error(create_os_error, (VM), (Errno))
+#define os_error(VM, Errno) ERRORS__error(set_os_error, (VM), (Errno))
 
-void create_type_error_(
+void set_type_error_(
         VirtualMachine *vm,
         Object_Type got,
         size_t expected_count,
         Object_Type *expected
 );
 
-#define create_type_error(VM, Got, ...)                          \
-create_type_error_(                                                     \
-    (VM), (Got),                                               \
+#define set_type_error(VM, Got, ...)                                 \
+set_type_error_(                                                        \
+    (VM), (Got),                                                        \
     (sizeof(((Object_Type[]) {__VA_ARGS__})) / sizeof(Object_Type)),    \
     ((Object_Type[]) {__VA_ARGS__})                                     \
 )
 
-#define type_error(VM, Got, ...) ERRORS__error(create_type_error, (VM), (Got), __VA_ARGS__)
+#define type_error(VM, Got, ...) ERRORS__error(set_type_error, (VM), (Got), __VA_ARGS__)
 
-void create_type_error_unexpected(VirtualMachine *vm, Object_Type got);
-
-#define type_error_unexpected(VM, Got) ERRORS__error(create_type_error_unexpected, (VM), (Got))
-
-void create_syntax_error(VirtualMachine *vm, SyntaxError error, char const *file, char const *text);
+void set_syntax_error(VirtualMachine *vm, SyntaxError error, char const *file, char const *text);
 
 #define syntax_error(VM, Error, File, Text) \
-    ERRORS__error(create_syntax_error, (VM), (Error), (File), (Text))
+    ERRORS__error(set_syntax_error, (VM), (Error), (File), (Text))
 
-void create_call_args_count_error(VirtualMachine *vm, char const *name, size_t expected, bool is_variadic, size_t got);
+void set_variadic_syntax_error(VirtualMachine *vm);
 
-#define call_args_count_error(VM, Name, Expected, IsVariadic, Got) \
-    ERRORS__error(create_call_args_count_error, (VM), (Name), (Expected), (IsVariadic), (Got))
+#define variadic_syntax_error(VM) ERRORS__error(set_variadic_syntax_error, (VM))
 
-void create_call_args_parity_error(VirtualMachine *vm, char const *name, bool expected_even);
+void set_special_syntax_error_(
+        VirtualMachine *vm,
+        char const *name,
+        size_t signatures_count,
+        char const **signatures
+);
 
-#define call_args_parity_error(VM, Name, ExpectedEven) \
-    ERRORS__error(create_call_args_parity_error, (VM), (Name), (ExpectedEven))
+#define set_special_syntax_error(VM, SpecialName, _0, ...)                  \
+set_special_syntax_error_(                                                  \
+    (VM), (SpecialName),                                                    \
+    (sizeof(((char const *[]) {_0, __VA_ARGS__})) / sizeof(char const *)),  \
+    ((char const *[]) {_0, __VA_ARGS__})                                    \
+)
 
-void create_call_ampersand_before_error(VirtualMachine *vm);
+#define special_syntax_error(VM, SpecialName, ...) ERRORS__error(set_special_syntax_error, (VM), (SpecialName), __VA_ARGS__)
 
-#define call_ampersand_before_error(VM) ERRORS__error(create_call_ampersand_before_error, (VM))
+void set_call_args_count_error(VirtualMachine *vm, char const *name, size_t expected, size_t got);
 
-void create_call_ampersand_after_error(VirtualMachine *vm);
+#define call_args_count_error(VM, Name, Expected, Got) \
+    ERRORS__error(set_call_args_count_error, (VM), (Name), (Expected), (Got))
 
-#define call_ampersand_after_error(VM) ERRORS__error(create_call_ampersand_after_error, (VM))
+void set_name_error(VirtualMachine *vm, char const *name);
 
-void create_call_extra_args_type_error(VirtualMachine *vm, Object_Type extras_type);
+#define name_error(VM, Name) ERRORS__error(set_name_error, (VM), (Name))
 
-#define call_extra_args_type_error(VM, ExtrasType) ERRORS__error(create_call_extra_args_type_error, (VM), (ExtrasType))
+void set_zero_division_error(VirtualMachine *vm);
 
-void create_name_error(VirtualMachine *vm, char const *name);
+#define zero_division_error(VM) ERRORS__error(set_zero_division_error, (VM))
 
-#define name_error(VM, Name) ERRORS__error(create_name_error, (VM), (Name))
+void set_out_of_memory_error(VirtualMachine *vm);
 
-void create_zero_division_error(VirtualMachine *vm);
+#define out_of_memory_error(VM) ERRORS__error(set_out_of_memory_error, (VM))
 
-#define zero_division_error(VM) ERRORS__error(create_zero_division_error, (VM))
+void set_stack_overflow_error(VirtualMachine *vm);
 
-void create_out_of_memory_error(VirtualMachine *vm);
+#define stack_overflow_error(VM) ERRORS__error(set_stack_overflow_error, (VM))
 
-#define out_of_memory_error(VM) ERRORS__error(create_out_of_memory_error, (VM))
+void set_binding_error(VirtualMachine *vm, BindingError error);
 
-void create_stack_overflow_error(VirtualMachine *vm);
+#define binding_error(VM, Error) ERRORS__error(set_binding_error, (VM), (Error))
 
-#define stack_overflow_error(VM) ERRORS__error(create_stack_overflow_error, (VM))
+void set_key_error(VirtualMachine *vm, Object *key);
 
-void create_special_too_few_args_error(VirtualMachine *vm, char const *name);
-
-#define special_too_few_args_error(VM, Name) ERRORS__error(create_special_too_few_args_error, (VM), (Name))
-
-void create_special_too_many_args_error(VirtualMachine *vm, char const *name);
-
-#define special_too_many_args_error(VM, Name) ERRORS__error(create_special_too_many_args_error, (VM), (Name))
-
-void create_special_args_count_error(VirtualMachine *vm, char const *name, size_t expected);
-
-#define special_args_count_error(VM, Name, Expected) \
-    ERRORS__error(create_special_args_count_error, (VM), (Name), (Expected))
-
-void create_parameters_declaration_error(VirtualMachine *vm, BindingTargetError error);
-
-#define parameters_declaration_error(VM, Error) ERRORS__error(create_parameters_declaration_error, (VM), (Error))
-
-void create_binding_error(VirtualMachine *vm, BindingError error);
-
-#define binding_error(VM, Error) ERRORS__error(create_binding_error, (VM), (Error))
-
-void create_key_error(VirtualMachine *vm, Object *key);
-
-#define key_error(VM, Key) ERRORS__error(create_key_error, (VM), (Key))
+#define key_error(VM, Key) ERRORS__error(set_key_error, (VM), (Key))

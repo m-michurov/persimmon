@@ -18,9 +18,7 @@ bool binding_is_valid_target(Object *target, BindingTargetError *error) { // NOL
                 auto const it = object_list_shift(&target);
 
                 if (is_varargs && (TYPE_SYMBOL != it->type || OBJECT_NIL != target)) {
-                    *error = (BindingTargetError) {
-                            .type = BINDING_INVALID_VARIADIC_SYNTAX
-                    };
+                    *error = (BindingTargetError) {.type = BINDING_INVALID_VARIADIC_SYNTAX};
                     return false;
                 }
 
@@ -30,9 +28,18 @@ bool binding_is_valid_target(Object *target, BindingTargetError *error) { // NOL
                 }
 
                 if (binding_is_valid_target(it, error)) {
+                    if (is_varargs) {
+                        return true;
+                    }
+
                     continue;
                 }
 
+                return false;
+            }
+
+            if (is_varargs) {
+                *error = (BindingTargetError) {.type = BINDING_INVALID_VARIADIC_SYNTAX};
                 return false;
             }
 

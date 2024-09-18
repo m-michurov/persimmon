@@ -130,7 +130,7 @@ static bool try_mark_(ObjectAllocator *a, Objects *gray) {
 
     slice_clear(gray);
 
-    stack_for_reversed(frame, *a->_roots.stack) {
+    stack_for_reversed(frame, a->_roots.stack) {
         auto const ok =
                 try_mark_gray_if_white(gray, frame->expr)
                 && try_mark_gray_if_white(gray, frame->env)
@@ -313,7 +313,7 @@ bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {
     return true;
 }
 
-void allocator_print_statistics(ObjectAllocator const *a, FILE *file) {
+void allocator_print_statistics(ObjectAllocator *a, FILE *file) {
     size_t objects = 0;
     for (auto it = a->_objects; nullptr != it; it = it->next) {
         objects++;
