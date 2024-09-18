@@ -119,33 +119,33 @@ Examples:
 ## Error handling
 
 Persimmon uses exceptions. 
-Built-in special forms and primitives throw tagged lists as errors.
+Built-in special forms and primitives use dicts with keys `'type`, `'message` and `'traceback`.
 Such errors typically look like:
 
 ```scheme
-(error-type
-  (message "...")
-  (field1 value1)
-  ...
-  (traceback ...))
+{
+  type ErrorType,
+  message "message",
+  traceback ...
+}
 ```
 
 This form is recognized by the interpreter and is reported in a human-readable format.
 For example, if the following error is not handled (formatted for readability):
 
 ```scheme
-(KeyError 
-  (message "key does not exist: 2") 
-  (key 2) 
-  (traceback  ((get '2 d) 
-               (catch (get '2 d)))))
+{
+  message "5", 
+  traceback ((get '5 (dict 1 2 3 4))), 
+  type KeyError
+}
 ```
 
 it is reported as:
 ```
-KeyError: key does not exist: 2
+KeyError: 5
 Traceback (most recent call last):
-    (get '2 d)
+    (get '5 (dict 1 2 3 4))
 Some calls may be missing due to tail call optimization.
 ```
 
@@ -160,8 +160,10 @@ to non-`nil` value, `nil` otherwise.
  * `(do & exprs)` - evaluate arguments in order, the resulting value is
 the value of the last expression.
  * `(define target value)` - bind `target` to `value` in the current scope.
- * `(fn args & body)` - create a closure, `args` must be a valid binding target.
- * `(macro args & body)` - create a macro, `args` must be a list of `symbol`s.
+ * `(fn args & body)` - create a closure, `args` must be a list and a valid binding target.
+Structured binding syntax can be used to unpack arguments and/or capture excess arguments.
+ * `(macro args & body)` - create a macro, `args` must be a list and a valid binding target. 
+Structured binding syntax can be used to unpack expressions and/or capture excess expressions.
  * `(import path)` - read and execute file `path` in the current scope, `path` must be
 a string; top-level expressions are executed in an implicit `do`.
  * `'expr` or `(quote expr)` - evaluates to `expr`.
