@@ -48,23 +48,23 @@ static void print_error(Object *error) {
 }
 
 static bool try_eval_input(VirtualMachine *vm) {
-    if (false == object_reader_try_prompt(vm_reader(vm), named_file_stdin, vm_exprs(vm))) {
-        print_error(*vm_error(vm));
+    if (false == object_reader_try_prompt(&vm->reader, named_file_stdin, &vm->exprs)) {
+        print_error(vm->error);
         return true;
     }
 
-    if (OBJECT_NIL == *vm_exprs(vm)) {
+    if (OBJECT_NIL == vm->exprs) {
         return false;
     }
 
-    object_list_for(it, *vm_exprs(vm)) {
-        if (try_eval(vm, *vm_globals(vm), it)) {
-            object_repr(*vm_value(vm), stdout);
+    object_list_for(it, vm->exprs) {
+        if (try_eval(vm, vm->globals, it)) {
+            object_repr(vm->value, stdout);
             printf("\n");
             continue;
         }
 
-        print_error(*vm_error(vm));
+        print_error(vm->error);
         break;
     }
 
@@ -73,7 +73,7 @@ static bool try_eval_input(VirtualMachine *vm) {
 
 static void run_repl(VirtualMachine *vm) {
     printf("env: ");
-    object_repr(*vm_globals(vm), stdout);
+    object_repr(vm->globals, stdout);
     printf("\n");
 
     auto stream_is_open = true;
@@ -83,21 +83,21 @@ static void run_repl(VirtualMachine *vm) {
 }
 
 static bool try_eval_file(VirtualMachine *vm, NamedFile file) {
-    if (false == object_reader_try_read_all(vm_reader(vm), file, vm_exprs(vm))) {
-        print_error(*vm_error(vm));
+    if (false == object_reader_try_read_all(&vm->reader, file, &vm->exprs)) {
+        print_error(vm->error);
         return true;
     }
 
-    if (OBJECT_NIL == *vm_exprs(vm)) {
+    if (OBJECT_NIL == vm->exprs) {
         return true;
     }
 
-    object_list_for(it, *vm_exprs(vm)) {
-        if (try_eval(vm, *vm_globals(vm), it)) {
+    object_list_for(it, vm->exprs) {
+        if (try_eval(vm, vm->globals, it)) {
             continue;
         }
 
-        print_error(*vm_error(vm));
+        print_error(vm->error);
         return false;
     }
 
@@ -107,7 +107,8 @@ static bool try_eval_file(VirtualMachine *vm, NamedFile file) {
 int main(int argc, char **argv) {
     try_shift_args(&argc, &argv, nullptr);
 
-    auto vm = vm_new((VirtualMachine_Config) {
+    VirtualMachine vm;
+    auto const config = (VirtualMachine_Config) {
             .allocator_config = {
                     .hard_limit = 1024 * 1024,
                     .soft_limit_initial = 1024,
@@ -119,17 +120,15 @@ int main(int argc, char **argv) {
                     }
             },
             .reader_config = {
-                    .scanner_config = {
-                            .max_token_length = 2 * 1024
-                    },
-                    .parser_config = {
-                            .max_nesting_depth = 50
-                    }
+                    .scanner_config = {.max_token_length = 2 * 1024},
+                    .parser_config = {.max_nesting_depth = 50}
             },
-            .stack_config = {
-                    .size_bytes = 2048
-            }
-    });
+            .stack_config = {.size_bytes = 2048}
+    };
+    if (false == vm_try_init(&vm, config)) {
+        printf("ERROR: Failed to initialize VM\n");
+        return EXIT_FAILURE;
+    }
 
     char *file_name;
     bool ok = true;
@@ -141,10 +140,10 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        ok = try_eval_file(vm, file);
+        ok = try_eval_file(&vm, file);
         named_file_close(&file);
     } else {
-        run_repl(vm);
+        run_repl(&vm);
     }
 
     vm_free(&vm);

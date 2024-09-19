@@ -59,8 +59,8 @@ static void out_of_memory(VirtualMachine *vm, char const *error_type) {
             error_type
     );
 
-    allocator_print_statistics(vm_allocator(vm), stderr);
-    traceback_print_from_stack(vm_stack(vm), stderr);
+    allocator_print_statistics(&vm->allocator, stderr);
+    traceback_print_from_stack(&vm->stack, stderr);
 }
 
 static void system_error(VirtualMachine *vm, errno_t error_code, char const *error_type) {
@@ -73,8 +73,8 @@ static void system_error(VirtualMachine *vm, errno_t error_code, char const *err
             error_type, strerror(error_code)
     );
 
-    allocator_print_statistics(vm_allocator(vm), stderr);
-    traceback_print_from_stack(vm_stack(vm), stderr);
+    allocator_print_statistics(&vm->allocator, stderr);
+    traceback_print_from_stack(&vm->stack, stderr);
 }
 
 static bool try_make_children_roots(ObjectAllocator *a, Object **base_root, Object ***_1, Object ***_2) {
@@ -99,24 +99,24 @@ static void set_error(VirtualMachine *vm, Object *error_type, char const *messag
     guard_is_not_null(message);
     guard_is_equal(error_type->type, TYPE_SYMBOL);
 
-    auto const a = vm_allocator(vm);
+    auto const a = &vm->allocator;
 
     Object **tmp_error, **tmp_value;
     auto const fields_ok =
-            try_make_children_roots(a, vm_error(vm), &tmp_error, &tmp_value)
+            try_make_children_roots(a, &vm->error, &tmp_error, &tmp_value)
             && object_dict_try_put(a, *tmp_error, ERROR_KEY_TYPE, error_type, tmp_error)
             && object_try_make_string(a, message, tmp_value)
             && object_dict_try_put(a, *tmp_error, ERROR_KEY_MESSAGE, *tmp_value, tmp_error)
-            && traceback_try_get(a, vm_stack(vm), tmp_value)
+            && traceback_try_get(a, &vm->stack, tmp_value)
             && object_dict_try_put(a, *tmp_error, ERROR_KEY_TRACEBACK, *tmp_value, tmp_error);
 
     if (false == fields_ok) {
         out_of_memory(vm, error_type->as_symbol);
-        *vm_error(vm) = OBJECT_ERROR_OUT_OF_MEMORY;
+        vm->error = OBJECT_ERROR_OUT_OF_MEMORY;
         return;
     }
 
-    *vm_error(vm) = *tmp_error;
+    vm->error = *tmp_error;
 }
 
 static auto const SYMBOL_OS_ERROR = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "OSError"};
@@ -182,7 +182,7 @@ void set_type_error_(
     if (false == try_format_type_expected_types_message(&sb, &error_code, got, expected_count, expected)) {
         sb_free(&sb);
         system_error(vm, error_code, error_type->as_symbol);
-        *vm_error(vm) = error_type;
+        vm->error = error_type;
         return;
     }
 
@@ -252,7 +252,7 @@ void set_syntax_error(
     if (false == message_ok) {
         sb_free(&sb);
         system_error(vm, error_code, error_type->as_symbol);
-        *vm_error(vm) = error_type;
+        vm->error = error_type;
         return;
     }
 
@@ -314,7 +314,7 @@ void set_special_syntax_error_(
     if (false == try_format_special_syntax_error_message(&sb, &error_code, name, signatures_count, signatures)) {
         sb_free(&sb);
         system_error(vm, error_code, error_type->as_symbol);
-        *vm_error(vm) = error_type;
+        vm->error = error_type;
         return;
     }
 
@@ -357,7 +357,7 @@ void set_name_error(VirtualMachine *vm, char const *name) {
     if (false == sb_try_printf(&sb, &error_code, "name '%s' is not defined", name)) {
         sb_free(&sb);
         system_error(vm, error_code, error_type->as_symbol);
-        *vm_error(vm) = error_type;
+        vm->error = error_type;
         return;
     }
 
@@ -376,12 +376,12 @@ void set_zero_division_error(VirtualMachine *vm) {
 void set_out_of_memory_error(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    *vm_error(vm) = OBJECT_ERROR_OUT_OF_MEMORY;
+    vm->error = OBJECT_ERROR_OUT_OF_MEMORY;
 
     object_print(OBJECT_ERROR_OUT_OF_MEMORY->as_dict.value, stdout);
     printf("\n");
-    allocator_print_statistics(vm_allocator(vm), stderr);
-    traceback_print_from_stack(vm_stack(vm), stderr);
+    allocator_print_statistics(&vm->allocator, stderr);
+    traceback_print_from_stack(&vm->stack, stderr);
 }
 
 static auto const SYMBOL_STACK_OVERFLOW_ERROR = &(Object) {.type = TYPE_SYMBOL, .as_symbol = "StackOverflowError"};
@@ -410,7 +410,7 @@ static void set_binding_count_error(VirtualMachine *vm, size_t expected, bool is
     if (false == message_ok) {
         sb_free(&sb);
         system_error(vm, error_code, error_type->as_symbol);
-        *vm_error(vm) = error_type;
+        vm->error = error_type;
         return;
     }
 
@@ -429,7 +429,7 @@ static void set_binding_target_type_error(VirtualMachine *vm, Object_Type target
     if (false == sb_try_printf(&sb, &error_code, "cannot bind to %s", object_type_str(target_type))) {
         sb_free(&sb);
         system_error(vm, error_code, error_type->as_symbol);
-        *vm_error(vm) = error_type;
+        vm->error = error_type;
         return;
     }
 
@@ -499,7 +499,7 @@ void set_key_error(VirtualMachine *vm, Object *key) {
     if (false == object_try_repr(key, &sb, &error_code)) {
         sb_free(&sb);
         system_error(vm, error_code, error_type->as_symbol);
-        *vm_error(vm) = error_type;
+        vm->error = error_type;
         return;
     }
 

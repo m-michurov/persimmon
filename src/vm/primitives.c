@@ -42,7 +42,7 @@ static bool compare(VirtualMachine *vm, Object *args, Object **value) {
     }
 
     auto const compare_result = object_compare(lhs, rhs);
-    if (object_try_make_int(vm_allocator(vm), compare_result, value)) {
+    if (object_try_make_int(&vm->allocator, compare_result, value)) {
         return true;
     }
 
@@ -56,7 +56,7 @@ static bool str(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(value);
 
     if (OBJECT_NIL == args) {
-        if (false == object_try_make_string(vm_allocator(vm), "", value)) {
+        if (false == object_try_make_string(&vm->allocator, "", value)) {
             out_of_memory_error(vm);
         }
 
@@ -72,7 +72,7 @@ static bool str(VirtualMachine *vm, Object *args, Object **value) {
         }
     }
 
-    if (false == object_try_make_string(vm_allocator(vm), sb.str, value)) {
+    if (false == object_try_make_string(&vm->allocator, sb.str, value)) {
         sb_free(&sb);
         out_of_memory_error(vm);
     }
@@ -101,7 +101,7 @@ static bool repr(VirtualMachine *vm, Object *args, Object **value) {
         os_error(vm, error_code);
     }
 
-    if (false == object_try_make_string(vm_allocator(vm), sb.str, value)) {
+    if (false == object_try_make_string(&vm->allocator, sb.str, value)) {
         sb_free(&sb);
         out_of_memory_error(vm);
     }
@@ -152,7 +152,7 @@ static bool plus(VirtualMachine *vm, Object *args, Object **value) {
         acc += arg->as_int;
     }
 
-    if (object_try_make_int(vm_allocator(vm), acc, value)) {
+    if (object_try_make_int(&vm->allocator, acc, value)) {
         return true;
     }
 
@@ -166,7 +166,7 @@ static bool minus(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(value);
 
     if (OBJECT_NIL == args) {
-        if (object_try_make_int(vm_allocator(vm), 0, value)) {
+        if (object_try_make_int(&vm->allocator, 0, value)) {
             return true;
         }
 
@@ -187,7 +187,7 @@ static bool minus(VirtualMachine *vm, Object *args, Object **value) {
         acc -= arg->as_int;
     }
 
-    if (object_try_make_int(vm_allocator(vm), acc, value)) {
+    if (object_try_make_int(&vm->allocator, acc, value)) {
         return true;
     }
 
@@ -209,7 +209,7 @@ static bool multiply(VirtualMachine *vm, Object *args, Object **value) {
         acc *= arg->as_int;
     }
 
-    if (object_try_make_int(vm_allocator(vm), acc, value)) {
+    if (object_try_make_int(&vm->allocator, acc, value)) {
         return true;
     }
 
@@ -223,7 +223,7 @@ static bool divide(VirtualMachine *vm, Object *args, Object **value) {
     guard_is_not_null(value);
 
     if (OBJECT_NIL == args) {
-        if (object_try_make_int(vm_allocator(vm), 1, value)) {
+        if (object_try_make_int(&vm->allocator, 1, value)) {
             return true;
         }
 
@@ -248,7 +248,7 @@ static bool divide(VirtualMachine *vm, Object *args, Object **value) {
         acc /= arg->as_int;
     }
 
-    if (object_try_make_int(vm_allocator(vm), acc, value)) {
+    if (object_try_make_int(&vm->allocator, acc, value)) {
         return true;
     }
 
@@ -322,7 +322,7 @@ static bool list_prepend(VirtualMachine *vm, Object *args, Object **value) {
         type_error(vm, list->type, TYPE_LIST, TYPE_NIL);
     }
 
-    if (object_try_make_list(vm_allocator(vm), element, list, value)) {
+    if (object_try_make_list(&vm->allocator, element, list, value)) {
         return true;
     }
 
@@ -346,7 +346,7 @@ static bool list_reverse(VirtualMachine *vm, Object *args, Object **value) {
         type_error(vm, list->type, TYPE_LIST, TYPE_NIL);
     }
 
-    if (false == object_try_deep_copy(vm_allocator(vm), list, value)) {
+    if (false == object_try_deep_copy(&vm->allocator, list, value)) {
         out_of_memory_error(vm);
     }
 
@@ -366,7 +366,7 @@ static bool list_concat(VirtualMachine *vm, Object *args, Object **value) {
             type_error(vm, it->type, TYPE_LIST, TYPE_NIL);
         }
 
-        if (false == object_try_deep_copy(vm_allocator(vm), it, rest)) {
+        if (false == object_try_deep_copy(&vm->allocator, it, rest)) {
             out_of_memory_error(vm);
         }
 
@@ -406,7 +406,7 @@ static bool type(VirtualMachine *vm, Object *args, Object **value) {
     }
 
     auto const arg = args->as_list.first;
-    return object_try_make_symbol(vm_allocator(vm), object_type_str(arg->type), value);
+    return object_try_make_symbol(&vm->allocator, object_type_str(arg->type), value);
 }
 
 static bool traceback(VirtualMachine *vm, Object *args, Object **value) {
@@ -421,7 +421,7 @@ static bool traceback(VirtualMachine *vm, Object *args, Object **value) {
         call_args_count_error(vm, "traceback", expected, got);
     }
 
-    if (false == traceback_try_get(vm_allocator(vm), vm_stack(vm), value)) {
+    if (false == traceback_try_get(&vm->allocator, &vm->stack, value)) {
         out_of_memory_error(vm);
     }
     object_list_shift(value);
@@ -446,7 +446,7 @@ static bool throw(VirtualMachine *vm, Object *args, Object **value) {
         type_error(vm, error->type);
     }
 
-    *vm_error(vm) = error;
+    vm->error = error;
     return false;
 }
 
@@ -462,7 +462,7 @@ static bool dict_dict(VirtualMachine *vm, Object *args, Object **result) {
         auto const key = object_list_shift(&args);
         auto const value = OBJECT_NIL == args ? OBJECT_NIL : object_list_shift(&args);
 
-        if (object_dict_try_put(vm_allocator(vm), *result, key, value, result)) {
+        if (object_dict_try_put(&vm->allocator, *result, key, value, result)) {
             continue;
         }
 
@@ -509,7 +509,7 @@ static bool dict_put(VirtualMachine *vm, Object *args, Object **result) {
         type_error(vm, dict->type, TYPE_NIL, TYPE_DICT);
     }
 
-    if (object_dict_try_put(vm_allocator(vm), dict, key, value, result)) {
+    if (object_dict_try_put(&vm->allocator, dict, key, value, result)) {
         return true;
     }
 

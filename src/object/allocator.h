@@ -19,7 +19,6 @@ typedef struct {
     Object **value;
     Object **error;
     Object **exprs;
-    Objects *constants;
 } ObjectAllocator_Roots;
 
 typedef struct ObjectAllocator ObjectAllocator;

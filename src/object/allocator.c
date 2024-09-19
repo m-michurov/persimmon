@@ -43,7 +43,6 @@ void allocator_set_roots(ObjectAllocator *a, ObjectAllocator_Roots roots) {
     update_root(a->_roots, roots, value);
     update_root(a->_roots, roots, error);
     update_root(a->_roots, roots, exprs);
-    update_root(a->_roots, roots, constants); // NOLINT(*-sizeof-expression)
 }
 
 [[nodiscard]]
@@ -168,12 +167,6 @@ static bool try_mark_(ObjectAllocator *a, Objects *gray) {
         return false;
     }
 
-    slice_for(it, a->_roots.constants) {
-        if (false == try_mark_gray_if_white(gray, *it)) {
-            return false;
-        }
-    }
-
     Object *obj;
     while (slice_try_pop(gray, &obj)) {
         if (false == try_mark_children(gray, obj)) {
@@ -276,8 +269,7 @@ static bool all_roots_set(ObjectAllocator const *a) {
            && nullptr != a->_roots.globals
            && nullptr != a->_roots.value
            && nullptr != a->_roots.error
-           && nullptr != a->_roots.exprs
-           && nullptr != a->_roots.constants;
+           && nullptr != a->_roots.exprs;
 }
 
 bool allocator_try_allocate(ObjectAllocator *a, size_t size, Object **obj) {

@@ -1,8 +1,6 @@
 #include "virtual_machine.h"
 
 #include "utility/guards.h"
-#include "utility/slice.h"
-#include "utility/dynamic_array.h"
 #include "object/constructors.h"
 #include "reader/reader.h"
 #include "env.h"
@@ -10,49 +8,7 @@
 #include "constants.h"
 #include "primitives.h"
 
-struct VirtualMachine {
-    Stack stack;
-    ObjectReader reader;
-    ObjectAllocator allocator;
-
-    Object *globals;
-    Object *value;
-    Object *error;
-    Object *exprs;
-
-    Objects constants;
-};
-
-static bool try_wrap_atom(ObjectAllocator *a, char const *name, Object **value) {
-    guard_is_not_null(a);
-    guard_is_not_null(name);
-    guard_is_not_null(value);
-
-    return object_try_make_symbol(a, name, value)
-           && object_try_make_list(a, *value, OBJECT_NIL, value);
-}
-
-static bool try_init_static(ObjectAllocator *a, Objects *constants) {
-    guard_is_not_null(a);
-    guard_is_not_null(constants);
-    guard_is_greater_or_equal(constants->count, STATIC_CONSTANTS_COUNT);
-
-    return try_wrap_atom(a, "OSError", slice_at(constants, STATIC_OS_ERROR_DEFAULT))
-           && try_wrap_atom(a, "TypeError", slice_at(constants, STATIC_TYPE_ERROR_DEFAULT))
-           && try_wrap_atom(a, "CallError", slice_at(constants, STATIC_CALL_ERROR_DEFAULT))
-           && try_wrap_atom(a, "NameError", slice_at(constants, STATIC_NAME_ERROR_DEFAULT))
-           && try_wrap_atom(a, "ZeroDivisionError", slice_at(constants, STATIC_ZERO_DIVISION_ERROR_DEFAULT))
-           && try_wrap_atom(a, "OutOfMemoryError", slice_at(constants, STATIC_OUT_OF_MEMORY_ERROR_DEFAULT))
-           && try_wrap_atom(a, "StackOverflowError", slice_at(constants, STATIC_STACK_OVERFLOW_ERROR_DEFAULT))
-           && try_wrap_atom(a, "SyntaxError", slice_at(constants, STATIC_SYNTAX_ERROR_DEFAULT))
-           && try_wrap_atom(a, "SpecialFormError", slice_at(constants, STATIC_SPECIAL_ERROR_DEFAULT))
-           && try_wrap_atom(a, "BindingError", slice_at(constants, STATIC_BINDING_ERROR_DEFAULT))
-           && try_wrap_atom(a, "KeyError", slice_at(constants, STATIC_KEY_ERROR_DEFAULT));
-}
-
-VirtualMachine *vm_new(VirtualMachine_Config config) {
-    auto const vm = (VirtualMachine *) guard_succeeds(calloc, (1, sizeof(VirtualMachine)));
-
+bool vm_try_init(VirtualMachine *vm, VirtualMachine_Config config) {
     *vm = (VirtualMachine) {
             .allocator = allocator_make(config.allocator_config),
             .globals = OBJECT_NIL,
@@ -67,37 +23,29 @@ VirtualMachine *vm_new(VirtualMachine_Config config) {
             .value = &vm->value,
             .error = &vm->error,
             .exprs = &vm->exprs,
-            .constants = &vm->constants
     });
 
-    for (size_t i = 0; i < STATIC_CONSTANTS_COUNT; i++) {
-        guard_is_true(da_try_append(&vm->constants, OBJECT_NIL)); // NOLINT(*-sizeof-expression)
+    errno_t error_code;
+    auto const ok = stack_try_init(&vm->stack, config.stack_config, &error_code)
+           && object_reader_try_init(&vm->reader, vm, config.reader_config, &error_code)
+           && env_try_create(&vm->allocator, OBJECT_NIL, &vm->globals)
+           && try_define_constants(&vm->allocator, vm->globals)
+           && try_define_primitives(&vm->allocator, vm->globals);
+    if (false == ok) {
+        vm_free(vm);
     }
 
-    errno_t error_code;
-    guard_is_true(stack_try_init(&vm->stack, config.stack_config, &error_code));
-    guard_is_true(object_reader_try_init(&vm->reader, vm, config.reader_config, &error_code));
-
-    guard_is_true(env_try_create(&vm->allocator, OBJECT_NIL, &vm->globals));
-
-    guard_is_true(try_define_constants(&vm->allocator, vm->globals));
-    guard_is_true(try_define_primitives(&vm->allocator, vm->globals));
-
-    guard_is_true(try_init_static(&vm->allocator, &vm->constants));
-
-    return vm;
+    return ok;
 }
 
-void vm_free(VirtualMachine **vm) {
+void vm_free(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
-    object_reader_free(&(*vm)->reader);
-    allocator_free(&(*vm)->allocator);
-    stack_free(&(*vm)->stack);
-    free((*vm)->constants.data);
+    object_reader_free(&vm->reader);
+    allocator_free(&vm->allocator);
+    stack_free(&vm->stack);
 
-    free(*vm);
-    *vm = nullptr;
+    *vm = (VirtualMachine) {0};
 }
 
 ObjectAllocator *vm_allocator(VirtualMachine *vm) {
@@ -140,12 +88,4 @@ Object **vm_exprs(VirtualMachine *vm) {
     guard_is_not_null(vm);
 
     return &vm->exprs;
-}
-
-Object *vm_get(VirtualMachine const *vm, VirtualMachine_StaticConstantName name) {
-    guard_is_not_null(vm);
-
-    auto const value = *slice_at(&vm->constants, name);
-    guard_is_not_null(value);
-    return value;
 }
